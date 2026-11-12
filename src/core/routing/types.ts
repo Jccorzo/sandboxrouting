@@ -90,8 +90,9 @@ export interface PlanEntry {
 /**
  * A provider left out of a plan. `until` is when its reason may stop applying (ms epoch): a
  * mark's expiry, the circuit's reopening, the monthly reset, the soonest deadline among the
- * sandboxes filling its free slots. Absent, waiting won't change it (a missing key, capability
- * or isolation, a lifetime cap, paid usage off).
+ * sandboxes filling its free slots, now for a half-open free tier whose probe is in flight.
+ * Absent, waiting won't change it (a missing key, capability or isolation, a lifetime cap, paid
+ * usage off).
  */
 export interface Skip {
   provider: string;

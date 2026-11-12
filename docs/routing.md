@@ -36,7 +36,7 @@ A provider that fails any of these is skipped, with the reason recorded in `plan
 | 9 | Isolation weaker than `minIsolation` (or unknown) | `info.isolation`, config override |
 | 10 | Rate-limit or auth mark in force | ledger marks |
 | 11 | Circuit open (repeated infrastructure failures), or half-open with its one probe in flight | ledger health samples |
-| 12 | Neither free usage nor paid usage can take it | free status, lifetime cap, free concurrency, `allowPaid`, `maxPaidUsdPerMonth` |
+| 12 | Neither free usage nor paid usage can take it | free status (a quota mark in force, or a half-open free tier's probe in flight), lifetime cap, free concurrency, `allowPaid`, `maxPaidUsdPerMonth` |
 
 Filter 12 also decides the *billing* of every surviving candidate: `free` (a free tier
 covers it), `self-hosted` (your hardware) or `paid`.
@@ -168,6 +168,44 @@ their own marks and don't count here. Everything else is computed when it is rea
 
 Nothing stores "open" or "closed", so there is no flag to forget to clear.
 
+### Refusals and marks
+
+A refusal marks the provider in the ledger. A mark is in force until its `until`, which is
+evaluated on read, so nothing has to clear it then.
+
+| Refusal | Mark |
+|---|---|
+| 429 | Skipped for a minute. |
+| 401 or 403 | Skipped for 10 minutes. |
+| 402 or "out of credit" | Free usage can't take requests: a monthly tier until its reset; any other tier for 1 day, then 2, then 4, then 7 days each time it refuses again. |
+
+A quota mark has a lifecycle, decided in `src/core/marks.ts`:
+
+```
+refused ──until passes──▶ half-open ──a free create works──▶ no mark
+   ▲                          │
+   └──────another refusal─────┘
+```
+
+- **Refused**: the free tier is used up, and the skip says when the mark lapses.
+- **Half-open**: like a half-open circuit, one free create may check whether the free tier
+  is back. While it is in flight, other requests skip the free tier ("a probe is in flight",
+  which may change at any moment) instead of sending a burst into the same refusal. A refused
+  probe and its renewed mark are one ledger write, so no request sees the tier half-open
+  with nothing in flight in between.
+- The lapsed mark stays in the ledger until a free create works, so a refusal before then
+  is a repeat. The free create that works removes it, and the next refusal counts from one
+  day again.
+- A refusal while the mark is in force (a create already in flight when it was set, a call
+  on a box) changes nothing. Paid creates don't probe a free tier and don't clear its mark.
+- `sbr reset <provider>` clears the marks after you top up or fix a key.
+
+In the simulator's `external-usage` scenario (a one-time credit spent outside the router),
+`fastest` used to ask the spent credit again every day: about 30 refusals a month, and
+after a lapse a burst could send 10 creates into the same refusal. Now, after the first
+refusal on day 0, it asks on days 1, 3, 7, 14, 21 and 28, one create each time: 7 refusals a
+month. The first refusal can still be a burst, since nothing has refused yet.
+
 ---
 
 ## 3. Jobs: continuing work on another box
@@ -258,7 +296,7 @@ During a step (reactive):
 | The checkpoint can't be saved locally (disk full) | Record the step's success, then fail the job and kill the box |
 | Exit 137 with `growMemoryOnOom` | Move to a box with twice the memory (up to `maxMemoryMiB`): `oom` |
 | Non-zero exit | `retries` left: restore and re-run; else the job fails (it's the job's own failure) |
-| No provider can take it now | Every skip says when its reason lapses: a mark's expiry, the circuit's reopening, the monthly reset, or "any moment" for a full free tier (a slot frees when a box is killed). The job waits for the first one, polling every 5–15 s, if it comes within `maxWaitSec`. Otherwise it fails at once with every provider's reason. Permanent reasons (no key, no `gpu`, paid off) never cause a wait. |
+| No provider can take it now | Every skip says when its reason lapses: a mark's expiry, the circuit's reopening, the monthly reset, or "any moment" for a full free tier (a slot frees when a box is killed) or a free tier whose probe is in flight. The job waits for the first one, polling every 5–15 s, if it comes within `maxWaitSec`. Otherwise it fails at once with every provider's reason. Permanent reasons (no key, no `gpu`, paid off) never cause a wait. |
 
 The next box comes from the router with:
 

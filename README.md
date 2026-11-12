@@ -191,7 +191,7 @@ it does next:
 
 | Refusal | What happens next |
 |---|---|
-| 402 or "out of credit" | The free tier is marked used up until the monthly reset. One-time grants are retried after a day. |
+| 402 or "out of credit" | The free tier is marked used up until the monthly reset. Other grants are checked again after 1 day, then 2, then 4, then weekly while they keep refusing. When a mark lapses, one request checks whether the tier is back while the others skip it; a free create that works clears the mark. |
 | 429 | The provider is cooled down for a minute. |
 | 401 or 403 | The provider is skipped for 10 minutes. |
 | Network errors and 5xx | The router moves on to the next provider. Three in a row open the provider's **circuit**: it is skipped for 2 minutes. The cooldown doubles with each further failure, up to 30. Then one request probes it. |

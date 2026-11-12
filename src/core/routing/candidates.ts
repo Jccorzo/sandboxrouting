@@ -5,7 +5,6 @@
 import { ISOLATION_STRENGTH, type ProviderAdapter, type ProviderContext } from "../types.js";
 import { isLive, type SandboxRecord } from "../state.js";
 import {
-  availability,
   committed,
   committedSeconds,
   effectiveFreeTier,
@@ -19,6 +18,7 @@ import {
   type FreeStatus,
   type Spend,
 } from "../metering.js";
+import { availability, quotaProbeInFlight, quotaState } from "../marks.js";
 import { providerHealth } from "../health.js";
 import type { Billing, Candidate, PolicyInput, Skip } from "./types.js";
 
@@ -153,12 +153,14 @@ function assess(input: PolicyInput, adapter: ProviderAdapter, budget: Budget | u
     : ratePerSecondUsd;
   const live = liveCount(data, id, now, isLive);
   const cap = cfg?.concurrency ?? info.freeTier.concurrency;
+  const quota = quotaState(data, id, now);
   const freeNo = freeProblem(free, committed(info, cfg, data, now).free, {
     rate: costRate,
     timeoutSec: spec.timeoutSec,
     lifetimeCap: info.freeTier.maxLifetimeSec,
     cap,
     live,
+    probing: quota.state === "half-open" && quotaProbeInFlight(data, id, quota.since),
     now,
   });
   const allowPaid = cfg?.allowPaid ?? config.allowPaid;
@@ -205,9 +207,10 @@ function assess(input: PolicyInput, adapter: ProviderAdapter, budget: Budget | u
 function freeProblem(
   free: FreeStatus,
   held: Spend,
-  o: { rate: number; timeoutSec: number; lifetimeCap?: number; cap?: number; live: number; now: number },
+  o: { rate: number; timeoutSec: number; lifetimeCap?: number; cap?: number; live: number; probing: boolean; now: number },
 ): Problem | undefined {
-  if (free.state === "exhausted") return { reason: `free tier used up (${free.reason})`, until: free.resetsAt };
+  // A refusal is checked again when its mark lapses; usage the ledger metered comes back at the reset.
+  if (free.state === "exhausted") return { reason: `free tier used up (${free.reason})`, until: free.refusedUntil ?? free.resetsAt };
   if (free.state === "none") return { reason: "no free tier" };
   if (o.lifetimeCap !== undefined && o.timeoutSec > o.lifetimeCap) return { reason: `timeout over the free tier's ${o.lifetimeCap}s limit` };
   if (free.state === "available") {
@@ -225,6 +228,8 @@ function freeProblem(
       };
     }
   }
+  // Half-open after a refusal: one free create at a time checks whether the tier is back.
+  if (o.probing) return { reason: "free tier half-open after a refusal; a probe is in flight", until: o.now };
   // Full: a slot frees as soon as a box is killed (at the latest at the soonest deadline).
   if (o.cap !== undefined && o.live >= o.cap) return { reason: `free tier allows ${o.cap} at once and ${o.live} are live`, until: o.now };
   return undefined;

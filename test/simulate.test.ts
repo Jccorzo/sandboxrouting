@@ -95,7 +95,7 @@ describe("external usage", () => {
       const refused = attempts.filter((a) => a.outcome === "refused");
       refusals += refused.length;
       for (const no of refused) {
-        // A one-time credit's mark lasts a day. Creates already in flight when the 402 came back don't count.
+        // A one-time credit's mark lasts a day, and longer when it repeats. Creates already in flight when the 402 came back don't count.
         expect(attempts.filter((a) => a.start > no.end && a.start < no.end + DAY), r.strategy).toEqual([]);
       }
       expect(r.metrics.failures[EXTERNAL]?.["quota"] ?? 0, r.strategy).toBe(refused.length);

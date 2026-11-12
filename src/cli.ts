@@ -146,6 +146,8 @@ function freeText(f: FreeStatus): string {
     case "none":
       return "no free tier";
     case "exhausted":
+      // A refusal is checked again when its mark lapses; usage the ledger metered comes back at the reset.
+      if (f.refusedUntil !== undefined) return `used up (refused), checked again ${new Date(f.refusedUntil).toISOString().slice(0, 16)}Z`;
       return `used up${f.resetsAt ? ` until ${new Date(f.resetsAt).toISOString().slice(0, 10)}` : ""}`;
     case "available": {
       const left = f.unit === "usd" ? `$${f.remaining.toFixed(2)}` : `${f.remaining.toFixed(1)} h`;

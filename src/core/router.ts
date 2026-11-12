@@ -9,17 +9,8 @@ import { parseConfig, strategyNameFor, type RouterConfig } from "./config.js";
 import { defaultHome, FileLedger, MemoryLedger, newSandboxId, type HealthSample, type Ledger, type LedgerData, type MarkKind } from "./ledger.js";
 import { classify, NoProviderAvailableError, SandboxRouterError, type RouteAttempt } from "./errors.js";
 import { effectiveState, isLive, transition, type EffectiveState, type SandboxEvent, type SandboxRecord } from "./state.js";
-import {
-  availability,
-  billableSeconds,
-  effectivePricing,
-  freeStatus,
-  monthKey,
-  monthWindow,
-  ratePerSecond,
-  type Availability,
-  type FreeStatus,
-} from "./metering.js";
+import { billableSeconds, effectivePricing, freeStatus, monthKey, monthWindow, ratePerSecond, type FreeStatus } from "./metering.js";
+import { availability, freeCreateWorked, markRefusal, refusalKind, type Availability } from "./marks.js";
 import { billingProblem, eligibility, isConfigured, plan, type Plan } from "./policy.js";
 import { holdProblem } from "./routing/candidates.js";
 import type { PolicyInput, ProviderHealth, RoutingStrategy } from "./routing/types.js";
@@ -249,15 +240,18 @@ export class SandboxRouter {
         made = await adapter.create(forProvider, this.ctxFor(adapter));
       } catch (raw) {
         const err = classify(raw, entry.provider);
-        await this.ledger.update((data) => {
+        // One write for the failed record and its sample or mark: a refused probe of a half-open
+        // free tier and the mark that renews it land together, so no plan sees the tier half-open
+        // with nothing in flight and sends another create into the same refusal.
+        const marked = await this.ledger.update((data) => {
           const now = this.now();
           const rec = data.sandboxes[id];
           // A create this slow may already be recorded as lost by the sweep.
           if (rec?.state === "creating") data.sandboxes[id] = transition(rec, { type: "createFailed", error: err.message }, now);
           // Only infrastructure trouble counts toward health; refusals have their own marks.
           if (err.kind === "transient") recordHealth(data, entry.provider, { at: new Date(now).toISOString(), op: "create", ok: false, kind: err.kind }, keep);
+          return this.mark(data, entry.provider, err, now);
         });
-        const marked = await this.markFromError(entry.provider, err);
         // A refusal lapses with its mark; a transient failure may pass at once (the circuit breaker
         // benches a provider that keeps failing); anything else won't change by waiting.
         const retry = marked ?? (err.kind === "transient" ? this.now() : undefined);
@@ -280,6 +274,8 @@ export class SandboxRouter {
             now,
           );
           recordHealth(data, entry.provider, { at: new Date(now).toISOString(), op: "create", ok: true, ms: Math.max(0, now - started) }, keep);
+          // A free create that works is what a half-open free tier was waiting for: it's back.
+          if (rec.billing === "free") freeCreateWorked(data, entry.provider, now);
           return undefined;
         });
       } catch (err) {
@@ -522,30 +518,21 @@ export class SandboxRouter {
     });
   }
 
-  /** Marks a provider after a refusal; returns when the mark lapses (ms epoch), if it set one. */
+  /** Marks a provider after a refusal; returns when its mark lapses (ms epoch), if the error is a refusal. */
   async markFromError(provider: string, err: SandboxRouterError): Promise<number | undefined> {
-    const now = this.now();
-    let kind: MarkKind | undefined;
-    let until = now;
-    if (err.kind === "quota") {
-      kind = "quota";
-      const tier = this.config.providers[provider]?.freeTier ?? this.adapter(provider).info.freeTier.tier;
-      // Monthly grants come back at the reset; anything else is re-tried after a day.
-      until = tier.kind === "monthly-credit" || tier.kind === "monthly-hours" ? monthWindow(now).to : now + DAY;
-    } else if (err.kind === "rate_limit") {
-      kind = "rate_limit";
-      until = now + 60_000;
-    } else if (err.kind === "auth") {
-      kind = "auth";
-      until = now + 10 * 60_000;
-    }
-    if (!kind) return undefined;
-    const mark = { provider, kind, at: new Date(now).toISOString(), until: new Date(until).toISOString(), detail: err.message.slice(0, 200) };
-    await this.ledger.update((data) => {
-      data.marks = data.marks.filter((m) => Date.parse(m.until) > now && !(m.provider === provider && m.kind === kind));
-      data.marks.push(mark);
-    });
-    return until;
+    if (refusalKind(err.kind) === undefined) return undefined;
+    return this.ledger.update((data) => this.mark(data, provider, err, this.now()));
+  }
+
+  /** The mark for a refusal, under the ledger lock. How long it lasts is decided in marks.ts. */
+  private mark(data: LedgerData, provider: string, err: SandboxRouterError, now: number): number | undefined {
+    const kind = refusalKind(err.kind);
+    if (kind === undefined) return undefined;
+    const tier = this.config.providers[provider]?.freeTier ?? this.adapter(provider).info.freeTier.tier;
+    // A monthly grant comes back at the reset; any other refusal is checked again later each time.
+    const monthly = tier.kind === "monthly-credit" || tier.kind === "monthly-hours";
+    const resetsAt = kind === "quota" && monthly ? monthWindow(now).to : undefined;
+    return markRefusal(data, { provider, kind, detail: err.message.slice(0, 200), now, resetsAt });
   }
 
   /**

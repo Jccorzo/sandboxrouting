@@ -28,14 +28,25 @@ export interface HealthSample {
   kind?: ErrorKind;
 }
 
-export interface ProviderMark {
+interface MarkFields {
   provider: string;
-  kind: MarkKind;
   at: string;
   /** When the mark stops applying. Evaluated on read; nothing has to clear it. */
   until: string;
   detail?: string;
 }
+
+/**
+ * A provider's refusal. A quota mark outlives its `until`: the free tier is then half-open until a
+ * free create works, and another refusal is a repeat (src/core/marks.ts).
+ */
+export type ProviderMark =
+  | (MarkFields & {
+      kind: "quota";
+      /** Refusals in a row with no free create working in between. Absent in ledgers from before: 1. */
+      refusals?: number;
+    })
+  | (MarkFields & { kind: "rate_limit" | "auth" });
 
 export interface LedgerData {
   version: 1;

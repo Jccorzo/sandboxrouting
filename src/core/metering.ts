@@ -3,8 +3,9 @@
 // stores the verdict.
 
 import type { FreeTier, Pricing, ProviderInfo, ProviderUsage } from "./types.js";
-import type { LedgerData, ProviderMark } from "./ledger.js";
+import type { LedgerData } from "./ledger.js";
 import type { SandboxRecord } from "./state.js";
+import { quotaState } from "./marks.js";
 import type { ProviderConfig } from "./config.js";
 import type { Billing } from "./routing/types.js";
 
@@ -135,22 +136,13 @@ export type FreeStatus =
       resetsAt?: number;
       basis: "ledger" | "provider";
     }
-  | { state: "exhausted"; resetsAt?: number; reason: string };
-
-export type Availability =
-  | { ok: true }
-  | { ok: false; reason: string; until: number; kind: ProviderMark["kind"] };
-
-/** Marks still in force for a provider. A mark past `until` simply stops counting. */
-export function activeMarks(data: LedgerData, provider: string, now: number): ProviderMark[] {
-  return data.marks.filter((m) => m.provider === provider && ms(m.until) > now);
-}
-
-export function availability(data: LedgerData, provider: string, now: number): Availability {
-  const blocking = activeMarks(data, provider, now).find((m) => m.kind === "rate_limit" || m.kind === "auth");
-  if (!blocking) return { ok: true };
-  return { ok: false, kind: blocking.kind, until: ms(blocking.until), reason: blocking.detail ?? blocking.kind };
-}
+  | {
+      state: "exhausted";
+      resetsAt?: number;
+      /** When the provider's refusal (a quota mark) lapses: one free create may then check whether the tier is back. */
+      refusedUntil?: number;
+      reason: string;
+    };
 
 export function freeStatus(
   info: ProviderInfo,
@@ -165,9 +157,9 @@ export function freeStatus(
 
   const pricing = effectivePricing(info, cfg);
   const month = monthWindow(now);
-  const quota = activeMarks(data, info.id, now).find((m) => m.kind === "quota");
+  const quota = quotaState(data, info.id, now);
   const resetsAt = tier.kind === "one-time-credit" ? undefined : month.to;
-  if (quota) return { state: "exhausted", resetsAt, reason: quota.detail ?? "provider reported its quota used up" };
+  if (quota.state === "refused") return { state: "exhausted", resetsAt, refusedUntil: quota.until, reason: quota.reason };
 
   let remaining: number;
   let grant: number;
