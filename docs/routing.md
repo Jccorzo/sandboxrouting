@@ -135,6 +135,19 @@ strategy it reports:
 Your own strategy runs next to the built-ins with `simulate({ strategies: [mine] })`. Change
 a strategy, run it, and compare the tables before you switch.
 
+**A flaky free tier.** In `flaky` (modal, a monthly tier, fails 30% of creates) `balanced`
+fails over about as often as `free-first`: 4302 against 4469 times over 8 seeds of 30 days,
+where `fastest` fails over 679 times. Weighting health more within the lane doesn't change
+that. At 200 requests a day every monthly tier is spent by the reset whatever the order in
+the lane, modal's $30 included, so its failovers are the creates that spending it takes.
+Discounting the score by the success rate (up to its 8th power), or giving the success rate
+a 24-hour memory, only moved those creates later in the month: failovers stayed within 2%,
+and `steady` served fewer requests (up to 235 fewer over the 8 seeds). Only leaving modal's
+credit unspent cuts them. Putting an unhealthy monthly tier after the one-time credits cut
+failovers by 65%, but about $24 a month of its credit expired, $17 a month more one-time
+credit was spent, and `outage` served fewer requests. That is the trade `fastest` makes by
+design, so `balanced` keeps the free-first lanes.
+
 ### Choosing one
 
 ```jsonc

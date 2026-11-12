@@ -108,8 +108,9 @@ describe("external usage", () => {
 describe("flaky", () => {
   it("balanced and fastest don't fail over more than free-first", async () => {
     // Summed over seeds: in 3 days the gap between free-first and balanced is small and one seed is
-    // noisy. Over 30 days balanced is only ~2% better at 200 requests a day, and worse at 150: its
-    // free-value term pulls a demoted provider straight back (see the simulator's report).
+    // noisy. Over 30 days balanced is only ~4% better at 200 requests a day, and ~3% worse at 150.
+    // No order within the lane does much better at 200: every monthly tier is spent by the reset,
+    // modal's credit included, and its failovers are the creates that takes (docs/routing.md).
     const total: Record<string, number> = { "free-first": 0, balanced: 0, fastest: 0 };
     for (const seed of [1, 2, 3, 4]) {
       const sim = await simulate({ days: 3, seed, scenarios: ["flaky"], only: Object.keys(total) });
