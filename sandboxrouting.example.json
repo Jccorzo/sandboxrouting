@@ -1,0 +1,17 @@
+{
+  "policy": "free-first",
+  "allowPaid": false,
+  "maxPaidUsdPerMonth": 10,
+  "selfHosted": "after-free",
+  "defaults": { "timeoutSec": 300 },
+  "providers": {
+    "e2b": { "usedBeforeUsd": 12.5 },
+    "daytona": { "priority": 10 },
+    "modal": { "options": { "app": "sandboxrouting", "ports": [8080] } },
+    "vercel": { "options": { "runtime": "node22", "ports": [3000] } },
+    "fly": { "enabled": false, "options": { "app": "my-sandboxes" } },
+    "openci": { "options": { "url": "https://ci.example.internal" } },
+    "docker": { "options": { "image": "python:3.12-slim", "runtime": "runsc" } },
+    "koyeb": { "allowPaid": true }
+  }
+}

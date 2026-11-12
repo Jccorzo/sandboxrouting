@@ -1,0 +1,357 @@
+# sandboxrouting
+
+One router for every cloud sandbox provider. You ask for a sandbox; the router picks a
+provider that still has free usage left, fails over when one refuses, and keeps track of
+what each sandbox costs. The four ways providers expose themselves — an SDK, a REST API, a
+CLI and an MCP server — are each here once, for all of them.
+
+```ts
+import { createRouter } from "sandboxrouting";
+
+const router = await createRouter();               // config file + keys from the environment
+const sbx = await router.create({ timeoutSec: 600 });
+const r = await sbx.commands.run("python3 -c 'print(6*7)'");
+await sbx.files.write("/work/app.py", "print('hi')");
+console.log(sbx.provider, r.stdout);               // e.g. "modal 42"
+await sbx.kill();
+```
+
+## Providers
+
+31 providers are built in: 29 cloud providers plus your own hardware (openci, local
+Docker). Terms were checked on 2026-11-11 against each provider's pricing page, which its
+adapter links. Terms change, so you can override any of them in config.
+
+### Free every month
+
+| id | Free usage | Free limits | Paid after | Isolation |
+|---|---|---|---|---|
+| `modal` | $30 / month | 100 concurrent, 24 h | ~$0.19/h (2 vCPU, 2 GiB) | gVisor |
+| `northflank` | $20 / month | 2 sandboxes | ~$0.017/vCPU-h | container |
+| `freestyle` | 200 vCPU-h + 400 GiB-h (≈ $13) | 10 concurrent | $0.040/vCPU-h | microVM |
+| `vercel` | 5 CPU-h + 420 GB-h (≈ $9.5) | 10 concurrent, 45 min | $0.128/CPU-h (active only) | Firecracker |
+| `instabox` | one 4 vCPU / 8 GiB machine, always free‡ | 1 machine, 8 h per run | $0.004/vCPU-h | Firecracker |
+| `upstash` | 5 CPU-hours | 10 concurrent, 2 vCPU / 4 GB | $0.10/h (2 vCPU) | container |
+| `cloudflare` | 375 vCPU-min + 25 GiB-h (≈ $0.68) with Workers Paid ($5/mo) | — | $0.072/vCPU-h (active only) | container |
+
+### One-time credit
+
+| id | Free usage | Free limits | Paid after | Isolation |
+|---|---|---|---|---|
+| `daytona` | $200* | 10 vCPU total | $0.050/vCPU-h | container |
+| `blaxel` | up to $200* | 10 concurrent, 7 days | $0.041/GB-h (memory only) | microVM |
+| `e2b` | $100 | 10 concurrent, 1 h | $0.050/vCPU-h | Firecracker |
+| `tenki` | $100 (card required) | 5 concurrent | $0.050/vCPU-h | microVM |
+| `boxlite` | $100 when you add a card* | per plan | $0.050/vCPU-h | microVM |
+| `runloop` | $50 | 3 running, 48 h | $0.108/vCPU-h | VM |
+| `dedalus` | $20 (beta access needed) | — | rates unpublished (estimate $0.05/vCPU-h) | Cloud Hypervisor |
+| `createos` | ~$5 (500 credits)* | 1 sandbox, 1 vCPU / 1 GB | $0.036/vCPU-h | Firecracker |
+| `quivvo` | $5 (signup queue) | 1 machine | $0.005/vCPU-h (shared) | Firecracker |
+| `celesto` | $5, expires after 30 days | 1 sandbox | $0.015/h (1 vCPU / 2 GB) | Firecracker |
+| `agent37` | $5 (card required) | 3 awake | $0.0011/vCPU-h | gVisor |
+| `boat` | 25 trial hours (≈ $0.45; card required) | 2 concurrent, 2 h | $0.018/h (2 vCPU / 4 GB) | VM |
+
+### Paid only
+
+| id | Price | Notes | Isolation |
+|---|---|---|---|
+| `koyeb` | $0.0144/h (1 vCPU, 1 GB) | | microVM |
+| `fly` | ~$0.01/h shared vCPU | needs an app (`FLY_APP`) | Firecracker |
+| `sprites` | $0.039/CPU-h; idle Sprites are free | | Firecracker |
+| `morph` | $0.05/vCPU-h | free credit disputed† | VM (memory snapshots) |
+| `together` | $0.045/vCPU-h | custom plans | Firecracker |
+| `depot` | $0.18/vCPU-h (CPU only) | 7-day trial | microVM |
+| `namespace` | $0.09/h per vCPU + 2 GB | 3 h max | microVM |
+| `lambda-microvm` | $0.10/vCPU-h + $0.013/GB-h | needs the execd image | Firecracker (ARM64) |
+| `thunder` | $0.051/vCPU-h | access through sales; exec over SSH | Firecracker (GPUs) |
+| `exedev` | $0.105/h (2 vCPU + 4 GiB) on top of a plan | 30 s per command | VM |
+
+### Your own hardware
+
+| id | Free usage | Isolation |
+|---|---|---|
+| `openci` | unlimited, on your workers | Firecracker / gVisor / Hyper-V |
+| `docker` | unlimited, on this machine | container |
+
+Footnotes:
+
+- \* The provider doesn't say whether the credit recurs, so it's treated as one-time, the safe reading.
+- † Morph's own pages disagree (a 300 MCU starting credit vs none). If your account has it, set
+  `"morph": { "freeTier": { "kind": "one-time-credit", "usd": 15 } }`.
+- ‡ InstaBox's free plan is never billed, but it says its "early allowance" can end. It's
+  modelled as a month of hours for one machine.
+
+### Not built
+
+| Provider | Why |
+|---|---|
+| AWS Nitro Sandboxes | It has no sandbox API. It's an EC2 feature: Firecracker on a Nitro Enclaves parent instance, or `ISOLATED_SANDBOX` tasks in ECS/EKS. The ECS path (`RunTask` plus ECS Exec) could become an adapter, but AWS doesn't say whether ECS Exec works in sandboxed tasks. |
+| Cube | It never had an API (Mac app, web and SSH only), and it is shutting down: new machines blocked since 2026-11-06, all machines deleted 2026-12-20. |
+
+### Keys and access surfaces
+
+| id | Key(s) | How the adapter connects |
+|---|---|---|
+| `e2b` | `E2B_API_KEY` | SDK `e2b` |
+| `daytona` | `DAYTONA_API_KEY` | SDK `@daytona/sdk` |
+| `modal` | `MODAL_TOKEN_ID`, `MODAL_TOKEN_SECRET` | SDK `modal` (gRPC) |
+| `vercel` | `VERCEL_TOKEN`, `VERCEL_TEAM_ID`, `VERCEL_PROJECT_ID` (or `VERCEL_OIDC_TOKEN`) | SDK `@vercel/sandbox` |
+| `runloop` | `RUNLOOP_API_KEY` | SDK `@runloop/api-client` |
+| `freestyle` | `FREESTYLE_API_KEY` | SDK `freestyle` |
+| `blaxel` | `BL_API_KEY`, `BL_WORKSPACE` | SDK `@blaxel/core` |
+| `northflank` | `NORTHFLANK_TOKEN`, `NORTHFLANK_PROJECT` | SDK `@northflank/js-client` |
+| `cloudflare` | `CLOUDFLARE_SANDBOX_URL`, `CLOUDFLARE_SANDBOX_TOKEN` | REST, to the bridge Worker in templates/cloudflare-worker |
+| `instabox` | `INSTABOX_API_KEY` | REST api.instabox.sh |
+| `upstash` | `UPSTASH_BOX_API_KEY` | SDK `@upstash/box` |
+| `tenki` | `TENKI_API_KEY` | SDK `@tenkicloud/sandbox` |
+| `boxlite` | `BOXLITE_API_KEY` | SDK `@boxlite-ai/boxlite` (native: macOS arm64, Linux glibc) |
+| `dedalus` | `DEDALUS_API_KEY` | REST dcs.dedaluslabs.ai/v1 |
+| `createos` | `CREATEOS_SANDBOX_API_KEY` | REST api.sb.createos.sh/v1 |
+| `quivvo` | `QUIVVO_API_KEY` | REST tryquivvo.com/api/v1 |
+| `celesto` | `CELESTO_API_KEY` | SDK `@celestoai/sdk` |
+| `agent37` | `AGENT37_API_KEY` | REST api.agent37.com/v1 + sandbox.agent37.app |
+| `boat` | `BOAT_API_KEY` | REST boat.dev/api/v1 |
+| `koyeb` | `KOYEB_API_TOKEN` | SDK `@koyeb/sandbox-sdk` |
+| `fly` | `FLY_API_TOKEN`, `FLY_APP` | REST api.machines.dev/v1 |
+| `sprites` | `SPRITES_TOKEN` | REST api.sprites.dev/v1 (the SDK needs Node 24) |
+| `morph` | `MORPH_API_KEY` | SDK `morphcloud` |
+| `together` | `TOGETHER_API_KEY` | SDK `together-sandbox` |
+| `depot` | `DEPOT_TOKEN` | SDK `@depot/sandbox` |
+| `namespace` | `NSC_TOKEN` | SDK `@namespacelabs/sdk` |
+| `lambda-microvm` | `LAMBDA_MICROVM_IMAGE` + AWS credentials | SDK `@aws-sdk/client-lambda-microvms`, plus execd (templates/aws-lambda-microvm) |
+| `thunder` | `TNR_API_TOKEN` | REST api.thundercompute.com:8443/v1, plus system `ssh` |
+| `exedev` | `EXE_API_TOKEN` (minted with `generate-api-key --cmds=new,ssh,rm,ls`) | REST `POST exe.dev/exec` |
+| `openci` | `OPENCI_URL`, `OPENCI_TOKEN` | REST /v1/sandboxes |
+| `docker` | none (`SBR_DOCKER=0` turns it off) | `docker` CLI |
+
+Provider SDKs are optional peer dependencies, loaded only when that provider is used:
+`npm install sandboxrouting e2b modal` installs the router plus two providers. A provider
+whose key is set but whose SDK is missing is skipped with an install hint.
+
+## How a provider is chosen
+
+`sbr route` prints this for any request. Under the default `free-first` policy the
+providers that can take the request go in lanes, in this order:
+
+1. **Monthly free usage**, which is lost at the reset. The provider with the most
+   unspent share per day left goes first, so nothing expires unused.
+2. **One-time free credit**, the provider with the largest unspent share first. This
+   drains the grants evenly instead of exhausting one.
+3. **Your own hardware** (openci, local Docker). `selfHosted: "first"` moves it ahead of
+   the cloud lanes, and `"never"` removes it.
+4. **Paid**, cheapest for the requested size first. This lane is **off by default**: with
+   `allowPaid: false` nothing is ever billed, and a request no free tier can take fails
+   with the reason for every provider. Turn it on globally or per provider. With
+   `maxPaidUsdPerMonth` set, paid routing stops when the month's spend reaches it.
+
+A provider is left out when:
+
+- it has no key;
+- it is disabled;
+- it lacks a capability in `needs` (`ports`, `pause`, `customImage`, `gpu`, `snapshot`,
+  `extendTimeout`, `fileList`);
+- it can't run the requested `image`;
+- the timeout is over its maximum;
+- its free concurrency is full;
+- the timeout is over its free lifetime cap (that sandbox would not be free).
+
+Within a lane, `priority` in config is the first tie-break.
+
+If the chosen provider refuses, the router tries the next one, and the refusal changes what
+it does next:
+
+| Refusal | What happens next |
+|---|---|
+| 402 or "out of credit" | The free tier is marked used up until the monthly reset (one-time grants are retried after a day). |
+| 429 | The provider is cooled down for a minute. |
+| 401 or 403 | The provider is skipped for 10 minutes. |
+| Network errors and 5xx | The router moves on to the next provider. |
+
+`sandbox.route` records every provider tried or skipped and why.
+
+### Metering
+
+No provider has an API that reports remaining free credit, which the research for this
+router confirmed. So the router meters locally. Every sandbox's running time is recorded as
+billing segments. Pausing closes a segment. A sandbox past its deadline is billed only up to
+the deadline. Cost is running time × (vCPU × vCPU price + GiB × GiB price), using the
+provider's prices or yours.
+
+Usage outside the router (the provider's console, another tool) isn't seen. For a one-time
+credit you have already spent part of, set `usedBeforeUsd`. If a provider refuses for quota
+anyway, the mark above catches it. Vercel bills CPU only while it is active, so metering it
+by wall clock is conservative: the router stops using Vercel's free tier before Vercel
+would.
+
+## The four surfaces
+
+All four share one ledger (`~/.sandboxrouting/ledger.json`; `SBR_HOME` moves it). It is
+locked for every update and written whole, so the CLI, the REST server and an MCP server
+running at once agree on what is live and what is spent.
+
+**SDK:** `create`, `connect(id)`, `list`, `kill`, `status`, `plan`, `sweep`. A sandbox has:
+
+- `commands.run(cmd, {cwd, env, timeoutSec, onStdout, onStderr})`
+- `files.read`, `files.readBytes`, `files.write`, `files.list`
+- `getUrl(port)`, `setTimeout(sec)`, `pause()`, `resume()`, `kill()`
+
+`connect("e2b:abc123")` adopts a sandbox created outside the router.
+
+**CLI:** `sbr --help`.
+
+```bash
+sbr providers                 # free-tier status of every provider
+sbr check                     # live create/exec/files/kill on every configured free provider
+sbr route --needs ports       # where a sandbox would go, and why the others were skipped
+sbr run -- python3 -c 'print(42)'          # create, run, kill; exit code passes through
+id=$(sbr create --image node:22 --timeout 900)
+sbr exec "$id" -- npm test
+sbr kill "$id"
+```
+
+**REST API:** `sbr serve --port 8787`. Set `serverToken` in config (or `SBR_SERVER_TOKEN`)
+to require `Authorization: Bearer …`. The endpoints are listed at the top of
+[src/server/http.ts](src/server/http.ts): `POST /v1/sandboxes`,
+`POST /v1/sandboxes/{id}/exec`, `GET|PUT /v1/sandboxes/{id}/files?path=`,
+`GET /v1/providers`, `POST /v1/route` and more. The server also reconciles with the
+providers every 5 minutes.
+
+**MCP server:** `sbr mcp` (stdio). Its tools are `list_providers`, `create_sandbox`,
+`run_command`, `read_file`, `write_file`, `list_files`, `get_url`, `set_timeout`,
+`list_sandboxes` and `kill_sandbox`. For Claude Code:
+
+```bash
+claude mcp add sandboxes -- node /path/to/sandboxrouting/dist/cli.js mcp
+```
+
+Once the package is published, `npx sandboxrouting mcp` works the same way.
+
+## Configuration
+
+`./sandboxrouting.json`, else `~/.sandboxrouting/config.json`, or the path in `SBR_CONFIG`.
+Every field is optional. See [sandboxrouting.example.json](sandboxrouting.example.json):
+
+```jsonc
+{
+  "policy": "free-first",          // or "cheapest"
+  "allowPaid": false,              // SBR_ALLOW_PAID=1 for one run
+  "maxPaidUsdPerMonth": 10,
+  "selfHosted": "after-free",      // "first" | "after-free" | "never"
+  "defaults": { "timeoutSec": 300 },
+  "providers": {
+    "e2b": { "usedBeforeUsd": 12.5 },
+    "daytona": { "freeTier": { "kind": "monthly-credit", "usd": 200 }, "priority": 10 },
+    "modal": { "options": { "ports": [8080] } },
+    "fly": { "enabled": false }
+  }
+}
+```
+
+`sbr reset <provider>` clears a provider's quota, rate-limit and auth marks after you top
+up or fix a key.
+
+## Adding a provider
+
+A provider is one file. Only `create`, `exec` and `kill` are required. The router
+implements file read, write and listing on top of `exec` (base64 in chunks, so binary is
+safe), and an adapter that can do better adds the native calls.
+
+```ts
+// src/providers/acme.ts
+import { defineProvider, httpJson } from "./util.js";
+
+export const acmeProvider = defineProvider({
+  info: {
+    id: "acme",
+    name: "Acme Sandboxes",
+    homepage: "https://acme.dev",
+    env: ["ACME_API_KEY"],
+    capabilities: ["customImage"],
+    freeTier: {
+      tier: { kind: "monthly-credit", usd: 10 },
+      concurrency: 5,
+      source: "https://acme.dev/pricing",
+      checked: "2026-11-11",
+    },
+    pricing: { vcpuSecondUsd: 0.00001, gibSecondUsd: 0.000003, defaultCpu: 1, defaultMemoryMiB: 1024 },
+  },
+  async create(spec, ctx) {
+    const s = await httpJson<{ id: string }>("https://api.acme.dev/v1/sandboxes", {
+      headers: { authorization: `Bearer ${ctx.env.ACME_API_KEY}` },
+      body: { image: spec.image, timeout: spec.timeoutSec, env: spec.env, metadata: spec.metadata },
+    });
+    return { providerSandboxId: s.id };
+  },
+  async exec(id, command, opts, ctx) { /* … */ return { stdout: "", stderr: "", exitCode: 0 }; },
+  async kill(id, ctx) { /* … */ },
+});
+```
+
+Then add it to [src/providers/index.ts](src/providers/index.ts), or call
+`router.register(acmeProvider)` from your own code. To finish:
+
+- Add `listAlive` so `sbr sweep` can close sandboxes that died behind the router's back.
+- If the provider keeps a sandbox alive past the requested timeout, set
+  `enforcesTimeout: false` in `info`. The router then deletes it at the deadline.
+- Make `create` throw errors with an HTTP `status`, so quota (402) and rate limits (429)
+  fail over correctly.
+- Run the tests: `test/providers.test.ts` checks that every built-in declares its
+  free-tier source and backs each capability it claims.
+
+## Providers with extra setup
+
+- **Cloudflare** has no hosted sandbox API: a sandbox is a Durable Object plus the
+  Container it starts, inside your own Worker. Deploy the bridge in
+  [templates/cloudflare-worker](templates/cloudflare-worker) (`npm install`, then
+  `npx wrangler secret put SANDBOX_TOKEN` and `npx wrangler deploy`). Then set
+  `CLOUDFLARE_SANDBOX_URL` to the Worker's URL and `CLOUDFLARE_SANDBOX_TOKEN` to the same
+  secret. The bridge uses `@cloudflare/sandbox` 1.x and destroys each container at its
+  deadline with a Durable Object alarm. The sandbox size is the `instance_type` in
+  `wrangler.jsonc`.
+- **No timeout of their own.** These providers don't stop a sandbox at the requested
+  timeout:
+  - Fly Sprites, Celesto, BoxLite, Dedalus, CreateOS, exe.dev and Agent37 have no TTL.
+  - A Northflank service restarts its container when it exits.
+
+  Their adapters declare `enforcesTimeout: false`, so the router deletes the sandbox at
+  the deadline itself. `sbr sweep` (run every 5 minutes by `sbr serve`) deletes any it
+  missed.
+- **AWS Lambda MicroVMs** have no exec API. Build the image in
+  [templates/aws-lambda-microvm](templates/aws-lambda-microvm): its dependency-free
+  `execd.mjs` runs commands and moves files behind the VM's endpoint. Then set
+  `LAMBDA_MICROVM_IMAGE` to the image ARN.
+- **Thunder Compute** runs commands over SSH only. The adapter generates a throwaway key,
+  gets a certificate from the API, and uses the system `ssh` and `ssh-keygen`. Sandbox
+  access is enabled through Thunder's sales team.
+- **exe.dev** has one API endpoint, `POST /exec`, which takes SSH command text and cuts
+  each call off at 30 seconds. Mint a token that may run `new`, `ssh`, `rm` and `ls`.
+- **Access gates:** Dedalus Machines needs beta access (403 until admitted), and Quivvo
+  puts new free accounts in a queue.
+- **Together and Morph** boot from snapshots. When you give an `image` (or nothing), the
+  adapter builds the snapshot once per image or size and reuses it. A `template`
+  (`--template together=<alias>`) skips that step.
+- **Fly Machines** needs an app you own (`FLY_APP`).
+- **Northflank** needs a project (`NORTHFLANK_PROJECT`).
+
+## Checking providers live
+
+Each cloud adapter is type-checked against that provider's real SDK. The HTTP-only adapters
+(`cloudflare`, `sprites`) are tested against servers that speak their wire formats. A live
+run still needs your keys: set them, then run
+
+```bash
+sbr check                      # every configured provider that has free usage left
+sbr check --provider koyeb     # a paid-only provider runs only when you name it
+```
+
+Each provider gets one small sandbox: it runs a command, writes, reads back and lists a
+file, then kills the sandbox. The check prints `ok` or the provider's own error.
+
+## Development
+
+```bash
+npm install
+npm run typecheck    # adapters are checked against the real provider SDK types
+npm test             # 89 tests; the Docker ones run real containers when Docker is up
+npm run build && node dist/cli.js providers
+```

@@ -1,0 +1,16 @@
+{
+  "name": "sandboxrouting-bridge",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-11-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "containers": [
+    { "class_name": "Sandbox", "image": "./Dockerfile", "instance_type": "standard-1", "max_instances": 20 }
+  ],
+  "durable_objects": {
+    "bindings": [
+      { "name": "SANDBOX", "class_name": "Sandbox" },
+      { "name": "REGISTRY", "class_name": "Registry" }
+    ]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Sandbox", "Registry"] }]
+}
