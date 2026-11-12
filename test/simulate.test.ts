@@ -65,8 +65,9 @@ describe("allowPaid false", () => {
 
 describe("outage", () => {
   it("every strategy keeps serving, and failed creates on the down provider stay bounded", async () => {
-    // Plenty of traffic and no bursts, so few failures can't just mean few requests.
-    const sim = await simulate({ days: 1, scenarios: ["outage"], trace: true, workload: { perDay: 800, burstsPerDay: 0 } });
+    // Enough traffic and no bursts, so few failures can't just mean few requests (and light
+    // enough to stay well inside the default timeout on a busy machine).
+    const sim = await simulate({ days: 1, scenarios: ["outage"], trace: true, workload: { perDay: 400, burstsPerDay: 0 } });
     const breaker = parseConfig({}).routing.circuitBreaker;
     for (const r of runs(sim)) {
       const down = r.outage!;

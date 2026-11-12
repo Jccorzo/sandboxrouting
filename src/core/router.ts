@@ -21,6 +21,7 @@ import {
   type FreeStatus,
 } from "./metering.js";
 import { billingProblem, eligibility, isConfigured, plan, type Plan } from "./policy.js";
+import { holdProblem } from "./routing/candidates.js";
 import type { PolicyInput, ProviderHealth, RoutingStrategy } from "./routing/types.js";
 import { StrategyRegistry } from "./routing/registry.js";
 import { providerHealth, recordHealth } from "./health.js";
@@ -444,6 +445,62 @@ export class SandboxRouter {
     await this.ledger.update((data) => {
       const rec = data.sandboxes[id];
       if (rec?.state === "running" || rec?.state === "paused") data.sandboxes[id] = transition(rec, { type: "stopped", reason: "killed" }, this.now());
+    });
+  }
+
+  /**
+   * Moves a running sandbox's deadline to `timeoutSec` from now, in the same write as the check
+   * that what it may then spend still fits its free tier or the month's budget (holdProblem).
+   * Throws a quota error, changing nothing, when it doesn't. Returns the old deadline, so a
+   * provider that then refuses can be given it back (`restoreDeadline`).
+   */
+  async reserveDeadline(id: string, timeoutSec: number): Promise<number> {
+    return this.ledger.update((data) => {
+      const rec = data.sandboxes[id];
+      const now = this.now();
+      if (!rec || rec.state !== "running" || effectiveState(rec, now) !== "running") {
+        throw new SandboxRouterError("invalid", `${id} isn't running, so its deadline can't move`);
+      }
+      const problem = holdProblem({ adapters: this.providers(), config: this.config, data, now }, rec, timeoutSec);
+      if (problem) throw new SandboxRouterError("quota", `can't keep ${id} for ${timeoutSec} s: ${problem}`, rec.provider);
+      data.sandboxes[id] = transition(rec, { type: "timeoutSet", timeoutSec }, now);
+      return Date.parse(rec.expiresAt);
+    });
+  }
+
+  /** Puts back a deadline `reserveDeadline` moved, when the provider didn't move it. */
+  async restoreDeadline(id: string, expiresAt: number): Promise<void> {
+    await this.ledger.update((data) => {
+      const rec = data.sandboxes[id];
+      const now = this.now();
+      if (rec?.state !== "running" || effectiveState(rec, now) !== "running") return; // gone or over meanwhile
+      data.sandboxes[id] = transition(rec, { type: "timeoutSet", timeoutSec: (expiresAt - now) / 1000 }, now);
+    });
+  }
+
+  /**
+   * Resumes a paused sandbox in the ledger for `timeoutSec`, in the same write as the check that
+   * what it may then spend fits (holdProblem). Throws a quota error, changing nothing, when it
+   * doesn't. `pauseAgain` undoes it when the provider then fails to resume.
+   */
+  async reserveResume(id: string, timeoutSec: number): Promise<void> {
+    await this.ledger.update((data) => {
+      const rec = data.sandboxes[id];
+      if (rec?.state !== "paused") throw new SandboxRouterError("invalid", `${id} isn't paused`);
+      const now = this.now();
+      const problem = holdProblem({ adapters: this.providers(), config: this.config, data, now }, rec, timeoutSec);
+      if (problem) throw new SandboxRouterError("quota", `can't resume ${id} for ${timeoutSec} s: ${problem}`, rec.provider);
+      data.sandboxes[id] = transition(rec, { type: "resumed", timeoutSec }, now);
+    });
+  }
+
+  /** Undoes `reserveResume` when the provider didn't resume the sandbox. */
+  async pauseAgain(id: string): Promise<void> {
+    await this.ledger.update((data) => {
+      const rec = data.sandboxes[id];
+      const now = this.now();
+      if (rec?.state !== "running" || effectiveState(rec, now) !== "running") return;
+      data.sandboxes[id] = transition(rec, { type: "paused" }, now);
     });
   }
 

@@ -51,6 +51,11 @@ amount is priced at that box's own size and recorded with how it is billed.
 - With `maxPaidUsdPerMonth` set, paid usage takes a request only if the budget left, after
   this month's spend and every live paid sandbox's hold, covers its full timeout.
 
+Moving a live sandbox's deadline (`setTimeout`, `sbr extend`) or resuming a paused one meets
+the same rule for the time it adds. The new deadline is reserved in the write that checks
+it, before the provider is asked; if the provider then refuses, the old deadline comes back.
+One that won't fit is refused with a quota error (402 over REST), and a job moves instead.
+
 So with `allowPaid: false` a sandbox can't run past its free tier, and a budget is a hard
 cap. The price of the guarantee is a sliver of free credit at the end of each tier, too
 small for one more whole request.
@@ -233,7 +238,7 @@ Checked at every step boundary (planned, nothing lost):
 
 | Trigger | Action |
 |---|---|
-| The box's remaining life < next step's timeout + `deadlineMarginSec` | Extend it if the provider can and the total stays within its (free) lifetime cap. Otherwise move: `deadline`. |
+| The box's remaining life < next step's timeout + `deadlineMarginSec` | Extend it if the provider can, the total stays within its (free) lifetime cap, and the extra time fits its free credit or budget. Otherwise move: `deadline`. |
 | On a free tier that is used up, or won't cover the next step | Move if another candidate is better: `free-credit` |
 | A quota or auth mark landed on the box's provider | Move: `provider-refused` |
 | The box's provider circuit opened | Move: `circuit-open` |

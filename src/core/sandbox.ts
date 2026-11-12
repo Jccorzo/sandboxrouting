@@ -148,8 +148,15 @@ export class Sandbox {
   async setTimeout(timeoutSec: number): Promise<void> {
     const a = this.adapter;
     if (!a.setTimeout) throw new SandboxRouterError("unsupported", `${this.provider} cannot change a live sandbox's timeout`, this.provider);
-    await this.call(() => a.setTimeout!(this.providerSandboxId, timeoutSec, this.ctx));
-    await this.router.apply(this.id, { type: "timeoutSet", timeoutSec });
+    // The longer life is reserved against free credit or the budget before the provider grants
+    // it, in the write that checks it fits; a refusal by the provider gives it back.
+    const before = await this.router.reserveDeadline(this.id, timeoutSec);
+    try {
+      await this.call(() => a.setTimeout!(this.providerSandboxId, timeoutSec, this.ctx));
+    } catch (err) {
+      await this.router.restoreDeadline(this.id, before).catch(() => undefined);
+      throw err;
+    }
   }
 
   async pause(): Promise<void> {
@@ -162,8 +169,14 @@ export class Sandbox {
   async resume(timeoutSec = this.router.config.defaults.timeoutSec): Promise<void> {
     const a = this.adapter;
     if (!a.resume) throw new SandboxRouterError("unsupported", `${this.provider} cannot resume`, this.provider);
-    await this.call(() => a.resume!(this.providerSandboxId, this.ctx));
-    await this.router.apply(this.id, { type: "resumed", timeoutSec });
+    // Same as setTimeout: what it may spend is reserved in the write that checks it fits.
+    await this.router.reserveResume(this.id, timeoutSec);
+    try {
+      await this.call(() => a.resume!(this.providerSandboxId, this.ctx));
+    } catch (err) {
+      await this.router.pauseAgain(this.id).catch(() => undefined);
+      throw err;
+    }
   }
 
   /** Stops the sandbox. Safe to call twice; a sandbox already gone counts as stopped. */

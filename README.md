@@ -178,8 +178,9 @@ A provider is left out when:
 Live sandboxes **reserve** what they can still spend: until their deadline, at their own
 size. So a free tier takes a request only if, after those reservations, it covers the full
 timeout at the size the provider will create. A paid request needs the same from the
-budget. With `allowPaid: false`, no sandbox can run past its free tier, and
-`maxPaidUsdPerMonth` is a hard cap.
+budget. Extending a sandbox (`sbr extend`) or resuming one reserves the time it adds under
+the same rule, or is refused. With `allowPaid: false`, no sandbox can run past its free tier,
+and `maxPaidUsdPerMonth` is a hard cap.
 
 The router re-checks the provider under the ledger lock when reserving. A request planned
 as free that loses the last free slot or credit to a parallel request moves on to the next

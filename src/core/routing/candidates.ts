@@ -3,8 +3,22 @@
 // passes becomes a Candidate, built here and nowhere else. Pure: the ledger snapshot in.
 
 import { ISOLATION_STRENGTH, type ProviderAdapter, type ProviderContext } from "../types.js";
-import { isLive } from "../state.js";
-import { availability, committed, effectivePricing, freeStatus, liveCount, monthWindow, paidSpendThisMonth, ratePerSecond, type FreeStatus, type Spend } from "../metering.js";
+import { isLive, type SandboxRecord } from "../state.js";
+import {
+  availability,
+  committed,
+  committedSeconds,
+  effectiveFreeTier,
+  effectivePricing,
+  freeStatus,
+  liveCount,
+  monthWindow,
+  paidSpendThisMonth,
+  ratePerSecond,
+  recordBilling,
+  type FreeStatus,
+  type Spend,
+} from "../metering.js";
 import { providerHealth } from "../health.js";
 import type { Billing, Candidate, PolicyInput, Skip } from "./types.js";
 
@@ -253,7 +267,7 @@ function budgetProblem(budget: Budget, cost: number, now: number): Problem | und
 }
 
 /** `maxPaidUsdPerMonth` against every provider's paid spend this month and live paid sandboxes; undefined without a budget. */
-function paidBudget({ adapters, config, data, now }: PolicyInput): Budget | undefined {
+function paidBudget({ adapters, config, data, now }: Money): Budget | undefined {
   if (config.maxPaidUsdPerMonth === undefined) return undefined;
   let spent = 0;
   let held = 0;
@@ -263,4 +277,44 @@ function paidBudget({ adapters, config, data, now }: PolicyInput): Budget | unde
     held += committed(info, cfg, data, now).paid.usd;
   }
   return { usd: config.maxPaidUsdPerMonth, spent, committed: held };
+}
+
+/** What the money checks need: every adapter (the paid budget is shared), config, the ledger and the clock. */
+type Money = Pick<PolicyInput, "adapters" | "config" | "data" | "now">;
+
+/**
+ * Why `rec` can't hold `seconds` from now (a later deadline, or a resume), or undefined when it
+ * can. The rule a new request meets: what the box may then spend must fit, as it is billed, in its
+ * free tier after every other live box's hold, or in the month's paid budget. What the box holds
+ * now is replaced by the new hold, so it isn't counted twice.
+ */
+export function holdProblem(input: Money, rec: SandboxRecord, seconds: number): string | undefined {
+  const adapter = input.adapters.find((a) => a.info.id === rec.provider);
+  if (!adapter) return undefined;
+  const { info } = adapter;
+  const cfg = input.config.providers[info.id];
+  const rate = ratePerSecond(effectivePricing(info, cfg), rec.cpu, rec.memoryMiB);
+  const mine = committedSeconds(rec, input.now);
+  const billing = recordBilling(rec, effectiveFreeTier(info, cfg));
+  if (billing === "free") {
+    const free = freeStatus(info, cfg, input.data, input.now);
+    if (free.state === "exhausted") return `free tier used up (${free.reason})`;
+    if (free.state !== "available") return undefined;
+    const held = committed(info, cfg, input.data, input.now).free;
+    const byHours = free.unit === "hours";
+    const left = byHours ? free.remaining * 3600 - (held.sandboxSeconds - mine) : free.remaining - (held.usd - mine * rate);
+    const need = byHours ? seconds : seconds * rate;
+    if (fits(left, need)) return undefined;
+    const show = byHours ? hours : usd;
+    return `free ${byHours ? "hours" : "credit"} left (${show(Math.max(0, left))}) won't cover ${show(need)} on this box`;
+  }
+  if (billing === "paid") {
+    const budget = paidBudget(input);
+    if (!budget) return undefined;
+    const left = budget.usd - budget.spent - (budget.committed - mine * rate);
+    const need = seconds * rate;
+    if (left > 0 && fits(left, need)) return undefined;
+    return `paid budget left this month (${usd(Math.max(0, left))}) won't cover ${usd(need)} on this box`;
+  }
+  return undefined;
 }
