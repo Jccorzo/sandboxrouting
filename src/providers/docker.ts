@@ -64,6 +64,7 @@ export const dockerProvider = defineProvider({
     homepage: "https://docs.docker.com/engine/",
     env: [],
     capabilities: ["customImage", "pause", "ports"],
+    isolation: "container",
     selfHosted: true,
     freeTier: { tier: { kind: "unlimited" }, notes: "Runs on this machine; costs nothing but your CPU." },
     pricing: { vcpuSecondUsd: 0, gibSecondUsd: 0, defaultCpu: 1, defaultMemoryMiB: 1024 },

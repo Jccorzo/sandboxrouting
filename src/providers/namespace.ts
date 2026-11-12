@@ -35,6 +35,7 @@ export const namespaceProvider = defineProvider({
     env: ["NSC_TOKEN"],
     sdkPackage: "@namespacelabs/sdk",
     capabilities: ["customImage", "extendTimeout"],
+    isolation: "microvm",
     maxTimeoutSec: 3 * 3600,
     freeTier: {
       tier: { kind: "none" },

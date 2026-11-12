@@ -28,6 +28,7 @@ export const koyebProvider = defineProvider({
     env: ["KOYEB_API_TOKEN"],
     sdkPackage: "@koyeb/sandbox-sdk",
     capabilities: ["customImage", "ports", "snapshot"],
+    isolation: "microvm",
     maxTimeoutSec: 24 * 3600,
     freeTier: {
       tier: { kind: "none" },

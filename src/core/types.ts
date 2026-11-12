@@ -27,7 +27,30 @@ export interface SandboxSpec {
   exclude?: string[];
   /** Region hint, passed through when the provider supports it. */
   region?: string;
+  /** Routing strategy for this request (default: config `routing.strategy`). See docs/routing.md. */
+  strategy?: string;
+  /** Soft: rank these providers last within their lane (e.g. ones that just failed this job). */
+  avoid?: string[];
+  /** Soft: rank these first within their lane (e.g. the provider whose template is warm). */
+  prefer?: string[];
+  /** Weakest isolation acceptable. Providers with weaker or unknown isolation are skipped. */
+  minIsolation?: Isolation;
+  /**
+   * Longest single command you will run, in seconds. Providers that cut commands off sooner
+   * (`info.maxExecSec`, e.g. exe.dev's 30 s) are skipped.
+   */
+  execTimeoutSec?: number;
 }
+
+/**
+ * How sandboxes are isolated from each other and from the host, weakest first:
+ * a container shares the host kernel; gVisor intercepts syscalls in a user-space kernel;
+ * a microVM (Firecracker, Cloud Hypervisor) or VM has its own kernel on a hypervisor.
+ */
+export type Isolation = "container" | "gvisor" | "microvm" | "vm";
+
+/** Strength order for `minIsolation`: microVMs and VMs count as equally strong. */
+export const ISOLATION_STRENGTH: Record<Isolation, number> = { container: 0, gvisor: 1, microvm: 2, vm: 2 };
 
 export type Capability =
   | "ports" // public URL for a port inside the sandbox
@@ -118,6 +141,10 @@ export interface ProviderInfo {
    * any it missed. Default true.
    */
   enforcesTimeout?: boolean;
+  /** How its sandboxes are isolated. Unknown (undefined) fails any `minIsolation` request. */
+  isolation?: Isolation;
+  /** Longest a single exec call may run before the provider cuts it off, in seconds. */
+  maxExecSec?: number;
 }
 
 /** Usage the provider itself reports, when it has an API for it. */

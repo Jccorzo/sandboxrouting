@@ -42,6 +42,7 @@ export const northflankProvider = defineProvider({
     env: ["NORTHFLANK_TOKEN", "NORTHFLANK_PROJECT"],
     sdkPackage: "@northflank/js-client",
     capabilities: ["customImage"],
+    isolation: "container",
     // A service restarts its container when `sleep` ends, so the router deletes it instead.
     enforcesTimeout: false,
     freeTier: {

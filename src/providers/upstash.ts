@@ -34,6 +34,7 @@ export const upstashProvider = defineProvider({
     env: ["UPSTASH_BOX_API_KEY"],
     sdkPackage: "@upstash/box",
     capabilities: ["fileList", "snapshot"],
+    isolation: "container",
     maxTimeoutSec: 259_200,
     freeTier: {
       // 5 CPU-hours a month; metered as sandbox-hours, which is conservative for idle boxes.

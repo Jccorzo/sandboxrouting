@@ -28,6 +28,7 @@ export const e2bProvider = defineProvider({
     env: ["E2B_API_KEY"],
     sdkPackage: "e2b",
     capabilities: ["ports", "pause", "fileList", "extendTimeout", "snapshot"],
+    isolation: "microvm",
     maxTimeoutSec: 24 * 3600,
     freeTier: {
       tier: { kind: "one-time-credit", usd: 100 },

@@ -57,6 +57,7 @@ export const boxliteProvider = defineProvider({
     env: ["BOXLITE_API_KEY"],
     sdkPackage: "@boxlite-ai/boxlite",
     capabilities: ["customImage", "snapshot"],
+    isolation: "microvm",
     enforcesTimeout: false,
     freeTier: {
       tier: { kind: "one-time-credit", usd: 100 },

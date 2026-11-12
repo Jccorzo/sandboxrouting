@@ -24,6 +24,7 @@ export const quivvoProvider = defineProvider({
     homepage: "https://tryquivvo.com",
     env: ["QUIVVO_API_KEY"],
     capabilities: ["ports", "pause", "fileList", "extendTimeout", "snapshot"],
+    isolation: "microvm",
     freeTier: {
       tier: { kind: "one-time-credit", usd: 5 },
       concurrency: 1,

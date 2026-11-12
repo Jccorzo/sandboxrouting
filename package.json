@@ -28,7 +28,8 @@
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
-    "dev:cli": "node --import tsx src/cli.ts"
+    "dev:cli": "node --import tsx src/cli.ts",
+    "simulate": "node --import tsx bench/simulate.ts"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.32.2",

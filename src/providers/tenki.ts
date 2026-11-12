@@ -40,6 +40,7 @@ export const tenkiProvider = defineProvider({
     env: ["TENKI_API_KEY"],
     sdkPackage: "@tenkicloud/sandbox",
     capabilities: ["customImage", "ports", "pause", "fileList", "extendTimeout", "snapshot"],
+    isolation: "microvm",
     freeTier: {
       tier: { kind: "one-time-credit", usd: 100 },
       concurrency: 5,

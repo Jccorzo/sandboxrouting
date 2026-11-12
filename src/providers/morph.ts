@@ -29,6 +29,7 @@ export const morphProvider = defineProvider({
     env: ["MORPH_API_KEY"],
     sdkPackage: "morphcloud",
     capabilities: ["ports", "pause", "snapshot", "extendTimeout"],
+    isolation: "vm",
     freeTier: {
       tier: { kind: "none" },
       concurrency: 8,

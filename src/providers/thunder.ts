@@ -110,6 +110,7 @@ export const thunderProvider = defineProvider({
     homepage: "https://www.thundercompute.com",
     env: ["TNR_API_TOKEN"],
     capabilities: ["customImage", "gpu"],
+    isolation: "microvm",
     freeTier: {
       tier: { kind: "none" },
       notes: "No free tier; sandbox access is enabled per org by sales (403 sandbox_access_denied until then).",

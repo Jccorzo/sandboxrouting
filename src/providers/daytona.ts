@@ -37,6 +37,7 @@ export const daytonaProvider = defineProvider({
     env: ["DAYTONA_API_KEY"],
     sdkPackage: "@daytona/sdk",
     capabilities: ["customImage", "ports", "fileList", "extendTimeout", "pause", "gpu"],
+    isolation: "container",
     freeTier: {
       // The pricing page does not say whether the $200 recurs; treated as one-time.
       tier: { kind: "one-time-credit", usd: 200 },

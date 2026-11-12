@@ -9,6 +9,8 @@
 //    failed ◀───lost─── (running|paused) ──stop/expire──▶ stopped
 //
 // Billing is a list of segments; a segment is open exactly while the state is `running`.
+// A failed record keeps the provider's id of any box its create made, so the remote sweep
+// can delete that box if killing it failed.
 
 export type SandboxState = "creating" | "running" | "paused" | "stopped" | "failed";
 /** `expired` is never stored: a running sandbox past its deadline reads as expired. */
@@ -26,10 +28,13 @@ interface Base {
   memoryMiB: number;
   createdAt: string;
   metadata: Record<string, string>;
+  /** How it is paid for, as planned when it was reserved: "free", "self-hosted" or "paid". */
+  billing?: string;
 }
 
 export type SandboxRecord =
-  | (Base & { state: "creating" })
+  /** `timeoutSec`: the lifetime the create asked for, so what it will spend counts before it starts. */
+  | (Base & { state: "creating"; timeoutSec?: number })
   | (Base & { state: "running"; providerSandboxId: string; expiresAt: string; segments: Segment[] })
   | (Base & { state: "paused"; providerSandboxId: string; expiresAt?: string; segments: Segment[] })
   | (Base & { state: "stopped"; providerSandboxId: string; segments: Segment[]; endedAt: string; reason: StopReason })
@@ -39,7 +44,8 @@ export type StopReason = "killed" | "expired" | "gone";
 
 export type SandboxEvent =
   | { type: "created"; providerSandboxId: string; timeoutSec: number; cpu?: number; memoryMiB?: number }
-  | { type: "createFailed"; error: string }
+  /** `providerSandboxId`: the box the provider made anyway, when its record couldn't say so. */
+  | { type: "createFailed"; error: string; providerSandboxId?: string }
   | { type: "paused" }
   | { type: "resumed"; timeoutSec: number }
   | { type: "timeoutSet"; timeoutSec: number }
@@ -86,6 +92,7 @@ export function transition(rec: SandboxRecord, ev: SandboxEvent, now: number): S
     memoryMiB: rec.memoryMiB,
     createdAt: rec.createdAt,
     metadata: rec.metadata,
+    ...(rec.billing === undefined ? {} : { billing: rec.billing }),
   };
   const segments = rec.state === "creating" ? [] : rec.segments;
   const live = effectiveState(rec, now);
@@ -102,9 +109,13 @@ export function transition(rec: SandboxRecord, ev: SandboxEvent, now: number): S
         expiresAt: iso(now + ev.timeoutSec * 1000),
         segments: [{ start: iso(now) }],
       };
-    case "createFailed":
+    case "createFailed": {
+      const box = ev.providerSandboxId === undefined ? {} : { providerSandboxId: ev.providerSandboxId };
+      // A create the sweep gave up on (`lost`) that finished after all: keep its box's id.
+      if (rec.state === "failed" && rec.providerSandboxId === undefined && ev.providerSandboxId !== undefined) return { ...rec, ...box };
       if (rec.state !== "creating") break;
-      return { ...base, state: "failed", segments: [], endedAt: iso(now), error: ev.error };
+      return { ...base, state: "failed", ...box, segments: [], endedAt: iso(now), error: ev.error };
+    }
     case "paused":
       if (live !== "running") break;
       return {

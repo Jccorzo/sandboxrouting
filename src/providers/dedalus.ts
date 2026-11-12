@@ -38,6 +38,7 @@ export const dedalusProvider = defineProvider({
     homepage: "https://www.dedaluslabs.ai",
     env: ["DEDALUS_API_KEY"],
     capabilities: ["pause"],
+    isolation: "microvm",
     enforcesTimeout: false,
     freeTier: {
       tier: { kind: "one-time-credit", usd: 20 },

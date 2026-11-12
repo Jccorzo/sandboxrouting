@@ -36,6 +36,7 @@ export const modalProvider = defineProvider({
     env: ["MODAL_TOKEN_ID", "MODAL_TOKEN_SECRET"],
     sdkPackage: "modal",
     capabilities: ["customImage", "ports", "fileList", "gpu", "snapshot"],
+    isolation: "gvisor",
     maxTimeoutSec: 24 * 3600,
     freeTier: {
       tier: { kind: "monthly-credit", usd: 30 },

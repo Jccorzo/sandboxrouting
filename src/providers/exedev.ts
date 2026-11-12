@@ -61,6 +61,8 @@ export const exedevProvider = defineProvider({
     homepage: "https://exe.dev",
     env: ["EXE_API_TOKEN"],
     capabilities: ["customImage", "pause"],
+    isolation: "vm",
+    maxExecSec: EXE_EXEC_LIMIT_SEC,
     enforcesTimeout: false,
     freeTier: {
       tier: { kind: "none" },

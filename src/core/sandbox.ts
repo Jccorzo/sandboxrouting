@@ -45,14 +45,20 @@ export class Sandbox {
     return this.router.ctxFor(this.adapter);
   }
 
-  /** Runs a provider call; a "not found" means the sandbox is gone, which the ledger records. */
-  private async call<T>(fn: () => Promise<T>): Promise<T> {
+  /**
+   * Runs a provider call. A "not found" from a call on the box means the sandbox is gone, which
+   * the ledger records. From a file call it may only mean the file is missing, so ask the box.
+   */
+  private async call<T>(fn: () => Promise<T>, on: "box" | "file" = "box"): Promise<T> {
     try {
       return await fn();
     } catch (raw) {
       const err = classify(raw, this.provider);
-      if (err.kind === "not_found") {
-        await this.router.apply(this.id, { type: "stopped", reason: "gone" }).catch(() => undefined);
+      if (err.kind === "not_found" && on === "file") {
+        // The probe is a box call: it records the box as gone only if the box says not found.
+        await this.run("true").catch(() => undefined);
+      } else if (err.kind === "not_found") {
+        await this.router.markGone(this.id).catch(() => undefined);
       } else if (err.kind === "quota" || err.kind === "rate_limit" || err.kind === "auth") {
         await this.router.markFromError(this.provider, err);
       }
@@ -60,10 +66,10 @@ export class Sandbox {
     }
   }
 
-  /** Runs a native call; an adapter throwing `unsupported` asks for the exec fallback. */
+  /** Runs a native file call; an adapter throwing `unsupported` asks for the exec fallback. */
   private async native<T>(fn: () => Promise<T>): Promise<T | typeof UNSUPPORTED> {
     try {
-      return await this.call(fn);
+      return await this.call(fn, "file");
     } catch (err) {
       if (err instanceof SandboxRouterError && err.kind === "unsupported") return UNSUPPORTED;
       throw err;
@@ -105,7 +111,11 @@ export class Sandbox {
       r = await this.run(`printf '%s' ${shellQuote(b64.slice(i, i + WRITE_CHUNK))} >> ${tmp}`);
     }
     if (r.exitCode === 0) r = await this.run(`base64 -d < ${tmp} > ${q} && rm -f ${tmp}`);
-    if (r.exitCode !== 0) throw new SandboxRouterError("transient", `write ${path}: ${r.stderr.trim()}`, this.provider);
+    if (r.exitCode !== 0) {
+      // Every outcome clears the scratch file, not just success.
+      await this.run(`rm -f ${tmp}`).catch(() => undefined);
+      throw new SandboxRouterError("transient", `write ${path}: ${r.stderr.trim()}`, this.provider);
+    }
   }
 
   private async list(path: string): Promise<FileInfo[]> {
@@ -158,14 +168,17 @@ export class Sandbox {
 
   /** Stops the sandbox. Safe to call twice; a sandbox already gone counts as stopped. */
   async kill(): Promise<void> {
-    const view = await this.info();
-    if (view && (view.state === "stopped" || view.state === "failed")) return;
+    // The stop is recorded before the provider acts: a call racing this kill (a job's step) gets
+    // its 404 on a stopped record, which markGone doesn't count as a box the provider lost.
+    await this.router.recordKill(this.id);
+    // The provider is asked even when the ledger already said the box was over: that record
+    // may be wrong (a false "gone"), and deleting a deleted box is harmless.
     try {
       await this.adapter.kill(this.providerSandboxId, this.ctx);
     } catch (raw) {
       const err = classify(raw, this.provider);
+      // The record stays stopped; the remote sweep deletes the box if it is still alive.
       if (err.kind !== "not_found") throw err;
     }
-    await this.router.apply(this.id, { type: "stopped", reason: "killed" });
   }
 }

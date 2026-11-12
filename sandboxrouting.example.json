@@ -1,5 +1,5 @@
 {
-  "policy": "free-first",
+  "routing": { "strategy": "free-first", "circuitBreaker": { "failures": 3, "cooldownSec": 120 } },
   "allowPaid": false,
   "maxPaidUsdPerMonth": 10,
   "selfHosted": "after-free",
@@ -11,7 +11,8 @@
     "vercel": { "options": { "runtime": "node22", "ports": [3000] } },
     "fly": { "enabled": false, "options": { "app": "my-sandboxes" } },
     "openci": { "options": { "url": "https://ci.example.internal" } },
-    "docker": { "options": { "image": "python:3.12-slim", "runtime": "runsc" } },
+    "docker": { "options": { "image": "python:3.12-slim", "runtime": "runsc" }, "isolation": "gvisor" },
     "koyeb": { "allowPaid": true }
-  }
+  },
+  "jobs": { "checkpoint": "every-step", "maxMigrations": 5, "maxWaitSec": 300, "rebalance": false }
 }

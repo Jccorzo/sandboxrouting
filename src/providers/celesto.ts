@@ -35,6 +35,7 @@ export const celestoProvider = defineProvider({
     env: ["CELESTO_API_KEY"],
     sdkPackage: "@celestoai/sdk",
     capabilities: ["customImage", "ports", "pause"],
+    isolation: "microvm",
     enforcesTimeout: false,
     freeTier: {
       tier: { kind: "one-time-credit", usd: 5 },

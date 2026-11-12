@@ -29,6 +29,7 @@ export const runloopProvider = defineProvider({
     env: ["RUNLOOP_API_KEY"],
     sdkPackage: "@runloop/api-client",
     capabilities: ["ports", "pause", "snapshot"],
+    isolation: "vm",
     maxTimeoutSec: 48 * 3600,
     freeTier: {
       tier: { kind: "one-time-credit", usd: 50 },

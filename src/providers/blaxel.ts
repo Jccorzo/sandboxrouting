@@ -23,6 +23,7 @@ export const blaxelProvider = defineProvider({
     env: ["BL_API_KEY", "BL_WORKSPACE"],
     sdkPackage: "@blaxel/core",
     capabilities: ["customImage", "ports", "fileList", "extendTimeout", "snapshot"],
+    isolation: "microvm",
     maxTimeoutSec: 30 * 86400,
     freeTier: {
       // "Up to $200"; whether it recurs is not stated. Treated as one-time.

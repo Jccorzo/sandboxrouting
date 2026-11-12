@@ -38,6 +38,7 @@ export const instaboxProvider = defineProvider({
     homepage: "https://instabox.sh",
     env: ["INSTABOX_API_KEY"],
     capabilities: ["ports", "pause", "fileList", "snapshot"],
+    isolation: "microvm",
     maxTimeoutSec: 86400,
     freeTier: {
       // One machine that is never billed: free hours are effectively the whole month.

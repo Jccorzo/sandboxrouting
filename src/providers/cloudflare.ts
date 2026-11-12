@@ -22,6 +22,7 @@ export const cloudflareProvider = defineProvider({
     env: ["CLOUDFLARE_SANDBOX_URL", "CLOUDFLARE_SANDBOX_TOKEN"],
     sdkPackage: "@cloudflare/sandbox (in the bridge Worker)",
     capabilities: ["fileList", "extendTimeout"],
+    isolation: "container",
     freeTier: {
       tier: { kind: "monthly-credit", usd: Math.round(INCLUDED_USD * 100) / 100 },
       requiresCard: true,

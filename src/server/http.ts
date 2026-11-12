@@ -1,8 +1,10 @@
 // REST API: one HTTP front for every provider, shaped like the providers' own sandbox APIs
 // (and openci's). JSON in and out; bearer token when `serverToken` is set.
 //
-//   GET    /v1/providers                     free-tier status, availability, capabilities
-//   POST   /v1/route                         dry run: the ranked plan for a spec
+//   GET    /v1/providers                     free-tier status, availability, health, capabilities
+//   GET    /v1/strategies                    [{name, description, active}]
+//   POST   /v1/route[?compare=1]             dry run: the ranked plan for a spec (+ `strategy`);
+//                                            compare=1: {[strategy]: plan} under every strategy
 //   POST   /v1/sandboxes                     SandboxSpec → sandbox (+ route)
 //   GET    /v1/sandboxes[?all=1]             list
 //   GET    /v1/sandboxes/{id}                one
@@ -14,12 +16,23 @@
 //   GET    /v1/sandboxes/{id}/url?port=      {url}
 //   POST   /v1/sandboxes/{id}/timeout        {timeoutSec}
 //   POST   /v1/sandboxes/{id}/pause | /resume
-//   POST   /v1/sweep                         reconcile with providers
+//   POST   /v1/sandboxes/{id}/move           {workdir?, spec?} → 201, the new sandbox (+ route); the old one is killed
+//   POST   /v1/jobs[?wait=1]                 JobSpec → 202 and the job once this server has claimed it (it
+//                                            drives it on); wait=1: 200 and the job once it has ended
+//   GET    /v1/jobs[?all=1]                  unfinished jobs (all with all=1)
+//   GET    /v1/jobs/{id}                     one
+//   POST   /v1/jobs/{id}/resume              202 once claimed and driven here; 409 and the job while another
+//                                            runner holds it; 200 and the job if it already ended
+//   POST   /v1/jobs/{id}/cancel              the job after cancelling (one that already ended, as it ended)
+//   GET    /v1/jobs/{id}/workspace           latest workspace archive (application/gzip)
+//   POST   /v1/sweep                         reconcile with providers and jobs → {sandboxes, jobs}
 
 import { createServer as createHttpServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { timingSafeEqual } from "node:crypto";
 import type { SandboxRouter } from "../core/router.js";
+import { strategyNameFor } from "../core/config.js";
 import { classify, NoProviderAvailableError, type ErrorKind } from "../core/errors.js";
+import type { JobManagerApi, JobRunOptions, JobSpec, JobView } from "../core/jobs/types.js";
 import type { SandboxSpec } from "../core/types.js";
 
 const STATUS: Record<ErrorKind, number> = {
@@ -29,6 +42,7 @@ const STATUS: Record<ErrorKind, number> = {
   not_found: 404,
   unsupported: 501,
   invalid: 400,
+  conflict: 409,
   transient: 502,
 };
 
@@ -67,7 +81,36 @@ function authorized(req: IncomingMessage, token: string | undefined): boolean {
   return given.length === want.length && timingSafeEqual(given, want);
 }
 
+type Started = { claimed: JobView } | { ended: JobView };
+
+/**
+ * Starts driving a job in this process. `first` settles as soon as this process holds the job,
+ * or with how it ended when there was nothing to claim, or with whatever stopped it before a
+ * claim (an invalid request, an unknown job, another runner's live lease). `done` is the drive.
+ */
+function start(go: (opts: JobRunOptions) => Promise<JobView>): { first: Promise<Started>; done: Promise<JobView> } {
+  let done!: Promise<JobView>;
+  const first = new Promise<Started>((resolve, reject) => {
+    done = go({ onClaimed: (job) => resolve({ claimed: job }) });
+    done.then((job) => resolve({ ended: job }), reject);
+  });
+  return { first, done };
+}
+
+/** The drive goes on after the answer; nobody waits for it, so its failures go to stderr. */
+function inBackground(id: string, done: Promise<JobView>): void {
+  done.catch((raw) => console.error(`[sbr] job ${id}: ${classify(raw).message}`));
+}
+
+/** Another runner holds the job: 409 with where it stands now. Anything else goes to the error handler. */
+async function conflictOr(res: ServerResponse, jobs: JobManagerApi, id: string, raw: unknown): Promise<void> {
+  const err = classify(raw);
+  if (err.kind !== "conflict") throw raw;
+  send(res, 409, { error: err.message, kind: err.kind, job: await jobs.get(id) });
+}
+
 export function createServer(router: SandboxRouter): Server {
+  const jobs: JobManagerApi = router.jobs;
   return createHttpServer(async (req, res) => {
     try {
       if (!authorized(req, router.config.serverToken)) return send(res, 401, { error: "unauthorized" });
@@ -81,8 +124,22 @@ export function createServer(router: SandboxRouter): Server {
       if (resource === "providers" && method === "GET") {
         return send(res, 200, await router.status({ refreshUsage: url.searchParams.get("refresh") === "1" }));
       }
-      if (resource === "route" && method === "POST") return send(res, 200, await router.plan(await json<SandboxSpec>(req)));
-      if (resource === "sweep" && method === "POST") return send(res, 200, await router.sweep({ remote: true }));
+      if (resource === "strategies" && method === "GET") {
+        const active = strategyNameFor(router.config);
+        return send(res, 200, router.strategies().map((s) => ({ name: s.name, description: s.description, active: s.name === active })));
+      }
+      if (resource === "route" && method === "POST") {
+        const spec = await json<SandboxSpec>(req);
+        if (url.searchParams.get("compare") !== "1") return send(res, 200, await router.plan(spec));
+        // The same request under every strategy, so the request's own `strategy` doesn't matter.
+        const plans = await Promise.all(router.strategies().map((s) => router.plan({ ...spec, strategy: s.name })));
+        return send(res, 200, Object.fromEntries(plans.map((p) => [p.strategy, p])));
+      }
+      if (resource === "sweep" && method === "POST") {
+        const sandboxes = await router.sweep({ remote: true });
+        // This server lives on, so it can drive orphaned jobs itself.
+        return send(res, 200, { sandboxes, jobs: await jobs.sweep({ resumeOrphans: true }) });
+      }
 
       if (resource === "sandboxes") {
         if (!id) {
@@ -99,6 +156,13 @@ export function createServer(router: SandboxRouter): Server {
           if (!sub && method === "DELETE") {
             await router.kill(id);
             return send(res, 200, await router.get(id));
+          }
+          // Before connect: move connects itself, and connecting twice to a provider:id would adopt it twice.
+          if (sub === "move" && method === "POST") {
+            const b = await json<{ workdir?: string; spec?: SandboxSpec }>(req);
+            if (b.workdir !== undefined && typeof b.workdir !== "string") return send(res, 400, { error: "workdir must be a path" });
+            const sbx = await router.move(id, { workdir: b.workdir, spec: b.spec });
+            return send(res, 201, { ...(await sbx.info()), route: sbx.route });
           }
           const sbx = await router.connect(id);
           const path = url.searchParams.get("path") ?? ".";
@@ -129,6 +193,57 @@ export function createServer(router: SandboxRouter): Server {
           if (sub === "resume" && method === "POST") {
             await sbx.resume();
             return send(res, 200, await sbx.info());
+          }
+        }
+      }
+
+      if (resource === "jobs") {
+        if (!id) {
+          if (method === "POST") {
+            const spec = await json<JobSpec>(req);
+            // run() checks the request (checkJobSpec): an invalid one rejects before the claim, as a 400.
+            const { first, done } = start((opts) => jobs.run(spec, opts));
+            const started = await first;
+            if ("ended" in started) return send(res, 200, started.ended);
+            const jobId = started.claimed.id;
+            if (url.searchParams.get("wait") !== "1") {
+              inBackground(jobId, done);
+              return send(res, 202, started.claimed);
+            }
+            try {
+              return send(res, 200, await done);
+            } catch (raw) {
+              // Awaited, so anything but a conflict reaches the error handler below.
+              return await conflictOr(res, jobs, jobId, raw);
+            }
+          }
+          if (method === "GET") return send(res, 200, await jobs.list({ all: url.searchParams.get("all") === "1" }));
+        } else {
+          if (!sub && method === "GET") {
+            const view = await jobs.get(id);
+            return view ? send(res, 200, view) : send(res, 404, { error: `no job ${id}` });
+          }
+          if (sub === "resume" && method === "POST") {
+            // Decided by the claim itself, never by a read before it.
+            const { first, done } = start((opts) => jobs.resume(id, opts));
+            let started: Started;
+            try {
+              started = await first;
+            } catch (raw) {
+              // A runner here or elsewhere holds its lease: 409. An unknown job: 404 from the handler below.
+              return await conflictOr(res, jobs, id, raw);
+            }
+            // Already over: nothing was claimed, and the job says how it ended.
+            if ("ended" in started) return send(res, 200, started.ended);
+            inBackground(id, done);
+            return send(res, 202, started.claimed);
+          }
+          if (sub === "cancel" && method === "POST") return send(res, 200, await jobs.cancel(id));
+          if (sub === "workspace" && method === "GET") {
+            const data = await jobs.workspace(id);
+            if (!data) return send(res, 404, { error: `job ${id} has no workspace archive yet` });
+            res.writeHead(200, { "content-type": "application/gzip", "content-length": data.byteLength });
+            return res.end(data);
           }
         }
       }

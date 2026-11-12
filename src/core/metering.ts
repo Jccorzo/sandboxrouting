@@ -1,10 +1,12 @@
-// What usage costs and how much free usage is left. One definition: the router, CLI,
-// REST API and MCP server all call `providerStatus`, and nothing stores the verdict.
+// What usage costs, how much free usage is left, and what live sandboxes will still spend. One
+// definition: the router, CLI, REST API and MCP server all call `providerStatus`, and nothing
+// stores the verdict.
 
 import type { FreeTier, Pricing, ProviderInfo, ProviderUsage } from "./types.js";
 import type { LedgerData, ProviderMark } from "./ledger.js";
 import type { SandboxRecord } from "./state.js";
 import type { ProviderConfig } from "./config.js";
+import type { Billing } from "./routing/types.js";
 
 const ms = (s: string) => Date.parse(s);
 
@@ -75,6 +77,48 @@ export function spend(data: LedgerData, provider: string, pricing: Pricing, wind
     if (t >= window.from && t < window.to) usd += amount;
   }
   return { usd, sandboxSeconds };
+}
+
+/**
+ * Seconds a sandbox will still run if nothing stops it early: a running one until its deadline,
+ * a creating one for the lifetime it asked for (0 for a record from before that was kept), a
+ * paused, finished or expired one none. With `billableSeconds` so far, that is its whole lifetime.
+ */
+export function committedSeconds(rec: SandboxRecord, now: number): number {
+  if (rec.state === "running") return Math.max(0, ms(rec.expiresAt) - now) / 1000;
+  if (rec.state === "creating") return rec.timeoutSec ?? 0;
+  return 0;
+}
+
+/** How a sandbox is paid for: as it was reserved, or for an older record, as its provider's tier suggests. */
+export function recordBilling(rec: SandboxRecord, tier: FreeTier): Billing {
+  if (rec.billing === "free" || rec.billing === "self-hosted" || rec.billing === "paid") return rec.billing;
+  return tier.kind === "none" ? "paid" : tier.kind === "unlimited" ? "self-hosted" : "free";
+}
+
+/**
+ * What a provider's live sandboxes will still spend if each runs to its deadline, by how each is
+ * billed: USD at each record's own size, and sandbox-seconds. Free usage and the paid budget only
+ * take a new sandbox when what is left after this covers it, so parallel requests can't all fit
+ * in the same remainder.
+ */
+export function committed(info: ProviderInfo, cfg: ProviderConfig | undefined, data: LedgerData, now: number): Record<Billing, Spend> {
+  const tier = effectiveFreeTier(info, cfg);
+  const pricing = effectivePricing(info, cfg);
+  const out: Record<Billing, Spend> = {
+    free: { usd: 0, sandboxSeconds: 0 },
+    "self-hosted": { usd: 0, sandboxSeconds: 0 },
+    paid: { usd: 0, sandboxSeconds: 0 },
+  };
+  for (const rec of Object.values(data.sandboxes)) {
+    if (rec.provider !== info.id) continue;
+    const secs = committedSeconds(rec, now);
+    if (secs === 0) continue;
+    const held = out[recordBilling(rec, tier)];
+    held.sandboxSeconds += secs;
+    held.usd += secs * ratePerSecond(pricing, rec.cpu, rec.memoryMiB);
+  }
+  return out;
 }
 
 export type FreeStatus =

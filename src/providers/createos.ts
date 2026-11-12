@@ -41,6 +41,7 @@ export const createosProvider = defineProvider({
     homepage: "https://createos.sh",
     env: ["CREATEOS_SANDBOX_API_KEY"],
     capabilities: ["pause"],
+    isolation: "microvm",
     enforcesTimeout: false,
     freeTier: {
       tier: { kind: "one-time-credit", usd: 5 },

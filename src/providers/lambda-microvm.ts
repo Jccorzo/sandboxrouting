@@ -52,6 +52,7 @@ export const lambdaMicrovmProvider = defineProvider({
     env: ["LAMBDA_MICROVM_IMAGE"],
     sdkPackage: "@aws-sdk/client-lambda-microvms",
     capabilities: ["pause", "fileList"],
+    isolation: "microvm",
     maxTimeoutSec: 8 * 3600,
     freeTier: {
       tier: { kind: "none" },

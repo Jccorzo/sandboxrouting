@@ -26,6 +26,7 @@ export const freestyleProvider = defineProvider({
     env: ["FREESTYLE_API_KEY"],
     sdkPackage: "freestyle",
     capabilities: ["fileList", "pause", "snapshot"],
+    isolation: "microvm",
     freeTier: {
       tier: { kind: "monthly-credit", usd: Math.round(MONTHLY_USD * 100) / 100 },
       concurrency: 10,

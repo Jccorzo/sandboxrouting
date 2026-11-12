@@ -40,6 +40,7 @@ export const togetherProvider = defineProvider({
     env: ["TOGETHER_API_KEY"],
     sdkPackage: "together-sandbox",
     capabilities: ["customImage", "fileList", "snapshot"],
+    isolation: "microvm",
     freeTier: {
       tier: { kind: "none" },
       notes: "Available on Together's custom plans; no self-serve free usage for the new SDK.",

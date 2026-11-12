@@ -23,6 +23,7 @@ export const flyProvider = defineProvider({
     homepage: "https://fly.io/docs/machines/",
     env: ["FLY_API_TOKEN", "FLY_APP"],
     capabilities: ["customImage"],
+    isolation: "microvm",
     freeTier: {
       tier: { kind: "none" },
       notes: "$1 trial for 7 days; personal bills under $5/month are waived.",

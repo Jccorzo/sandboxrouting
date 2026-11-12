@@ -37,6 +37,7 @@ export const depotProvider = defineProvider({
     env: ["DEPOT_TOKEN"],
     sdkPackage: "@depot/sandbox",
     capabilities: ["fileList", "extendTimeout", "snapshot"],
+    isolation: "microvm",
     maxTimeoutSec: 24 * 3600,
     freeTier: {
       tier: { kind: "none" },

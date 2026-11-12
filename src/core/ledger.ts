@@ -8,8 +8,25 @@ import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import { randomBytes } from "node:crypto";
 import { validateRecord, type SandboxRecord } from "./state.js";
+import type { ErrorKind } from "./errors.js";
+import type { JobRecord } from "./jobs/types.js";
+import { validateJob } from "./jobs/state.js";
 
 export type MarkKind = "quota" | "rate_limit" | "auth";
+
+/**
+ * One infrastructure outcome on a provider: a create that worked (with its latency), a create
+ * that failed for a transient reason, or a box lost before its deadline. Health and the
+ * circuit breaker are derived from these on read (src/core/health.ts); nothing stores a verdict.
+ */
+export interface HealthSample {
+  at: string;
+  op: "create" | "lost";
+  ok: boolean;
+  /** Create latency, for successful creates. */
+  ms?: number;
+  kind?: ErrorKind;
+}
 
 export interface ProviderMark {
   provider: string;
@@ -29,9 +46,13 @@ export interface LedgerData {
    * (for one-time credits) by the month it happened in, e.g. { e2b: { "2026-09": 1.2 } }.
    */
   archivedUsd: Record<string, Record<string, number>>;
+  /** Recent infrastructure outcomes per provider, oldest first, capped at `routing.healthSamples`. */
+  health: Record<string, HealthSample[]>;
+  /** Jobs: steps plus a workdir that can move between boxes. Lifecycle in jobs/state.ts. */
+  jobs: Record<string, JobRecord>;
 }
 
-export const emptyLedger = (): LedgerData => ({ version: 1, sandboxes: {}, marks: [], archivedUsd: {} });
+export const emptyLedger = (): LedgerData => ({ version: 1, sandboxes: {}, marks: [], archivedUsd: {}, health: {}, jobs: {} });
 
 export interface Ledger {
   read(): Promise<LedgerData>;
@@ -84,10 +105,17 @@ export class FileLedger implements Ledger {
     }
     const data = JSON.parse(raw) as LedgerData;
     if (data.version !== 1) throw new Error(`${this.path}: unknown ledger version ${String(data.version)}`);
+    // Ledgers written before these fields existed read as empty ones; the next write adds them.
     data.archivedUsd ??= {};
+    data.health ??= {};
+    data.jobs ??= {};
     for (const rec of Object.values(data.sandboxes)) {
       const problem = validateRecord(rec);
       if (problem) throw new Error(`${this.path}: sandbox ${rec.id}: ${problem}`);
+    }
+    for (const job of Object.values(data.jobs)) {
+      const problem = validateJob(job);
+      if (problem) throw new Error(`${this.path}: job ${job.id}: ${problem}`);
     }
     return data;
   }
@@ -109,14 +137,20 @@ export class FileLedger implements Ledger {
 
   private async writeWhole(content: string): Promise<void> {
     const tmp = `${this.path}.${process.pid}.${randomBytes(4).toString("hex")}.tmp`;
-    const fh = await open(tmp, "w", 0o600);
     try {
-      await fh.writeFile(content);
-      await fh.sync();
-    } finally {
-      await fh.close();
+      const fh = await open(tmp, "w", 0o600);
+      try {
+        await fh.writeFile(content);
+        await fh.sync();
+      } finally {
+        await fh.close();
+      }
+      await rename(tmp, this.path);
+    } catch (err) {
+      // Every outcome clears the temp file, not just success.
+      await rm(tmp, { force: true }).catch(() => undefined);
+      throw err;
     }
-    await rename(tmp, this.path);
   }
 
   private async lock(): Promise<void> {
@@ -148,4 +182,8 @@ export class FileLedger implements Ledger {
 
 export function newSandboxId(): string {
   return `sbr_${randomBytes(9).toString("base64url")}`;
+}
+
+export function newJobId(): string {
+  return `job_${randomBytes(9).toString("base64url")}`;
 }

@@ -39,6 +39,7 @@ export const vercelProvider = defineProvider({
     env: ["VERCEL_TOKEN", "VERCEL_TEAM_ID", "VERCEL_PROJECT_ID"],
     sdkPackage: "@vercel/sandbox",
     capabilities: ["customImage", "ports", "extendTimeout", "pause"],
+    isolation: "microvm",
     maxTimeoutSec: 5 * 3600,
     freeTier: {
       tier: { kind: "monthly-credit", usd: Math.round(HOBBY_USD * 100) / 100 },

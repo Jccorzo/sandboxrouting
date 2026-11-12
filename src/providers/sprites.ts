@@ -55,6 +55,7 @@ export const spritesProvider = defineProvider({
     homepage: "https://fly.io/sprites",
     env: ["SPRITES_TOKEN"],
     capabilities: ["ports", "fileList"],
+    isolation: "microvm",
     enforcesTimeout: false,
     freeTier: {
       tier: { kind: "none" },

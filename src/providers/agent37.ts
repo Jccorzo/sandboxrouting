@@ -26,6 +26,7 @@ export const agent37Provider = defineProvider({
     homepage: "https://www.agent37.com",
     env: ["AGENT37_API_KEY"],
     capabilities: ["ports"],
+    isolation: "gvisor",
     enforcesTimeout: false,
     freeTier: {
       tier: { kind: "one-time-credit", usd: 5 },

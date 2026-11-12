@@ -130,44 +130,75 @@ whose key is set but whose SDK is missing is skipped with an install hint.
 
 ## How a provider is chosen
 
-`sbr route` prints this for any request. Under the default `free-first` policy the
-providers that can take the request go in lanes, in this order:
+A **routing strategy** makes the choice, and you can switch it. The hard rules come first
+and are the same under every strategy, so no strategy can route around them. `sbr route`
+prints the ranked plan and why each provider sits where it does. `sbr route --compare`
+prints the plan under every strategy. The full design is in [docs/routing.md](docs/routing.md).
 
-1. **Monthly free usage**, which is lost at the reset. The provider with the most
-   unspent share per day left goes first, so nothing expires unused.
-2. **One-time free credit**, the provider with the largest unspent share first. This
-   drains the grants evenly instead of exhausting one.
-3. **Your own hardware** (openci, local Docker). `selfHosted: "first"` moves it ahead of
-   the cloud lanes, and `"never"` removes it.
-4. **Paid**, cheapest for the requested size first. This lane is **off by default**: with
-   `allowPaid: false` nothing is ever billed, and a request no free tier can take fails
-   with the reason for every provider. Turn it on globally or per provider. With
-   `maxPaidUsdPerMonth` set, paid routing stops when the month's spend reaches it.
+| Strategy | Order |
+|---|---|
+| `free-first` (default) | Lanes: monthly free usage (the most at risk before its reset goes first), one-time credit (the largest share left goes first), your own hardware, then paid (cheapest first). |
+| `cheapest` | Any free usage by price, then your hardware, then paid by price. |
+| `balanced` | The `free-first` lanes. Within a free lane, a weighted score of free value, health, speed, free headroom and load (weights in config). In the paid lane, price comes first. |
+| `fastest` | Unbilled first, then paid. Within each, the shortest expected time to a ready box: median create latency ÷ success rate. A provider never tried gets one try. The one strategy that pays more for speed. |
+| `spread` | The `free-first` lanes. Within a free lane, the most free slots first (lowest live/cap, fewest recent creates), so fan-out doesn't trip one provider's rate limit. In the paid lane, price comes first. |
+
+You pick a strategy three ways:
+
+- in config, with `"routing": { "strategy": "balanced" }`;
+- per request, with `strategy: "fastest"` (`--strategy`);
+- by registering your own with `router.registerStrategy({ name, description, rank })`.
+
+Within a lane, `priority` in config breaks ties first. The lanes keep paid usage **off by
+default**: with `allowPaid: false` nothing is ever billed, and a request no free tier can
+take fails with the reason for every provider. You can turn paid usage on globally or per
+provider. With `maxPaidUsdPerMonth` set, paid routing stops when the month's spend
+reaches it. Your own hardware (openci, local Docker) goes after the free lanes. With
+`selfHosted: "first"` it goes ahead of them, and with `"never"` it's removed.
 
 A provider is left out when:
 
-- it has no key;
-- it is disabled;
+- it has no key, or it is disabled;
 - it lacks a capability in `needs` (`ports`, `pause`, `customImage`, `gpu`, `snapshot`,
   `extendTimeout`, `fileList`);
 - it can't run the requested `image`;
 - the timeout is over its maximum;
-- its free concurrency is full;
-- the timeout is over its free lifetime cap (that sandbox would not be free).
+- `execTimeoutSec` is over its per-command cap (exe.dev cuts commands off at 30 s);
+- its isolation is weaker than `minIsolation` (`container` < `gvisor` < `microvm`/`vm`);
+- its circuit is open (see below);
+- neither free nor paid usage can take the request. Free fails when:
+  - the tier is used up;
+  - what's left won't cover the whole request;
+  - its concurrency is full;
+  - the timeout is over the free lifetime cap.
 
-Within a lane, `priority` in config is the first tie-break.
+  Paid fails when it isn't allowed, or when the month's budget won't cover the whole
+  request.
+
+Live sandboxes **reserve** what they can still spend: until their deadline, at their own
+size. So a free tier takes a request only if, after those reservations, it covers the full
+timeout at the size the provider will create. A paid request needs the same from the
+budget. With `allowPaid: false`, no sandbox can run past its free tier, and
+`maxPaidUsdPerMonth` is a hard cap.
+
+The router re-checks the provider under the ledger lock when reserving. A request planned
+as free that loses the last free slot or credit to a parallel request moves on to the next
+provider. It never quietly becomes paid.
 
 If the chosen provider refuses, the router tries the next one, and the refusal changes what
 it does next:
 
 | Refusal | What happens next |
 |---|---|
-| 402 or "out of credit" | The free tier is marked used up until the monthly reset (one-time grants are retried after a day). |
+| 402 or "out of credit" | The free tier is marked used up until the monthly reset. One-time grants are retried after a day. |
 | 429 | The provider is cooled down for a minute. |
 | 401 or 403 | The provider is skipped for 10 minutes. |
-| Network errors and 5xx | The router moves on to the next provider. |
+| Network errors and 5xx | The router moves on to the next provider. Three in a row open the provider's **circuit**: it is skipped for 2 minutes. The cooldown doubles with each further failure, up to 30. Then one request probes it. |
 
-`sandbox.route` records every provider tried or skipped and why.
+`sandbox.route` records every provider tried or skipped and why. `sbr providers` shows each
+provider's health: the success rate of recent creates and the circuit state. This health
+is computed from the last 50 outcomes whenever it is read, and `sbr reset <provider>`
+clears it.
 
 ### Metering
 
@@ -183,13 +214,60 @@ anyway, the mark above catches it. Vercel bills CPU only while it is active, so 
 by wall clock is conservative: the router stops using Vercel's free tier before Vercel
 would.
 
+## Jobs: work that moves between boxes
+
+A sandbox can die, its provider can refuse, or a free tier's limits can end it: a lifetime
+cap (E2B's free hour, Vercel's 45 minutes), running out of credit, the provider failing. A
+**job** keeps going through all of that. It is ordered steps plus a working directory. The
+workdir is checkpointed after each step, so the job continues on another box from where it
+stopped.
+
+```ts
+const job = await router.jobs.run({
+  sandbox: { image: "python:3.12-slim" },          // routed like router.create
+  files: { "main.py": "print('hi')" },             // the initial workdir ($HOME/work)
+  setup: [{ run: "pip install -q requests" }],     // runs again on every new box
+  steps: [
+    { run: "python main.py > out.txt" },
+    { run: "curl -fsS -X POST https://hooks.example/done", idempotent: false },
+  ],
+});
+console.log(job.state, job.migrations, job.placements.map((p) => `${p.provider}:${p.endReason}`));
+```
+
+- **Planned moves.** Before each step the job checks the box. If the box can't fit the next
+  step, the job extends it when the provider allows that within the free lifetime cap;
+  otherwise it moves. It also moves when the free credit won't cover the step and another
+  provider ranks first, when a quota or auth refusal or an open circuit hits the box's
+  provider, and, with `rebalance`, off a paid box when a free one is available.
+- **Unplanned losses.** If a box vanishes, its provider refuses, or errors repeat, the job
+  moves to a new box and restores the last checkpoint. The step that was running runs
+  again, but only if it is `idempotent` (the default). Steps with outside effects are
+  marked `idempotent: false`, so the job fails rather than run them twice. A non-zero exit
+  is the step's own failure unless it has `retries`. Exit 137 can move the job to a box
+  with twice the memory (`growMemoryOnOom`).
+- **Crashes.** The process driving a job holds a lease. If it dies, the job reads as
+  `orphaned` after 60 s, and `sbr job resume <id>` (or `sbr serve`, every 5 minutes)
+  continues it from what the ledger recorded.
+- **Waiting.** When no provider can take the job now, it waits only if a reason lapses
+  within `maxWaitSec`: a rate-limit mark, a circuit, or a full free tier whose next
+  sandbox ends soon. Otherwise it fails at once with every provider's reason.
+
+Checkpoints live in `~/.sandboxrouting/checkpoints/` and are checked by SHA-256. When the
+job ends, the last one is the result: `sbr job download <id>` saves it.
+`router.move(id)` does the same move once for an interactive sandbox: it copies the workdir
+to a new box, then kills the old one. The design and every decision table are in
+[docs/routing.md](docs/routing.md).
+
 ## The four surfaces
 
 All four share one ledger (`~/.sandboxrouting/ledger.json`; `SBR_HOME` moves it). It is
 locked for every update and written whole, so the CLI, the REST server and an MCP server
 running at once agree on what is live and what is spent.
 
-**SDK:** `create`, `connect(id)`, `list`, `kill`, `status`, `plan`, `sweep`. A sandbox has:
+**SDK:** `create`, `connect(id)`, `list`, `kill`, `status`, `plan`, `sweep`, `move(id)`,
+`strategies()`, `registerStrategy(s)`, and `jobs` (`run`, `submit`, `resume`, `get`, `list`,
+`cancel`, `workspace`, `sweep`). A sandbox has:
 
 - `commands.run(cmd, {cwd, env, timeoutSec, onStdout, onStderr})`
 - `files.read`, `files.readBytes`, `files.write`, `files.list`
@@ -200,25 +278,37 @@ running at once agree on what is live and what is spent.
 **CLI:** `sbr --help`.
 
 ```bash
-sbr providers                 # free-tier status of every provider
+sbr providers                 # free-tier status, health and circuit of every provider
 sbr check                     # live create/exec/files/kill on every configured free provider
 sbr route --needs ports       # where a sandbox would go, and why the others were skipped
+sbr route --compare           # the same request under every strategy
+sbr strategies                # the strategies, and which one is active
 sbr run -- python3 -c 'print(42)'          # create, run, kill; exit code passes through
-id=$(sbr create --image node:22 --timeout 900)
+id=$(sbr create --image node:22 --timeout 900 --strategy fastest)
 sbr exec "$id" -- npm test
+sbr move "$id"                # copy its workdir to a new box, kill the old one
 sbr kill "$id"
+sbr job run --step "make" --step "make test"   # steps that survive losing a box
+sbr job status <job-id>       # where it ran, why it moved, how each step ended
+sbr job download <job-id>     # the final workdir, as a .tgz
 ```
 
 **REST API:** `sbr serve --port 8787`. Set `serverToken` in config (or `SBR_SERVER_TOKEN`)
 to require `Authorization: Bearer …`. The endpoints are listed at the top of
 [src/server/http.ts](src/server/http.ts): `POST /v1/sandboxes`,
 `POST /v1/sandboxes/{id}/exec`, `GET|PUT /v1/sandboxes/{id}/files?path=`,
-`GET /v1/providers`, `POST /v1/route` and more. The server also reconciles with the
-providers every 5 minutes.
+`GET /v1/providers`, `POST /v1/route[?compare=1]`, `GET /v1/strategies`,
+`POST /v1/sandboxes/{id}/move`, and the jobs: `POST /v1/jobs` (202 with the job's id; `?wait=1`
+to wait for the end), `GET /v1/jobs[/{id}]`, `POST /v1/jobs/{id}/resume|cancel`,
+`GET /v1/jobs/{id}/workspace`. Every 5 minutes the server reconciles with the providers,
+reaps boxes left behind by finished jobs, and resumes orphaned jobs. `POST /v1/sweep` does it
+on demand and returns `{ sandboxes, jobs }`.
 
-**MCP server:** `sbr mcp` (stdio). Its tools are `list_providers`, `create_sandbox`,
-`run_command`, `read_file`, `write_file`, `list_files`, `get_url`, `set_timeout`,
-`list_sandboxes` and `kill_sandbox`. For Claude Code:
+**MCP server:** `sbr mcp` (stdio). Its tools are `list_providers`, `list_strategies`,
+`create_sandbox`, `run_command`, `read_file`, `write_file`, `list_files`, `get_url`,
+`set_timeout`, `move_sandbox`, `list_sandboxes`, `kill_sandbox`, and for jobs `run_job`,
+`job_status`, `list_jobs`, `resume_job` and `cancel_job`. `run_job` waits up to `waitSec`,
+then returns the job's id to poll with `job_status`. For Claude Code:
 
 ```bash
 claude mcp add sandboxes -- node /path/to/sandboxrouting/dist/cli.js mcp
@@ -233,7 +323,7 @@ Every field is optional. See [sandboxrouting.example.json](sandboxrouting.exampl
 
 ```jsonc
 {
-  "policy": "free-first",          // or "cheapest"
+  "routing": { "strategy": "free-first" },   // cheapest | balanced | fastest | spread | yours
   "allowPaid": false,              // SBR_ALLOW_PAID=1 for one run
   "maxPaidUsdPerMonth": 10,
   "selfHosted": "after-free",      // "first" | "after-free" | "never"
@@ -242,13 +332,20 @@ Every field is optional. See [sandboxrouting.example.json](sandboxrouting.exampl
     "e2b": { "usedBeforeUsd": 12.5 },
     "daytona": { "freeTier": { "kind": "monthly-credit", "usd": 200 }, "priority": 10 },
     "modal": { "options": { "ports": [8080] } },
+    "docker": { "isolation": "gvisor" },     // when Docker runs with runtime runsc
     "fly": { "enabled": false }
-  }
+  },
+  "jobs": { "maxMigrations": 5, "maxWaitSec": 300, "rebalance": false }
 }
 ```
 
-`sbr reset <provider>` clears a provider's quota, rate-limit and auth marks after you top
-up or fix a key.
+`routing` also takes `weights` for `balanced` and `circuitBreaker` settings. `jobs` takes
+the checkpoint mode, limits and timeouts. Both are documented in
+[docs/routing.md](docs/routing.md#4-configuration-reference). `policy` still works as the
+old name for `routing.strategy`.
+
+`sbr reset <provider>` clears a provider's quota, rate-limit and auth marks, and its health
+history, after you top up or fix a key.
 
 ## Adding a provider
 
@@ -352,6 +449,7 @@ file, then kills the sandbox. The check prints `ok` or the provider's own error.
 ```bash
 npm install
 npm run typecheck    # adapters are checked against the real provider SDK types
-npm test             # 89 tests; the Docker ones run real containers when Docker is up
+npm test             # the Docker ones run real containers when Docker is up
+npm run simulate     # compare the routing strategies on a simulated month
 npm run build && node dist/cli.js providers
 ```

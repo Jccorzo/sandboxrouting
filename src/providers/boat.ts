@@ -33,6 +33,7 @@ export const boatProvider = defineProvider({
     homepage: "https://boat.dev",
     env: ["BOAT_API_KEY"],
     capabilities: ["ports", "pause", "fileList", "extendTimeout"],
+    isolation: "vm",
     freeTier: {
       // 25 trial hours at the small size ($0.018/h).
       tier: { kind: "one-time-credit", usd: 0.45 },

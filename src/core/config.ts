@@ -35,13 +35,74 @@ const providerConfigSchema = z
       .optional(),
     /** Adapter-specific options (e.g. openci `url`, Fly `app`). */
     options: z.record(z.unknown()).optional(),
+    /** Isolation override, e.g. `gvisor` for Docker with `runtime: "runsc"`, or your openci workers'. */
+    isolation: z.enum(["container", "gvisor", "microvm", "vm"]).optional(),
+  })
+  .strict();
+
+/** How providers are ranked and when a failing one is benched. See docs/routing.md. */
+const routingSchema = z
+  .object({
+    /** Strategy name: free-first, cheapest, balanced, fastest, spread, or one you registered. */
+    strategy: z.string().optional(),
+    /** Weights of the `balanced` strategy's within-lane score. */
+    weights: z
+      .object({
+        freeValue: z.number().nonnegative().default(1),
+        health: z.number().nonnegative().default(1),
+        speed: z.number().nonnegative().default(0.5),
+        coverage: z.number().nonnegative().default(0.5),
+        load: z.number().nonnegative().default(0.25),
+      })
+      .strict()
+      .default({}),
+    circuitBreaker: z
+      .object({
+        /** Consecutive infrastructure failures that open a provider's circuit. 0 turns it off. */
+        failures: z.number().int().nonnegative().default(3),
+        /** How long the circuit stays open after it trips; doubles per further failure. */
+        cooldownSec: z.number().positive().default(120),
+        maxCooldownSec: z.number().positive().default(1800),
+      })
+      .strict()
+      .default({}),
+    /** Infrastructure outcomes kept per provider for health and the circuit breaker. */
+    healthSamples: z.number().int().positive().default(50),
+  })
+  .strict()
+  .default({});
+
+/** Defaults for jobs (multi-step work that moves between boxes). Each job can override them. */
+export const jobPolicySchema = z
+  .object({
+    /** `every-step`: checkpoint the workdir after each step. `on-migrate`: only before a planned move. */
+    checkpoint: z.enum(["every-step", "on-migrate"]).default("every-step"),
+    /** Box changes allowed per job before it fails. */
+    maxMigrations: z.number().int().nonnegative().default(5),
+    /** Attempts per step for infrastructure failures (box lost, provider refused), on any box. */
+    maxStepAttempts: z.number().int().positive().default(3),
+    defaultStepTimeoutSec: z.number().int().positive().default(600),
+    /** A step starts only if the box has its timeout plus this much life left. */
+    deadlineMarginSec: z.number().int().nonnegative().default(60),
+    /** How long a runner's claim on a job lasts without renewal. */
+    leaseSec: z.number().int().positive().default(60),
+    /** How long a job waits for capacity (rate limits, full free tiers) before failing. */
+    maxWaitSec: z.number().int().nonnegative().default(300),
+    /** Move off a paid box at a step boundary when a free one is available. */
+    rebalance: z.boolean().default(false),
+    /** On exit 137 (killed, usually out of memory), move to a box with twice the memory. */
+    growMemoryOnOom: z.boolean().default(false),
+    maxMemoryMiB: z.number().int().positive().default(16384),
+    maxCheckpointBytes: z.number().int().positive().default(256 * 1024 * 1024),
   })
   .strict();
 
 export const configSchema = z
   .object({
-    /** `free-first` burns free usage before anything else; `cheapest` ranks by price only. */
-    policy: z.enum(["free-first", "cheapest"]).default("free-first"),
+    /** Legacy name for `routing.strategy` (`free-first` or `cheapest`); `routing.strategy` wins. */
+    policy: z.string().optional(),
+    routing: routingSchema,
+    jobs: jobPolicySchema.default({}),
     /** Allow paid usage once free usage is gone. Off by default: free tiers are enforced. */
     allowPaid: z.boolean().default(false),
     /** Most paid spend (USD) per calendar month across providers, when allowPaid is on. */
@@ -63,6 +124,15 @@ export const configSchema = z
 
 export type RouterConfig = z.infer<typeof configSchema>;
 export type ProviderConfig = z.infer<typeof providerConfigSchema>;
+export type RoutingConfig = RouterConfig["routing"];
+export type JobPolicy = z.infer<typeof jobPolicySchema>;
+
+export const DEFAULT_STRATEGY = "free-first";
+
+/** The one place that decides which strategy a request uses. */
+export function strategyNameFor(config: RouterConfig, spec?: { strategy?: string }): string {
+  return spec?.strategy ?? config.routing.strategy ?? config.policy ?? DEFAULT_STRATEGY;
+}
 
 export function parseConfig(input: unknown): RouterConfig {
   return configSchema.parse(input ?? {});

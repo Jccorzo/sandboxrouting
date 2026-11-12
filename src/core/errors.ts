@@ -8,6 +8,7 @@ export type ErrorKind =
   | "not_found" // the sandbox is gone
   | "unsupported" // the adapter cannot do this
   | "invalid" // the request itself is wrong: do not fail over
+  | "conflict" // someone else changed it first (a job's lease, a stale write): re-read
   | "transient"; // network, 5xx, timeouts: try the next provider
 
 export class SandboxRouterError extends Error {
@@ -31,6 +32,12 @@ export class NoProviderAvailableError extends SandboxRouterError {
     );
     this.name = "NoProviderAvailableError";
   }
+
+  /** When the first reason may lapse (ms epoch); undefined when waiting can't help. */
+  get retryAt(): number | undefined {
+    const times = this.attempts.flatMap((a) => (a.until === undefined ? [] : [a.until]));
+    return times.length ? Math.min(...times) : undefined;
+  }
 }
 
 export interface RouteAttempt {
@@ -38,6 +45,20 @@ export interface RouteAttempt {
   outcome: "created" | "skipped" | "failed";
   detail?: string;
   kind?: ErrorKind;
+  /** For a created attempt: the strategy's lane (see routing/types.ts `Lane`). */
+  lane?: string;
+  /** For a created attempt: how it is paid for ("free", "self-hosted" or "paid"). */
+  billing?: string;
+  /** For a skipped or failed attempt: when its reason may lapse (ms epoch). Absent: waiting won't help. */
+  until?: number;
+}
+
+/** A write lost a race: a job's lease moved to another owner, or the record changed state. */
+export class ConflictError extends SandboxRouterError {
+  constructor(message: string) {
+    super("conflict", message);
+    this.name = "ConflictError";
+  }
 }
 
 function statusOf(err: unknown): number | undefined {

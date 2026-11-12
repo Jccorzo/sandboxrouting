@@ -1,11 +1,12 @@
-// The router: picks a provider for each new sandbox (free usage first), fails over when a
-// provider refuses, records every sandbox's lifecycle in the ledger, and routes later
-// calls on a sandbox back to the provider that owns it.
+// The router: picks a provider for each new sandbox (with a switchable strategy, free usage
+// first by default), fails over when a provider refuses, records every sandbox's lifecycle and
+// every provider's infrastructure outcomes in the ledger, and routes later calls on a sandbox
+// back to the provider that owns it. Jobs (router.jobs) build on it to move work between boxes.
 
 import { join } from "node:path";
-import type { ProviderAdapter, ProviderContext, ProviderUsage, ResolvedSpec, SandboxSpec } from "./types.js";
-import { parseConfig, type RouterConfig } from "./config.js";
-import { defaultHome, FileLedger, MemoryLedger, newSandboxId, type Ledger, type LedgerData, type MarkKind } from "./ledger.js";
+import { ISOLATION_STRENGTH, type CreatedSandbox, type ProviderAdapter, type ProviderContext, type ProviderUsage, type ResolvedSpec, type SandboxSpec } from "./types.js";
+import { parseConfig, strategyNameFor, type RouterConfig } from "./config.js";
+import { defaultHome, FileLedger, MemoryLedger, newSandboxId, type HealthSample, type Ledger, type LedgerData, type MarkKind } from "./ledger.js";
 import { classify, NoProviderAvailableError, SandboxRouterError, type RouteAttempt } from "./errors.js";
 import { effectiveState, isLive, transition, type EffectiveState, type SandboxEvent, type SandboxRecord } from "./state.js";
 import {
@@ -19,8 +20,15 @@ import {
   type Availability,
   type FreeStatus,
 } from "./metering.js";
-import { isConfigured, plan, type Plan } from "./policy.js";
+import { billingProblem, eligibility, isConfigured, plan, type Plan } from "./policy.js";
+import type { PolicyInput, ProviderHealth, RoutingStrategy } from "./routing/types.js";
+import { StrategyRegistry } from "./routing/registry.js";
+import { providerHealth, recordHealth } from "./health.js";
 import { Sandbox } from "./sandbox.js";
+import type { CheckpointStore } from "./jobs/types.js";
+import { FileCheckpointStore, MemoryCheckpointStore } from "./jobs/checkpoint.js";
+import { moveSandbox } from "./jobs/move.js";
+import { JobManager } from "./jobs/manager.js";
 
 export interface RouterOptions {
   config?: RouterConfig | unknown;
@@ -29,6 +37,10 @@ export interface RouterOptions {
   env?: Record<string, string | undefined>;
   /** Clock, for tests. Server state uses one clock: this one. */
   now?: () => number;
+  /** Strategies to add to the built-ins (free-first, cheapest, balanced, fastest, spread). */
+  strategies?: RoutingStrategy[];
+  /** Where job checkpoints live. Default: in memory (createRouter uses $SBR_HOME/checkpoints). */
+  checkpoints?: CheckpointStore;
 }
 
 export interface ProviderStatus {
@@ -39,9 +51,12 @@ export interface ProviderStatus {
   selfHosted: boolean;
   free: FreeStatus;
   availability: Availability;
+  /** Recent infrastructure outcomes and the circuit breaker, derived on read. */
+  health: ProviderHealth;
   live: number;
   concurrency?: number;
   capabilities: string[];
+  isolation?: string;
   freeTierNotes?: string;
   missingEnv: string[];
 }
@@ -62,20 +77,27 @@ export interface SandboxView {
 }
 
 const DAY = 86_400_000;
+const until = (t: number | undefined) => (t === undefined ? {} : { until: t });
 
 export class SandboxRouter {
   readonly config: RouterConfig;
   readonly ledger: Ledger;
+  readonly checkpoints: CheckpointStore;
   private readonly adapters = new Map<string, ProviderAdapter>();
+  private readonly registry: StrategyRegistry;
   private readonly env: Record<string, string | undefined>;
   readonly now: () => number;
   private usageCache = new Map<string, { at: number; usage: ProviderUsage }>();
+  private jobManager?: JobManager;
 
   constructor(opts: RouterOptions = {}) {
     this.config = parseConfig(opts.config ?? {});
     this.ledger = opts.ledger ?? new MemoryLedger();
     this.env = opts.env ?? process.env;
     this.now = opts.now ?? Date.now;
+    this.checkpoints = opts.checkpoints ?? new MemoryCheckpointStore(this.now);
+    this.registry = new StrategyRegistry();
+    for (const s of opts.strategies ?? []) this.registry.register(s);
     for (const p of opts.providers ?? []) this.register(p);
   }
 
@@ -84,6 +106,22 @@ export class SandboxRouter {
     if (this.adapters.has(adapter.info.id)) throw new Error(`provider "${adapter.info.id}" is already registered`);
     this.adapters.set(adapter.info.id, adapter);
     return this;
+  }
+
+  /** Adds a routing strategy; use it with `routing.strategy` in config or `strategy` in a request. */
+  registerStrategy(strategy: RoutingStrategy): this {
+    this.registry.register(strategy);
+    return this;
+  }
+
+  /** Every strategy this router knows, built-in and registered. */
+  strategies(): RoutingStrategy[] {
+    return this.registry.list();
+  }
+
+  /** The strategy a request would use (its own `strategy`, else config). Throws if unknown. */
+  strategyFor(spec: SandboxSpec = {}): RoutingStrategy {
+    return this.registry.get(strategyNameFor(this.config, spec));
   }
 
   providers(): ProviderAdapter[] {
@@ -100,9 +138,23 @@ export class SandboxRouter {
     return { env: this.env, options: this.config.providers[adapter.info.id]?.options ?? {} };
   }
 
+  /** Jobs: steps plus a workdir that move between boxes when one fails or runs out. */
+  get jobs(): JobManager {
+    return (this.jobManager ??= new JobManager(this, { store: this.checkpoints }));
+  }
+
+  /** Copies a sandbox's workdir to a new box (routed like `create`) and kills the old one. */
+  move(id: string, opts: { workdir?: string; spec?: SandboxSpec } = {}): Promise<Sandbox> {
+    return moveSandbox(this, id, opts);
+  }
+
   // ------------------------------------------------------------------ routing
 
   resolve(spec: SandboxSpec): ResolvedSpec {
+    if (spec.minIsolation !== undefined && !Object.hasOwn(ISOLATION_STRENGTH, spec.minIsolation)) {
+      // Unknown, it would compare as weaker than nothing and match every provider.
+      throw new SandboxRouterError("invalid", `minIsolation "${spec.minIsolation}" is not one of ${Object.keys(ISOLATION_STRENGTH).join(", ")}`);
+    }
     const d = this.config.defaults;
     return {
       ...spec,
@@ -132,74 +184,137 @@ export class SandboxRouter {
     return this.planWith(data, this.resolve(spec));
   }
 
-  private planWith(data: LedgerData, spec: ResolvedSpec, only?: string): Plan {
-    const adapters = only ? [this.adapter(only)] : this.providers();
-    const now = this.now();
-    // Size-dependent ranking needs a size; use each provider's default when unset.
+  private policyInput(data: LedgerData, spec: ResolvedSpec): PolicyInput {
+    // Size-dependent ranking needs a size; use a common one when the request leaves it unset.
     const sized = { ...spec, cpu: spec.cpu || 2, memoryMiB: spec.memoryMiB || 2048 };
-    return plan({
-      adapters,
+    return {
+      adapters: this.providers(),
       config: this.config,
       data,
       spec: sized,
-      now,
+      requested: { cpu: spec.cpu, memoryMiB: spec.memoryMiB },
+      now: this.now(),
       ctxFor: (a) => this.ctxFor(a),
       reported: Object.fromEntries([...this.usageCache].map(([k, v]) => [k, v.usage])),
-    });
+    };
+  }
+
+  private planWith(data: LedgerData, spec: ResolvedSpec): Plan {
+    return plan({ ...this.policyInput(data, spec), strategy: this.strategyFor(spec) });
   }
 
   async create(spec: SandboxSpec = {}): Promise<Sandbox> {
     await this.sweepLocal();
     const resolved = this.resolve(spec);
     const first = this.planWith(await this.ledger.read(), resolved);
-    const attempts: RouteAttempt[] = first.skipped.map((s) => ({ provider: s.provider, outcome: "skipped", detail: s.reason }));
+    const attempts: RouteAttempt[] = first.skipped.map((s) => ({ provider: s.provider, outcome: "skipped", detail: s.reason, ...until(s.until) }));
+    const keep = this.config.routing.healthSamples;
 
     for (const entry of first.ordered) {
       const adapter = this.adapter(entry.provider);
       const id = newSandboxId();
       const forProvider = this.resolveFor(resolved, adapter, id);
 
-      // Reserve under the lock: re-plan this provider on fresh data so two callers can't
-      // both take the last free slot or the last of a budget.
-      const reserved = await this.ledger.update((data) => {
-        const again = this.planWith(data, resolved, entry.provider);
-        if (!again.ordered.length) return again.skipped[0]?.reason ?? "no longer eligible";
-        const now = this.now();
+      // Reserve under the lock: re-check this provider on fresh data so two callers can't both
+      // take the last free slot or the last of a budget. A request planned as free never
+      // quietly becomes paid: it moves on to the next candidate, which may still be free.
+      const reserved = await this.ledger.update((data): true | { reason: string; until?: number } => {
+        const again = eligibility(this.policyInput(data, resolved), entry.provider);
+        if (!again.ok) return again;
+        const problem = billingProblem(again.candidate, entry.billing);
+        // Lost to a parallel request: capacity that may come back at any time.
+        if (problem) return { reason: `planned as ${entry.billing}, but ${problem}`, until: this.now() };
         data.sandboxes[id] = {
           id,
           provider: entry.provider,
           state: "creating",
           cpu: forProvider.cpu,
           memoryMiB: forProvider.memoryMiB,
-          createdAt: new Date(now).toISOString(),
+          createdAt: new Date(this.now()).toISOString(),
           metadata: forProvider.metadata,
+          billing: entry.billing,
+          timeoutSec: forProvider.timeoutSec,
         };
         return true;
       });
       if (reserved !== true) {
-        attempts.push({ provider: entry.provider, outcome: "skipped", detail: reserved });
+        attempts.push({ provider: entry.provider, outcome: "skipped", detail: reserved.reason, ...until(reserved.until) });
         continue;
       }
 
+      const started = this.now();
+      let made: CreatedSandbox;
       try {
-        const created = await adapter.create(forProvider, this.ctxFor(adapter));
-        await this.apply(id, {
-          type: "created",
-          providerSandboxId: created.providerSandboxId,
-          timeoutSec: forProvider.timeoutSec,
-          cpu: created.cpu,
-          memoryMiB: created.memoryMiB,
-        });
-        attempts.push({ provider: entry.provider, outcome: "created", detail: entry.lane });
-        return new Sandbox(this, id, entry.provider, created.providerSandboxId, attempts);
+        made = await adapter.create(forProvider, this.ctxFor(adapter));
       } catch (raw) {
         const err = classify(raw, entry.provider);
-        await this.apply(id, { type: "createFailed", error: err.message });
-        await this.markFromError(entry.provider, err);
-        attempts.push({ provider: entry.provider, outcome: "failed", kind: err.kind, detail: err.message.slice(0, 300) });
+        await this.ledger.update((data) => {
+          const now = this.now();
+          const rec = data.sandboxes[id];
+          // A create this slow may already be recorded as lost by the sweep.
+          if (rec?.state === "creating") data.sandboxes[id] = transition(rec, { type: "createFailed", error: err.message }, now);
+          // Only infrastructure trouble counts toward health; refusals have their own marks.
+          if (err.kind === "transient") recordHealth(data, entry.provider, { at: new Date(now).toISOString(), op: "create", ok: false, kind: err.kind }, keep);
+        });
+        const marked = await this.markFromError(entry.provider, err);
+        // A refusal lapses with its mark; a transient failure may pass at once (the circuit breaker
+        // benches a provider that keeps failing); anything else won't change by waiting.
+        const retry = marked ?? (err.kind === "transient" ? this.now() : undefined);
+        attempts.push({ provider: entry.provider, outcome: "failed", kind: err.kind, detail: err.message.slice(0, 300), ...until(retry) });
+        continue;
       }
+
+      // The box exists, and until this write lands nothing else knows its id. Its failure is the
+      // ledger's, not the provider's, so it gets its own handling instead of the catch above.
+      let problem: string | undefined;
+      try {
+        problem = await this.ledger.update((data) => {
+          const rec = data.sandboxes[id];
+          // The sweep records a create as lost after 10 minutes; this one took longer.
+          if (rec?.state !== "creating") return `its record was already ${rec?.state ?? "gone"}`;
+          const now = this.now();
+          data.sandboxes[id] = transition(
+            rec,
+            { type: "created", providerSandboxId: made.providerSandboxId, timeoutSec: forProvider.timeoutSec, cpu: made.cpu, memoryMiB: made.memoryMiB },
+            now,
+          );
+          recordHealth(data, entry.provider, { at: new Date(now).toISOString(), op: "create", ok: true, ms: Math.max(0, now - started) }, keep);
+          return undefined;
+        });
+      } catch (err) {
+        problem = `recording it failed: ${err instanceof Error ? err.message : String(err)}`;
+      }
+      if (problem === undefined) {
+        attempts.push({ provider: entry.provider, outcome: "created", detail: entry.lane, lane: entry.lane, billing: entry.billing });
+        return new Sandbox(this, id, entry.provider, made.providerSandboxId, attempts);
+      }
+      const error = `created ${made.providerSandboxId}, but ${problem}`;
+      await this.discard(adapter, id, made.providerSandboxId, error);
+      // Nothing to wait for: the next candidate, or a retry, may work at once.
+      attempts.push({ provider: entry.provider, outcome: "failed", kind: "transient", detail: error.slice(0, 300), until: this.now() });
     }
     throw new NoProviderAvailableError(attempts);
+  }
+
+  /**
+   * A box the provider made that nobody will use: its record couldn't be written, or the sweep
+   * gave up on its create. Its id goes on the record before the kill, so a kill that fails, or a
+   * crash in between, leaves the remote sweep something to reap.
+   */
+  private async discard(adapter: ProviderAdapter, id: string, providerSandboxId: string, error: string): Promise<void> {
+    await this.ledger
+      .update((data) => {
+        const rec = data.sandboxes[id];
+        const now = this.now();
+        if (rec?.state === "running" || rec?.state === "paused") {
+          // The "created" write landed after all; what failed came after it.
+          data.sandboxes[id] = transition(rec, { type: "stopped", reason: "killed" }, now);
+        } else if (rec?.state === "creating" || (rec?.state === "failed" && rec.providerSandboxId === undefined)) {
+          data.sandboxes[id] = transition(rec, { type: "createFailed", error, providerSandboxId }, now);
+        }
+      })
+      .catch(() => undefined); // the ledger may be what is failing; the kill goes ahead anyway
+    await adapter.kill(providerSandboxId, this.ctxFor(adapter)).catch(() => undefined);
   }
 
   /** Reattach to a sandbox by router id, or adopt one by `provider:providerSandboxId`. */
@@ -275,9 +390,11 @@ export class SandboxRouter {
         selfHosted: Boolean(a.info.selfHosted),
         free: freeStatus(a.info, cfg, data, now, this.usageCache.get(a.info.id)?.usage),
         availability: availability(data, a.info.id, now),
+        health: providerHealth(data, a.info.id, now, this.config.routing.circuitBreaker),
         live: Object.values(data.sandboxes).filter((r) => r.provider === a.info.id && isLive(r, now)).length,
         concurrency: cfg?.concurrency ?? a.info.freeTier.concurrency,
         capabilities: a.info.capabilities,
+        isolation: cfg?.isolation ?? a.info.isolation,
         freeTierNotes: a.info.freeTier.notes,
         missingEnv: a.info.env.filter((e) => !ctx.env[e]),
       };
@@ -301,10 +418,11 @@ export class SandboxRouter {
     );
   }
 
-  /** Clears marks on a provider (e.g. after topping up credit or fixing a key). */
+  /** Clears marks on a provider (e.g. after topping up credit or fixing a key), and its health history. */
   async clearMarks(provider: string, kind?: MarkKind): Promise<void> {
     await this.ledger.update((data) => {
       data.marks = data.marks.filter((m) => m.provider !== provider || (kind !== undefined && m.kind !== kind));
+      if (kind === undefined) delete data.health[provider];
     });
   }
 
@@ -321,7 +439,34 @@ export class SandboxRouter {
     });
   }
 
-  async markFromError(provider: string, err: SandboxRouterError): Promise<void> {
+  /** Records a kill: a running or paused sandbox becomes stopped ("killed"); any other stays as it is. */
+  async recordKill(id: string): Promise<void> {
+    await this.ledger.update((data) => {
+      const rec = data.sandboxes[id];
+      if (rec?.state === "running" || rec?.state === "paused") data.sandboxes[id] = transition(rec, { type: "stopped", reason: "killed" }, this.now());
+    });
+  }
+
+  /**
+   * The provider says the sandbox is gone. Records it as stopped and, when that happened
+   * before its deadline (not just the provider enforcing the timeout), as a lost box in the
+   * provider's health, in the same write.
+   */
+  async markGone(id: string): Promise<void> {
+    await this.ledger.update((data) => {
+      const rec = data.sandboxes[id];
+      if (!rec || rec.state === "creating" || rec.state === "stopped" || rec.state === "failed") return;
+      const now = this.now();
+      if (effectiveState(rec, now) === "running") {
+        const sample: HealthSample = { at: new Date(now).toISOString(), op: "lost", ok: false, kind: "not_found" };
+        recordHealth(data, rec.provider, sample, this.config.routing.healthSamples);
+      }
+      data.sandboxes[id] = transition(rec, { type: "stopped", reason: "gone" }, now);
+    });
+  }
+
+  /** Marks a provider after a refusal; returns when the mark lapses (ms epoch), if it set one. */
+  async markFromError(provider: string, err: SandboxRouterError): Promise<number | undefined> {
     const now = this.now();
     let kind: MarkKind | undefined;
     let until = now;
@@ -337,25 +482,28 @@ export class SandboxRouter {
       kind = "auth";
       until = now + 10 * 60_000;
     }
-    if (!kind) return;
+    if (!kind) return undefined;
     const mark = { provider, kind, at: new Date(now).toISOString(), until: new Date(until).toISOString(), detail: err.message.slice(0, 200) };
     await this.ledger.update((data) => {
       data.marks = data.marks.filter((m) => Date.parse(m.until) > now && !(m.provider === provider && m.kind === kind));
       data.marks.push(mark);
     });
+    return until;
   }
 
   /**
    * Reconciles the ledger with reality. Locally: records past their deadline become
    * stopped at the deadline, and creates a crash left half done become failed. With
-   * `remote`, asks each provider which sandboxes are alive and closes the rest, and
-   * deletes sandboxes past their deadline on providers that don't enforce one.
+   * `remote`, asks each provider which sandboxes are alive, closes the rest, and deletes
+   * the alive ones the ledger has already closed.
    */
   async sweep(opts: { remote?: boolean } = {}): Promise<{ stopped: number; failed: number; reaped: number }> {
     const result = await this.sweepLocal();
     if (!opts.remote) return result;
     for (const adapter of this.providers()) {
       if (!adapter.listAlive || !isConfigured(adapter, this.ctxFor(adapter))) continue;
+      // A box that started running after this may be missing from the list without being gone.
+      const listedAt = this.now();
       let alive: Set<string>;
       try {
         alive = new Set(await adapter.listAlive(this.ctxFor(adapter)));
@@ -366,29 +514,33 @@ export class SandboxRouter {
         let count = 0;
         const now = this.now();
         for (const [id, rec] of Object.entries(data.sandboxes)) {
-          if (rec.provider !== adapter.info.id) continue;
-          if ((rec.state === "running" || rec.state === "paused") && !alive.has(rec.providerSandboxId)) {
-            data.sandboxes[id] = transition(rec, { type: "stopped", reason: "gone" }, now);
-            count++;
-          }
+          if (rec.provider !== adapter.info.id || (rec.state !== "running" && rec.state !== "paused")) continue;
+          // The first segment opens when the create is recorded.
+          if (alive.has(rec.providerSandboxId) || Date.parse(rec.segments[0]?.start ?? rec.createdAt) >= listedAt) continue;
+          data.sandboxes[id] = transition(rec, { type: "stopped", reason: "gone" }, now);
+          count++;
         }
         return count;
       });
       result.stopped += n;
 
-      // Providers that don't stop sandboxes at the deadline: delete any the ledger has
-      // already closed (a kill at expiry that failed, or a process that died first).
-      if (adapter.info.enforcesTimeout === false) {
-        const data = await this.ledger.read();
-        for (const rec of Object.values(data.sandboxes)) {
-          if (rec.provider !== adapter.info.id) continue;
-          if ((rec.state === "stopped" || rec.state === "failed") && rec.providerSandboxId && alive.has(rec.providerSandboxId)) {
-            await adapter.kill(rec.providerSandboxId, this.ctxFor(adapter)).then(
-              () => result.reaped++,
-              () => undefined,
-            );
-          }
-        }
+      // The ledger says these are over, yet the provider still runs them: a kill that failed
+      // after recording its stop, a create whose record couldn't be written, a deadline the
+      // provider doesn't enforce. A box a newer record holds (an adoption) is left alone.
+      const data = await this.ledger.read();
+      const held = new Set<string>();
+      const doomed = new Set<string>();
+      for (const rec of Object.values(data.sandboxes)) {
+        if (rec.provider !== adapter.info.id) continue;
+        if (rec.state === "running" || rec.state === "paused") held.add(rec.providerSandboxId);
+        else if ((rec.state === "stopped" || rec.state === "failed") && rec.providerSandboxId && alive.has(rec.providerSandboxId)) doomed.add(rec.providerSandboxId);
+      }
+      for (const psid of doomed) {
+        if (held.has(psid)) continue;
+        await adapter.kill(psid, this.ctxFor(adapter)).then(
+          () => result.reaped++,
+          () => undefined,
+        );
       }
     }
     return result;
@@ -481,11 +633,14 @@ export async function createRouter(opts: Partial<RouterOptions> = {}): Promise<S
   const { loadConfig } = await import("./config.js");
   const { builtinProviders } = await import("../providers/index.js");
   const env = opts.env ?? process.env;
+  const home = defaultHome(env);
   return new SandboxRouter({
     config: opts.config ?? (await loadConfig(env)),
-    ledger: opts.ledger ?? new FileLedger(join(defaultHome(env), "ledger.json")),
+    ledger: opts.ledger ?? new FileLedger(join(home, "ledger.json")),
     env,
     providers: opts.providers ?? builtinProviders(),
     now: opts.now,
+    strategies: opts.strategies,
+    checkpoints: opts.checkpoints ?? new FileCheckpointStore(join(home, "checkpoints"), opts.now),
   });
 }

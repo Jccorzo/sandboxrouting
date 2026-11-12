@@ -36,7 +36,7 @@ describe("free-first routing", () => {
     const small = fakeProvider({ id: "small", tier: { kind: "monthly-credit", usd: 5 } });
     const { router: r } = router([small, big], {}, c);
     // Spend most of "big" this month: its remaining share drops below "small"'s.
-    const sbx = await r.create({ providers: ["big"], cpu: 100, timeoutSec: 86400 });
+    const sbx = await r.create({ providers: ["big"], cpu: 100, timeoutSec: 3600 }); // $3.60 of its $30, reserved whole
     c.advance(200_000); // 200 s × $0.001/s = $0.20 spent on "big"
     await sbx.kill();
     const p = await r.plan();
@@ -70,9 +70,10 @@ describe("free-first routing", () => {
     const a = fakeProvider({ id: "a", tier: { kind: "one-time-credit", usd: 1 }, rate: 0.001 }); // $3.6/h at 1 vCPU
     const b = fakeProvider({ id: "b", tier: { kind: "one-time-credit", usd: 1 }, rate: 0.001 });
     const { router: r } = router([a, b], { providers: { a: { priority: 1 } } }, c);
-    const first = await r.create({ timeoutSec: 3600 });
+    // A box only starts on credit that covers its whole timeout: 1000 s × $0.001 is all of a's $1.
+    const first = await r.create({ cpu: 1, timeoutSec: 1000 });
     expect(first.provider).toBe("a");
-    c.advance(1500 * 1000); // 1500 s × $0.001 = $1.50 > $1 credit
+    c.advance(1500 * 1000); // it ran to its deadline: $1 spent
     await first.kill();
     const status = await r.status();
     expect(status.find((s) => s.id === "a")!.free.state).toBe("exhausted");
@@ -90,7 +91,7 @@ describe("free-first routing", () => {
     const c = clock(Date.UTC(2026, 10, 30, 23, 0));
     const m = fakeProvider({ id: "m", tier: { kind: "monthly-credit", usd: 1 }, rate: 0.01 });
     const { router: r } = router([m], {}, c);
-    const s = await r.create({ timeoutSec: 3000 });
+    const s = await r.create({ cpu: 1, timeoutSec: 100 }); // 100 s × $0.01: the whole $1
     c.advance(200_000);
     await s.kill();
     expect((await r.status())[0]!.free.state).toBe("exhausted");
@@ -162,12 +163,13 @@ describe("paid budget", () => {
     const c = clock();
     const paid = fakeProvider({ id: "paid", tier: { kind: "none" }, rate: 0.001 });
     const { router: r } = router([paid], { allowPaid: true, maxPaidUsdPerMonth: 1 }, c);
-    const s = await r.create({ timeoutSec: 3600 });
+    // A paid box only starts when the budget covers its whole timeout: 1000 s × $0.001 is all of it.
+    const s = await r.create({ cpu: 1, timeoutSec: 1000 });
     c.advance(1100 * 1000);
     await s.kill();
     const p = await r.plan();
     expect(p.ordered).toHaveLength(0);
-    expect(p.skipped[0]!.reason).toMatch(/paid budget/);
+    expect(p.skipped[0]!.reason).toBe("no free tier; paid budget for this month is spent");
   });
 });
 
