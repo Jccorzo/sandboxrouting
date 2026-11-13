@@ -18,9 +18,14 @@ await sbx.kill();
 
 ## Providers
 
-31 providers are built in: 29 cloud providers plus your own hardware (openci, local
-Docker). Terms were checked on 2026-11-11 against each provider's pricing page, which its
-adapter links. Terms change, so you can override any of them in config.
+48 providers are built in: 46 cloud providers plus your own hardware (openci, local
+Docker). Terms were checked on 2026-11-11 or 2026-11-12 against each provider's pricing
+page, which its adapter links. Terms change, so you can override any of them in config.
+
+The 17 added on 2026-11-12 (`tensorlake`, `buddy`, `boxd`, `maritime`, `promigence`, `zode`,
+`boxcompute`, `lizard`, `munito`, `nanite`, `render`, `quave`, `beam`, `mosaic`, `nodus`,
+`cathedral`, `dory`) are written from each provider's published API and tested against
+local servers that speak it. None has been run against the real service yet.
 
 ### Free every month
 
@@ -33,6 +38,8 @@ adapter links. Terms change, so you can override any of them in config.
 | `instabox` | one 4 vCPU / 8 GiB machine, always free‡ | 1 machine, 8 h per run | $0.004/vCPU-h | Firecracker |
 | `upstash` | 5 CPU-hours | 10 concurrent, 2 vCPU / 4 GB | $0.10/h (2 vCPU) | container |
 | `cloudflare` | 375 vCPU-min + 25 GiB-h (≈ $0.68) with Workers Paid ($5/mo) | — | $0.072/vCPU-h (active only) | container |
+| `tensorlake` | one 1 vCPU / 1 GB sandbox, always free | 1 sandbox, 1 h (2 h once verified) | $0.07/vCPU-h + $0.015/GB-h | Firecracker |
+| `buddy` | $1 / month | — | $0.0144/vCPU-h + $0.0144/GB-h | VM |
 
 ### One-time credit
 
@@ -50,6 +57,13 @@ adapter links. Terms change, so you can override any of them in config.
 | `celesto` | $5, expires after 30 days | 1 sandbox | $0.015/h (1 vCPU / 2 GB) | Firecracker |
 | `agent37` | $5 (card required) | 3 awake | $0.0011/vCPU-h | gVisor |
 | `boat` | 25 trial hours (≈ $0.45; card required) | 2 concurrent, 2 h | $0.018/h (2 vCPU / 4 GB) | VM |
+| `boxd` | €30 (counted as $30; card likely required) | 50 machines | €0.039/vCPU-h + €0.012/GiB-h (in use only) | KVM microVM |
+| `maritime` | $20 trial cap, 7 days (card required) | 24 h | $0.022/h (2 vCPU / 4 GB) | Firecracker |
+| `promigence` | $10 without a card ($50 with one), 30 days | 20 concurrent, 1 h | $0.166/h (2 vCPU / 4 GiB) | not published§ |
+| `zode` | $10 (card check) | 2 running, 55 s per command | $0.0225/h (2 vCPU / 4 GB) | Cloud Hypervisor |
+| `boxcompute` | $5, expires after 14 days | 2 running | $0.05/h (0.5 vCPU / 1 GiB) | VM |
+| `lizard` | $5, 7-day trial (card required) | 1 Small running, 1 h | $0.0162/h (2 vCPU / 4 GB) | Firecracker |
+| `munito` | $0.90, 7-day trial (card required) | 2 concurrent, 2 h | $0.018/h (2 vCPU / 4 GiB) | microVM |
 
 ### Paid only
 
@@ -65,6 +79,14 @@ adapter links. Terms change, so you can override any of them in config.
 | `lambda-microvm` | $0.10/vCPU-h + $0.013/GB-h | needs the execd image | Firecracker (ARM64) |
 | `thunder` | $0.051/vCPU-h | access through sales; exec over SSH | Firecracker (GPUs) |
 | `exedev` | $0.105/h (2 vCPU + 4 GiB) on top of a plan | 30 s per command | VM |
+| `nanite` | $0.072/vCPU-h + $0.0432/GB-h (in use only) | fixed size; stops after 30 idle seconds | microVM |
+| `render` | $0.12/CPU-h (active only) + $0.019/GB-h | beta; no public URLs yet | Firecracker |
+| `quave` | $0.03125/h per 0.5 vCPU + 512 MB | enabled per account; size and image come from a template | gVisor |
+| `beam` | $0.05/vCPU-h + $0.01/GiB-h | $20/mo plan includes $20 of credit | container |
+| `mosaic` | $0.05/h per 2 vCPU / 4 GiB | free while hibernated | Firecracker |
+| `nodus` | $0.0357/h (2 vCPU / 4 GiB) | prepaid; no outbound network unless asked | gVisor-style |
+| `cathedral` | $0.035/h (2 vCPU / 4 GiB) | prepaid; 24 h max; files under /work | confidential VM, shared‖ |
+| `dory` | $0.0288/h (2 shared vCPU / 4 GB) | prepaid; 10 min per command | VM |
 
 ### Your own hardware
 
@@ -80,6 +102,16 @@ Footnotes:
   `"morph": { "freeTier": { "kind": "one-time-credit", "usd": 15 } }`.
 - ‡ InstaBox's free plan is never billed, but it says its "early allowance" can end. It's
   modelled as a month of hours for one machine.
+
+- § Promigence doesn't say how its sandboxes are isolated, so a request with `minIsolation` skips it.
+- ‖ Cathedral's rooms share one AMD SEV-SNP VM and are kept apart by a container runtime it
+  doesn't name, so the adapter claims `container`, the weakest.
+- Runloop is winding down: its docs say transition support ends 2026-11-13. The adapter is
+  still here; set `"runloop": { "enabled": false }` once your account stops working.
+- boxd bills in euros; its prices are converted at about 1.10 USD per euro.
+- Zode's docs ($0.0175/h) and homepage ($0.0225/h) disagree on price, and on the free tier
+  ($10 once after a card check, vs 50 free hours a month). The higher price and the docs'
+  free tier are used.
 
 ### Not built
 
@@ -111,6 +143,15 @@ Footnotes:
 | `celesto` | `CELESTO_API_KEY` | SDK `@celestoai/sdk` |
 | `agent37` | `AGENT37_API_KEY` | REST api.agent37.com/v1 + sandbox.agent37.app |
 | `boat` | `BOAT_API_KEY` | REST boat.dev/api/v1 |
+| `tensorlake` | `TENSORLAKE_API_KEY` | REST api.tensorlake.ai + `<id>.sandbox.tensorlake.ai` |
+| `buddy` | `BUDDY_TOKEN`, `BUDDY_WORKSPACE`, `BUDDY_PROJECT` (`BUDDY_REGION` for EU/AS) | REST api.buddy.works |
+| `boxd` | `BOXD_API_KEY` | SDK `@boxd-sh/sdk` (gRPC; there is no REST API) |
+| `maritime` | `MARITIME_API_KEY` | REST api.maritime.sh + the sandbox's data plane |
+| `promigence` | `PROMIGENCE_API_KEY` | REST api.promigence.ai/v1 |
+| `zode` | `ZODE_API_KEY` | REST api.zode.dev/v1 |
+| `boxcompute` | `BOXCOMPUTE_API_KEY` | REST api.boxcompute.ai/api/v2 |
+| `lizard` | `LIZARD_API_KEY`, `LIZARD_PROJECT_ID` | REST lizard.build/api |
+| `munito` | `MUNITO_API_KEY` | REST api.munito.ai/sandboxes/v1 |
 | `koyeb` | `KOYEB_API_TOKEN` | SDK `@koyeb/sandbox-sdk` |
 | `fly` | `FLY_API_TOKEN`, `FLY_APP` | REST api.machines.dev/v1 |
 | `sprites` | `SPRITES_TOKEN` | REST api.sprites.dev/v1 (the SDK needs Node 24) |
@@ -121,6 +162,14 @@ Footnotes:
 | `lambda-microvm` | `LAMBDA_MICROVM_IMAGE` + AWS credentials | SDK `@aws-sdk/client-lambda-microvms`, plus execd (templates/aws-lambda-microvm) |
 | `thunder` | `TNR_API_TOKEN` | REST api.thundercompute.com:8443/v1, plus system `ssh` |
 | `exedev` | `EXE_API_TOKEN` (minted with `generate-api-key --cmds=new,ssh,rm,ls`) | REST `POST exe.dev/exec` |
+| `nanite` | `NANITE_API_KEY` | REST api.nanite.run/v1 |
+| `render` | `RENDER_API_KEY`, `RENDER_WORKSPACE_ID` | REST api.render.com/v1 + per-sandbox connect tokens |
+| `quave` | `QUAVEONE_USER_TOKEN`, `QUAVEONE_ACCOUNT_ID`, `QUAVEONE_APP_ID`, `QUAVEONE_SANDBOX_TEMPLATE_ID` | REST api.quave.cloud/api/public/v1 |
+| `beam` | `BEAM_TOKEN`, `BEAM_WORKSPACE_ID` | SDK `@beamcloud/beam-js` |
+| `mosaic` | `MOSAIC_API_TOKEN` | REST sandbox.mosaicos.com/v1 |
+| `nodus` | `NODUS_API_KEY`, `NODUS_PROJECT` | REST api.nodus-compute.ai/apis/nodus.dev/v1 |
+| `cathedral` | `CATHEDRAL_API_KEY` | REST cathedral.computer/v1 |
+| `dory` | `DORY_API_KEY` | REST api.dory.run/v1 + data.dory.run |
 | `openci` | `OPENCI_URL`, `OPENCI_TOKEN` | REST /v1/sandboxes |
 | `docker` | none (`SBR_DOCKER=0` turns it off) | `docker` CLI |
 

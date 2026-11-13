@@ -153,6 +153,55 @@ vi.mock("@boxlite-ai/boxlite", () => {
   };
 });
 
+vi.mock("@boxd-sh/sdk", () => ({
+  Boxd: class {
+    machines = {
+      async create(o: { deleteAfter: number; isolated: boolean; config: { vcpu: number; memory: string } }) {
+        // The timer is what ends the machine, so it must always be sent.
+        if (!(o.deleteAfter > 0) || !o.isolated || o.config.memory !== `${o.config.vcpu * 4}G`) throw new Error("bad boxd create");
+        return { id: "bx-1" };
+      },
+      async waitUntilReady() {},
+      async exec(_id: string, o: { command: string[]; env?: Record<string, string> }) {
+        return sh(o.command, { env: o.env });
+      },
+      async delete(id: string) {
+        killed.push(`boxd:${id}`);
+      },
+    };
+  },
+}));
+
+vi.mock("@beamcloud/beam-js", () => {
+  const instance = {
+    sandboxId: "bm-1",
+    terminated: false,
+    async exec(argv: string[], o: { env?: Record<string, string> }) {
+      const r = sh(argv, o);
+      return { wait: async () => r.exitCode, stdout: { read: async () => r.stdout }, stderr: { read: async () => r.stderr } };
+    },
+  };
+  return {
+    beamOpts: {} as Record<string, string>,
+    Image: class {},
+    Sandbox: class {
+      static async connect() {
+        return instance;
+      }
+      static async terminate(id: string) {
+        killed.push(`beam:${id}`);
+        return true;
+      }
+      constructor(public config: { keepWarmSeconds: number }) {}
+      async create() {
+        // Without it the SDK's default lifetime is 60 seconds.
+        if (!(this.config.keepWarmSeconds > 0)) throw new Error("bad beam create");
+        return instance;
+      }
+    },
+  };
+});
+
 // Lambda MicroVMs: a fake control plane in front of the real execd server.
 const execd = await import("../templates/aws-lambda-microvm/execd.mjs");
 execd.server.listen(0, "127.0.0.1");
@@ -194,7 +243,7 @@ vi.mock("@aws-sdk/client-lambda-microvms", () => {
   };
 });
 
-const { tenkiProvider, depotProvider, upstashProvider, celestoProvider, namespaceProvider, boxliteProvider, lambdaMicrovmProvider } = await import("../src/index.js");
+const { tenkiProvider, depotProvider, upstashProvider, celestoProvider, namespaceProvider, boxliteProvider, lambdaMicrovmProvider, boxdProvider, beamProvider } = await import("../src/index.js");
 
 function routerFor(p: ProviderAdapter, env: Record<string, string>) {
   return new SandboxRouter({ providers: [p], ledger: new MemoryLedger(), env, config: { allowPaid: true, providers: { [p.info.id]: { options: { pollMs: 1 } } } } });
@@ -208,6 +257,8 @@ const cases: [string, () => ProviderAdapter, Record<string, string>][] = [
   ["namespace", () => namespaceProvider, { NSC_TOKEN: "k" }],
   ["boxlite", () => boxliteProvider, { BOXLITE_API_KEY: "k" }],
   ["lambda-microvm", () => lambdaMicrovmProvider, { LAMBDA_MICROVM_IMAGE: "arn:img" }],
+  ["boxd", () => boxdProvider, { BOXD_API_KEY: "k" }],
+  ["beam", () => beamProvider, { BEAM_TOKEN: "k", BEAM_WORKSPACE_ID: "ws" }],
 ];
 
 describe.each(cases)("%s adapter", (id, provider, env) => {

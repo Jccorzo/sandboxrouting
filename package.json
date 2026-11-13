@@ -1,7 +1,7 @@
 {
   "name": "sandboxrouting",
   "version": "0.1.0",
-  "description": "One router for 31 cloud sandbox providers (E2B, Daytona, Modal, Vercel, Cloudflare, Freestyle, Northflank, Tenki, InstaBox, Upstash Box, Boat, Agent37, AWS Lambda MicroVMs and more). Uses every free tier first. SDK, REST API, CLI and MCP server.",
+  "description": "One router for 48 cloud sandbox providers (E2B, Daytona, Modal, Vercel, Cloudflare, Freestyle, Northflank, Tenki, InstaBox, Upstash Box, Boat, Agent37, AWS Lambda MicroVMs and more). Uses every free tier first. SDK, REST API, CLI and MCP server.",
   "type": "module",
   "license": "MIT",
   "engines": {
@@ -37,7 +37,9 @@
   },
   "peerDependencies": {
     "@aws-sdk/client-lambda-microvms": "*",
+    "@beamcloud/beam-js": "*",
     "@blaxel/core": "*",
+    "@boxd-sh/sdk": "*",
     "@boxlite-ai/boxlite": "*",
     "@celestoai/sdk": "*",
     "@daytona/sdk": "*",
@@ -59,7 +61,13 @@
     "@aws-sdk/client-lambda-microvms": {
       "optional": true
     },
+    "@beamcloud/beam-js": {
+      "optional": true
+    },
     "@blaxel/core": {
+      "optional": true
+    },
+    "@boxd-sh/sdk": {
       "optional": true
     },
     "@boxlite-ai/boxlite": {
@@ -113,7 +121,9 @@
   },
   "devDependencies": {
     "@aws-sdk/client-lambda-microvms": "^3.1167.0",
+    "@beamcloud/beam-js": "^1.1.6",
     "@blaxel/core": "^0.3.37",
+    "@boxd-sh/sdk": "^0.3.2",
     "@boxlite-ai/boxlite": "^0.12.0",
     "@celestoai/sdk": "^0.1.6",
     "@daytona/sdk": "^0.231.1",

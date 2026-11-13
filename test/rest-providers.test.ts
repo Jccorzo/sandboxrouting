@@ -1,9 +1,7 @@
 // REST-only adapters driven through the router against local servers that speak each
 // provider's wire format (from its OpenAPI spec where published, else its docs).
-import { afterEach, describe, expect, it } from "vitest";
-import { createServer, type IncomingMessage, type Server } from "node:http";
-import type { AddressInfo } from "node:net";
-import { SandboxRouter, MemoryLedger, type ProviderAdapter } from "../src/index.js";
+import { describe, expect, it } from "vitest";
+import { deletedAtDeadline, fakeRun, lifecycle, mock, routerFor } from "./restmock.js";
 import { quivvoProvider } from "../src/providers/quivvo.js";
 import { instaboxProvider } from "../src/providers/instabox.js";
 import { dedalusProvider } from "../src/providers/dedalus.js";
@@ -12,84 +10,6 @@ import { boatProvider, boatType } from "../src/providers/boat.js";
 import { agent37Provider } from "../src/providers/agent37.js";
 import { exedevProvider, parseExeNdjson } from "../src/providers/exedev.js";
 import { thunderProvider, thunderSshArgs } from "../src/providers/thunder.js";
-
-interface Req {
-  method: string;
-  path: string;
-  query: URLSearchParams;
-  headers: IncomingMessage["headers"];
-  body: Buffer;
-  json: () => any;
-}
-type Reply = { status?: number; json?: unknown; raw?: Buffer | string; type?: string };
-
-const servers: Server[] = [];
-afterEach(() => servers.splice(0).forEach((s) => s.close()));
-
-/** A mock provider API; every request is recorded as "METHOD /path". */
-async function mock(handler: (r: Req) => Reply | undefined) {
-  const seen: string[] = [];
-  const server = createServer(async (req, res) => {
-    const chunks: Buffer[] = [];
-    for await (const c of req) chunks.push(c as Buffer);
-    const u = new URL(req.url ?? "/", "http://x");
-    const body = Buffer.concat(chunks);
-    seen.push(`${req.method} ${u.pathname}`);
-    const out = handler({ method: req.method ?? "GET", path: u.pathname, query: u.searchParams, headers: req.headers, body, json: () => JSON.parse(body.toString() || "{}") }) ?? {
-      status: 404,
-      json: { error: `no route ${req.method} ${u.pathname}` },
-    };
-    const payload = out.raw ?? JSON.stringify(out.json ?? {});
-    res.writeHead(out.status ?? 200, { "content-type": out.type ?? (out.raw !== undefined ? "application/octet-stream" : "application/json") });
-    res.end(payload);
-  });
-  servers.push(server.listen(0));
-  await new Promise((ok) => server.once("listening", ok));
-  return { url: `http://127.0.0.1:${(server.address() as AddressInfo).port}`, seen };
-}
-
-/** What every mock's exec does: `exit N` exits N, anything else echoes. */
-const fakeRun = (cmd: string) => {
-  const m = /exit (\d+)/.exec(cmd);
-  return m ? { stdout: "", stderr: "boom\n", code: Number(m[1]) } : { stdout: `ran: ${cmd}\n`, stderr: "", code: 0 };
-};
-
-function routerFor(adapter: ProviderAdapter, env: Record<string, string>, clock = { t: Date.UTC(2026, 10, 11, 12) }) {
-  const router = new SandboxRouter({
-    providers: [adapter],
-    ledger: new MemoryLedger(),
-    env,
-    now: () => clock.t,
-    config: { allowPaid: true, providers: { [adapter.info.id]: { options: { pollMs: 5 } } } },
-  });
-  return { router, clock };
-}
-
-/** create → exec (ok and non-zero) → optional files → kill, shared by every provider. */
-async function lifecycle(router: SandboxRouter, opts: { files?: boolean } = {}) {
-  const sbx = await router.create({ timeoutSec: 120 });
-  const ok = await sbx.commands.run("echo hi");
-  expect(ok.exitCode).toBe(0);
-  expect(ok.stdout).toContain("echo hi");
-  const bad = await sbx.commands.run("exit 3");
-  expect(bad.exitCode).toBe(3);
-  if (opts.files) {
-    await sbx.files.write("/tmp/a.txt", "hello");
-    expect(await sbx.files.read("/tmp/a.txt")).toBe("hello");
-  }
-  await sbx.kill();
-  expect((await sbx.info())!.state).toBe("stopped");
-  return sbx;
-}
-
-/** For providers without a TTL: past the deadline, the sweep deletes the sandbox. */
-async function deletedAtDeadline(router: SandboxRouter, clock: { t: number }, seen: string[], deletePath: (id: string) => string) {
-  const sbx = await router.create({ timeoutSec: 60 });
-  clock.t += 61_000;
-  const swept = await router.sweep();
-  expect(swept.reaped).toBe(1);
-  expect(seen).toContain(deletePath(sbx.providerSandboxId));
-}
 
 describe("quivvo", () => {
   it("runs the lifecycle against its OpenAPI shapes", async () => {
