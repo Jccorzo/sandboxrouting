@@ -10,6 +10,8 @@ export function defineProvider<T extends ProviderAdapter>(adapter: T): T {
 }
 
 /** Loads an optional SDK, with an install hint when it is missing. */
+// Optional SDKs are peer dependencies that may not be installed, so their types can't be imported here.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function loadSdk<T = any>(pkg: string, provider: string): Promise<T> {
   try {
     return (await import(pkg)) as T;

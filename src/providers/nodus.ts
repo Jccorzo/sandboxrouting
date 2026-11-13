@@ -39,7 +39,10 @@ async function output(ctx: ProviderContext, process: string, stream: "stdout" | 
       if (!line.trim()) continue;
       const frame = JSON.parse(line) as { data?: string; offset?: number; done?: boolean };
       if (frame.data) parts.push(Buffer.from(frame.data, "base64"));
-      if (frame.offset !== undefined && frame.offset > after) (after = frame.offset), (moved = true);
+      if (frame.offset !== undefined && frame.offset > after) {
+        after = frame.offset;
+        moved = true;
+      }
       done ||= Boolean(frame.done);
     }
     if (done || !moved) break;

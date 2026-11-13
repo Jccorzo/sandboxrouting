@@ -1,0 +1,13 @@
+# hushrun.yaml: the checks CI runs through hushrun (https://hushrun.com), which skips work this
+# exact code already passed. `npx hushrun init` adds the repository's id, its URL on hushrun and
+# the log key once the repository is on GitHub.
+version: 1
+
+checks:
+  # Vitest's test files are the unit: a file that already passed on the exact files it read
+  # doesn't run again (vitest.config.ts loads hushrun's plugin when hushrun asks for it).
+  test:
+    tests: reuse
+  # Whole-project checks: any change re-runs them.
+  lint: {}
+  typecheck: {}

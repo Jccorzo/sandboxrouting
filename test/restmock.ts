@@ -11,6 +11,8 @@ export interface Req {
   query: URLSearchParams;
   headers: IncomingMessage["headers"];
   body: Buffer;
+  // A mocked request body is whatever the adapter under test sent.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   json: () => any;
 }
 export type Reply = { status?: number; json?: unknown; raw?: Buffer | string; type?: string; headers?: Record<string, string> };

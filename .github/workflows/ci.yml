@@ -1,0 +1,29 @@
+# Lint, typecheck and tests on every push and pull request. Each check runs through hushrun,
+# which skips what this exact code already passed: the tests by test file (a file that passed
+# on the exact files it read doesn't run again), lint and typecheck for the whole project.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+  # Lets hushrun sign its results keylessly as this repository's CI. No secret is needed.
+  id-token: write
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - uses: hushrun/hushrun/action/setup@main
+      - run: hushrun run lint -- npx eslint .
+      - run: hushrun run typecheck -- npx tsc -p tsconfig.json --noEmit
+      - run: hushrun run test -- npx vitest run

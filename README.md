@@ -498,8 +498,26 @@ file, then kills the sandbox. The check prints `ok` or the provider's own error.
 
 ```bash
 npm install
+npm run lint         # ESLint over the whole repository
 npm run typecheck    # adapters are checked against the real provider SDK types
 npm test             # the Docker ones run real containers when Docker is up
 npm run simulate     # compare the routing strategies on a simulated month
 npm run build && node dist/cli.js providers
 ```
+
+CI runs lint, typecheck and the tests through [hushrun](https://hushrun.com), which skips
+what this exact code already passed: a test file that passed on the exact files it read
+doesn't run again. See [CONTRIBUTING.md](CONTRIBUTING.md) to send a change, and
+[SECURITY.md](SECURITY.md) to report a vulnerability.
+
+## Providers' names and terms
+
+sandboxrouting isn't affiliated with or endorsed by any provider it supports. Their names
+are trademarks of their owners. Free tiers and prices are as each adapter's `source` page
+said on its `checked` date, and they change: check a provider's own terms before you rely
+on them, and override them in config (`providers.<id>.freeTier`, `pricing`) when yours
+differ.
+
+## License
+
+[MIT](LICENSE)
