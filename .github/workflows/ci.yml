@@ -22,8 +22,9 @@ jobs:
         with:
           node-version: 20
           cache: npm
+      # hushrun is a dev dependency, and the npm scripts run each check through it, so CI runs
+      # exactly the commands a laptop or an agent runs and a pass on one counts for the others.
       - run: npm ci
-      - uses: hushrun/hushrun/action/setup@main
-      - run: hushrun run lint -- npx eslint .
-      - run: hushrun run typecheck -- npx tsc -p tsconfig.json --noEmit
-      - run: hushrun run test -- npx vitest run
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test

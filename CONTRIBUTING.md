@@ -68,8 +68,12 @@ share one ledger at the same time. Reviews check them.
 CI runs each check through [hushrun](https://hushrun.com), which skips work this exact code
 already passed. The tests reuse by file: a test file that passed on the exact files it read
 doesn't run again until one of them changes. Lint and typecheck cover the whole project and
-run whenever anything changes. `hushrun.yaml` names the checks. Locally you don't need
-hushrun: the npm scripts run the same commands directly.
+run whenever anything changes. `hushrun.yaml` names the checks.
+
+The npm scripts run the same way on your machine: hushrun is a dev dependency, and
+`npm run lint`, `npm run typecheck` and `npm test` each skip when this exact code already
+passed. `npm install` also adds a pre-push hook; `npx hushrun ready` says which checks CI would
+still run. Coding agents follow [AGENTS.md](AGENTS.md).
 
 ## Reporting bugs and security issues
 

@@ -3,6 +3,7 @@
 # key once the repository is on GitHub.
 version: 1
 repository: github.com/jccorzo/sandboxrouting
+repository_url: https://api.hushrun.com/l/jccorzot/sandboxrouting
 
 checks:
   # Vitest's test files are the unit: a file that already passed on the exact files it read
@@ -12,3 +13,7 @@ checks:
   # Whole-project checks: any change re-runs them.
   lint: {}
   typecheck: {}
+
+transparency_log:   # the server's log key
+  origin: api.hushrun.com/l/jccorzot/sandboxrouting
+  key: "ed25519:IuLTaCriRAHf3AzteXA3CmUd2hKcUCygdrD8dZqUKF4="

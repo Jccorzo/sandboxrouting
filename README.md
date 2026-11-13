@@ -498,7 +498,7 @@ file, then kills the sandbox. The check prints `ok` or the provider's own error.
 
 ```bash
 npm install
-npm run lint         # ESLint over the whole repository
+npm run lint         # ESLint over the whole repository (each check runs through hushrun)
 npm run typecheck    # adapters are checked against the real provider SDK types
 npm test             # the Docker ones run real containers when Docker is up
 npm run simulate     # compare the routing strategies on a simulated month

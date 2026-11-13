@@ -3,8 +3,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { AddressInfo } from "node:net";
-import { execFile } from "node:child_process";
-import { promisify } from "node:util";
+import { runFile } from "./run-file.js";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { createServer, createMcpServer, FileLedger } from "../src/index.js";
@@ -107,7 +106,7 @@ describe("MCP server", () => {
 describe("CLI", () => {
   it("lists providers with free-tier status and refuses paid routing by default", async () => {
     const home = await mkdtemp(join(tmpdir(), "sbr-cli-"));
-    const run = promisify(execFile);
+    const run = runFile;
     const env = { PATH: process.env["PATH"], HOME: home, SBR_HOME: home, SBR_DOCKER: "0", SBR_CONFIG: join(home, "none.json") };
     const { writeFile } = await import("node:fs/promises");
     await writeFile(env.SBR_CONFIG, JSON.stringify({ providers: { fly: { enabled: false } } }));
