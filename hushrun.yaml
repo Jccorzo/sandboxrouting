@@ -1,7 +1,8 @@
 # hushrun.yaml: the checks CI runs through hushrun (https://hushrun.com), which skips work this
-# exact code already passed. `npx hushrun init` adds the repository's id, its URL on hushrun and
-# the log key once the repository is on GitHub.
+# exact code already passed. `npx hushrun init` adds the repository's URL on hushrun and the log
+# key once the repository is on GitHub.
 version: 1
+repository: github.com/jccorzo/sandboxrouting
 
 checks:
   # Vitest's test files are the unit: a file that already passed on the exact files it read
