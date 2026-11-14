@@ -38,6 +38,7 @@ import { naniteProvider } from "./nanite.js";
 import { nodusProvider } from "./nodus.js";
 import { northflankProvider } from "./northflank.js";
 import { openciProvider } from "./openci.js";
+import { opensandboxProvider } from "./opensandbox.js";
 import { promigenceProvider } from "./promigence.js";
 import { quaveProvider } from "./quave.js";
 import { quivvoProvider } from "./quivvo.js";
@@ -105,6 +106,7 @@ export function builtinProviders(): ProviderAdapter[] {
     doryProvider,
     // Your own hardware.
     openciProvider,
+    opensandboxProvider,
     dockerProvider,
   ];
 }
@@ -145,6 +147,7 @@ export {
   nodusProvider,
   northflankProvider,
   openciProvider,
+  opensandboxProvider,
   promigenceProvider,
   quaveProvider,
   quivvoProvider,

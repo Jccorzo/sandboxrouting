@@ -18,14 +18,15 @@ await sbx.kill();
 
 ## Providers
 
-48 providers are built in: 46 cloud providers plus your own hardware (openci, local
-Docker). Terms were checked on 2026-11-11 or 2026-11-12 against each provider's pricing
+49 providers are built in: 46 cloud providers plus your own hardware (openci, OpenSandbox,
+local Docker). Terms were checked on 2026-11-11 or 2026-11-12 against each provider's pricing
 page, which its adapter links. Terms change, so you can override any of them in config.
 
 The 17 added on 2026-11-12 (`tensorlake`, `buddy`, `boxd`, `maritime`, `promigence`, `zode`,
 `boxcompute`, `lizard`, `munito`, `nanite`, `render`, `quave`, `beam`, `mosaic`, `nodus`,
 `cathedral`, `dory`) are written from each provider's published API and tested against
-local servers that speak it. None has been run against the real service yet.
+local servers that speak it. None has been run against the real service yet. Nor has
+`opensandbox` (added 2026-11-14), written from OpenSandbox's OpenAPI specs and its JS SDK.
 
 ### Free every month
 
@@ -93,6 +94,7 @@ local servers that speak it. None has been run against the real service yet.
 | id | Free usage | Isolation |
 |---|---|---|
 | `openci` | unlimited, on your workers | Firecracker / gVisor / Hyper-V |
+| `opensandbox` | unlimited, on your Docker host or Kubernetes cluster | container (set `isolation` in config if your runtime is stronger) |
 | `docker` | unlimited, on this machine | container |
 
 Footnotes:
@@ -171,6 +173,7 @@ Footnotes:
 | `cathedral` | `CATHEDRAL_API_KEY` | REST cathedral.computer/v1 |
 | `dory` | `DORY_API_KEY` | REST api.dory.run/v1 + data.dory.run |
 | `openci` | `OPENCI_URL`, `OPENCI_TOKEN` | REST /v1/sandboxes |
+| `opensandbox` | `OPEN_SANDBOX_DOMAIN`, optional `OPEN_SANDBOX_API_KEY` | REST /v1/sandboxes + execd in the sandbox |
 | `docker` | none (`SBR_DOCKER=0` turns it off) | `docker` CLI |
 
 Provider SDKs are optional peer dependencies, loaded only when that provider is used:
@@ -202,7 +205,7 @@ Within a lane, `priority` in config breaks ties first. The lanes keep paid usage
 default**: with `allowPaid: false` nothing is ever billed, and a request no free tier can
 take fails with the reason for every provider. You can turn paid usage on globally or per
 provider. With `maxPaidUsdPerMonth` set, paid routing stops when the month's spend
-reaches it. Your own hardware (openci, local Docker) goes after the free lanes. With
+reaches it. Your own hardware (openci, OpenSandbox, local Docker) goes after the free lanes. With
 `selfHosted: "first"` it goes ahead of them, and with `"never"` it's removed.
 
 A provider is left out when:
