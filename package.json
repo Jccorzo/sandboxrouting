@@ -152,7 +152,7 @@
     "eslint": "^9.39.5",
     "freestyle": "^0.2.23",
     "globals": "^17.14.0",
-    "hushrun": "^0.14.0",
+    "hushrun": "^0.15.0",
     "modal": "^0.11.1",
     "morphcloud": "^0.0.20",
     "together-sandbox": "^4.1.1",

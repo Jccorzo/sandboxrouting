@@ -7,7 +7,8 @@ import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { AddressInfo } from "node:net";
-import { runFile } from "./run-file.js";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { createServer, createMcpServer, type RoutingStrategy, type SandboxRouter } from "../src/index.js";
@@ -185,7 +186,7 @@ describe("CLI: strategies and route", () => {
     const config = join(home, "config.json");
     await writeFile(config, "{}");
     const env = { PATH: process.env["PATH"], HOME: home, SBR_HOME: home, SBR_DOCKER: "0", SBR_CONFIG: config };
-    const exec = runFile;
+    const exec = promisify(execFile);
     const sbr = (...args: string[]) =>
       exec("node", ["--import", "tsx", "src/cli.ts", ...args], { env }).then(
         ({ stdout, stderr }) => ({ stdout, stderr, code: 0 }),
