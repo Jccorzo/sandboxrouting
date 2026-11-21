@@ -16,6 +16,7 @@ const freeTierSchema = z.discriminatedUnion("kind", [
 
 const providerConfigSchema = z
   .object({
+    /** false turns a provider off; true turns on one that is off by default (`info.offByDefault`). */
     enabled: z.boolean().optional(),
     /** Lower goes first among providers in the same lane. Default 100. */
     priority: z.number().optional(),

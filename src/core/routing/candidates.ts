@@ -2,7 +2,8 @@
 // by. A provider that fails a filter is skipped with the reason `sbr route` shows; one that
 // passes becomes a Candidate, built here and nowhere else. Pure: the ledger snapshot in.
 
-import { ISOLATION_STRENGTH, type ProviderAdapter, type ProviderContext } from "../types.js";
+import { ISOLATION_STRENGTH, type ProviderAdapter, type ProviderContext, type ProviderInfo } from "../types.js";
+import type { ProviderConfig } from "../config.js";
 import { isLive, type SandboxRecord } from "../state.js";
 import {
   committed,
@@ -41,6 +42,11 @@ interface Budget {
   usd: number;
   spent: number;
   committed: number;
+}
+
+/** Whether routing may use a provider: config's `enabled` if set, else on unless `offByDefault`. */
+export function isEnabled(info: ProviderInfo, cfg: ProviderConfig | undefined): boolean {
+  return cfg?.enabled ?? info.offByDefault === undefined;
 }
 
 export function isConfigured(adapter: ProviderAdapter, ctx: ProviderContext): boolean {
@@ -105,6 +111,7 @@ function assess(input: PolicyInput, adapter: ProviderAdapter, budget: Budget | u
   const cfg = config.providers[id];
 
   if (cfg?.enabled === false) return { reason: "disabled in config" };
+  if (!isEnabled(info, cfg)) return { reason: `off by default: ${info.offByDefault} (set "enabled": true to use it)` };
   if (spec.providers && !spec.providers.includes(id)) return { reason: "not in the request's provider list" };
   if (spec.exclude?.includes(id)) return { reason: "excluded by the request" };
   if (info.selfHosted && config.selfHosted === "never" && !spec.providers?.includes(id)) {

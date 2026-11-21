@@ -11,7 +11,7 @@ import { classify, NoProviderAvailableError, SandboxRouterError, type RouteAttem
 import { effectiveState, isLive, transition, type EffectiveState, type SandboxEvent, type SandboxRecord } from "./state.js";
 import { billableSeconds, effectivePricing, freeStatus, monthKey, monthWindow, ratePerSecond, type FreeStatus } from "./metering.js";
 import { availability, freeCreateWorked, markRefusal, refusalKind, type Availability } from "./marks.js";
-import { billingProblem, eligibility, isConfigured, plan, type Plan } from "./policy.js";
+import { billingProblem, eligibility, isConfigured, isEnabled, plan, type Plan } from "./policy.js";
 import { holdProblem } from "./routing/candidates.js";
 import type { PolicyInput, ProviderHealth, RoutingStrategy } from "./routing/types.js";
 import { StrategyRegistry } from "./routing/registry.js";
@@ -386,7 +386,7 @@ export class SandboxRouter {
         id: a.info.id,
         name: a.info.name,
         configured: isConfigured(a, ctx),
-        enabled: cfg?.enabled !== false,
+        enabled: isEnabled(a.info, cfg),
         selfHosted: Boolean(a.info.selfHosted),
         free: freeStatus(a.info, cfg, data, now, this.usageCache.get(a.info.id)?.usage),
         availability: availability(data, a.info.id, now),

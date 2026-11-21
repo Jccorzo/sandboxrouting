@@ -25,7 +25,7 @@ A provider that fails any of these is skipped, with the reason recorded in `plan
 
 | # | Filter | Source |
 |---|---|---|
-| 1 | Disabled in config | `providers.<id>.enabled` |
+| 1 | Disabled in config, or off by default and not enabled (Runloop) | `providers.<id>.enabled`, `info.offByDefault` |
 | 2 | Not in the request's `providers`, or in `exclude` | request |
 | 3 | Self-hosted when `selfHosted: "never"` | config |
 | 4 | Keys missing | `info.env`, `isConfigured` |

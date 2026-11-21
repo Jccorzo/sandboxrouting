@@ -28,6 +28,7 @@ export const runloopProvider = defineProvider({
   info: {
     id: "runloop",
     name: "Runloop",
+    offByDefault: "Runloop is winding down: transition support ended 2026-11-13 and api.runloop.ai stopped resolving by 2026-11-21",
     homepage: "https://www.runloop.ai",
     env: ["RUNLOOP_API_KEY"],
     sdkPackage: "@runloop/api-client",

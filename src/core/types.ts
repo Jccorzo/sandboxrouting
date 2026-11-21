@@ -161,6 +161,12 @@ export interface ProviderInfo {
   /** True for providers that run on your own hardware (local Docker, openci). */
   selfHosted?: boolean;
   /**
+   * Set, to the reason, for a provider that is built in but off unless config says
+   * `"<id>": { "enabled": true }` (Runloop, whose API host stopped resolving). A key alone
+   * doesn't route there.
+   */
+  offByDefault?: string;
+  /**
    * False when the provider keeps a sandbox alive past the requested timeout (no TTL, or a
    * service that restarts). The router then deletes it at the deadline and the sweep reaps
    * any it missed. Default true.

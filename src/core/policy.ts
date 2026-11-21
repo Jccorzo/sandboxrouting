@@ -9,7 +9,7 @@ import { billingProblem, buildCandidates } from "./routing/candidates.js";
 import { StrategyRegistry } from "./routing/registry.js";
 import type { Plan, PlanEntry, PolicyInput, RoutingStrategy } from "./routing/types.js";
 
-export { billingOf, billingProblem, eligibility, isConfigured } from "./routing/candidates.js";
+export { billingOf, billingProblem, eligibility, isConfigured, isEnabled } from "./routing/candidates.js";
 export type { Lane, Plan, PlanEntry, PolicyInput } from "./routing/types.js";
 
 const builtins = new StrategyRegistry();
