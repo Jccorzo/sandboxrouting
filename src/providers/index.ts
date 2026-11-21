@@ -10,6 +10,7 @@ import { boatProvider } from "./boat.js";
 import { boxcomputeProvider } from "./boxcompute.js";
 import { boxdProvider } from "./boxd.js";
 import { boxliteProvider } from "./boxlite.js";
+import { briqProvider } from "./briq.js";
 import { buddyProvider } from "./buddy.js";
 import { cathedralProvider } from "./cathedral.js";
 import { celestoProvider } from "./celesto.js";
@@ -18,14 +19,18 @@ import { createosProvider } from "./createos.js";
 import { daytonaProvider } from "./daytona.js";
 import { dedalusProvider } from "./dedalus.js";
 import { depotProvider } from "./depot.js";
+import { digitaloceanProvider } from "./digitalocean.js";
+import { dockerCloudProvider } from "./docker-cloud.js";
 import { dockerProvider } from "./docker.js";
 import { doryProvider } from "./dory.js";
 import { e2bProvider } from "./e2b.js";
 import { exedevProvider } from "./exedev.js";
 import { flyProvider } from "./fly.js";
 import { freestyleProvider } from "./freestyle.js";
+import { groundboxProvider } from "./groundbox.js";
 import { instaboxProvider } from "./instabox.js";
 import { koyebProvider } from "./koyeb.js";
+import { kubiProvider } from "./kubi.js";
 import { lambdaMicrovmProvider } from "./lambda-microvm.js";
 import { lizardProvider } from "./lizard.js";
 import { maritimeProvider } from "./maritime.js";
@@ -39,11 +44,13 @@ import { nodusProvider } from "./nodus.js";
 import { northflankProvider } from "./northflank.js";
 import { openciProvider } from "./openci.js";
 import { opensandboxProvider } from "./opensandbox.js";
+import { orbleProvider } from "./orble.js";
 import { promigenceProvider } from "./promigence.js";
 import { quaveProvider } from "./quave.js";
 import { quivvoProvider } from "./quivvo.js";
 import { renderProvider } from "./render.js";
 import { runloopProvider } from "./runloop.js";
+import { runtimeProvider } from "./runtime.js";
 import { spritesProvider } from "./sprites.js";
 import { tenkiProvider } from "./tenki.js";
 import { tensorlakeProvider } from "./tensorlake.js";
@@ -85,6 +92,10 @@ export function builtinProviders(): ProviderAdapter[] {
     boxcomputeProvider,
     lizardProvider,
     munitoProvider,
+    groundboxProvider,
+    briqProvider,
+    runtimeProvider,
+    dockerCloudProvider,
     // Paid only.
     koyebProvider,
     flyProvider,
@@ -104,6 +115,9 @@ export function builtinProviders(): ProviderAdapter[] {
     nodusProvider,
     cathedralProvider,
     doryProvider,
+    kubiProvider,
+    orbleProvider,
+    digitaloceanProvider,
     // Your own hardware.
     openciProvider,
     opensandboxProvider,
@@ -119,6 +133,7 @@ export {
   boxcomputeProvider,
   boxdProvider,
   boxliteProvider,
+  briqProvider,
   buddyProvider,
   cathedralProvider,
   celestoProvider,
@@ -127,14 +142,18 @@ export {
   daytonaProvider,
   dedalusProvider,
   depotProvider,
+  digitaloceanProvider,
+  dockerCloudProvider,
   dockerProvider,
   doryProvider,
   e2bProvider,
   exedevProvider,
   flyProvider,
   freestyleProvider,
+  groundboxProvider,
   instaboxProvider,
   koyebProvider,
+  kubiProvider,
   lambdaMicrovmProvider,
   lizardProvider,
   maritimeProvider,
@@ -148,11 +167,13 @@ export {
   northflankProvider,
   openciProvider,
   opensandboxProvider,
+  orbleProvider,
   promigenceProvider,
   quaveProvider,
   quivvoProvider,
   renderProvider,
   runloopProvider,
+  runtimeProvider,
   spritesProvider,
   tenkiProvider,
   tensorlakeProvider,
