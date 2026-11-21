@@ -8,10 +8,10 @@
 // https://prized.dev/docs/sandboxes-api.md, https://prized.dev/docs/sandboxes.md, /pricing.
 // SDKs: PyPI/npm `prized` (docs/sandboxes-python-typescript), CLI `prized sandbox`.
 // The file API reaches only /home/prized; other paths use the exec fallback. An empty balance
-// is `409 insufficient_balance`, which the adapter reports as the 402 it means.
+// is `409 insufficient_balance`, which the adapter reports as the quota refusal it is.
 
 import { randomUUID } from "node:crypto";
-import { defineProvider, http, HttpError, type HttpOptions } from "./util.js";
+import { defineProvider, http, HttpError, refusals, type HttpOptions } from "./util.js";
 import { insideRoots, pollMs, sleep } from "./rest-helpers.js";
 import type { ProviderContext } from "../core/types.js";
 
@@ -19,16 +19,17 @@ const base = (ctx: ProviderContext) => String(ctx.env["PRIZED_API_URL"] ?? "http
 const auth = (ctx: ProviderContext) => ({ authorization: `Bearer ${ctx.env["PRIZED_API_KEY"]}` });
 const box = (ctx: ProviderContext, id: string, path = "") => `${base(ctx)}/sandboxes/${encodeURIComponent(id)}${path}`;
 const ROOT = "/home/prized";
-/** Refusals that are about money but don't answer 402. */
-const MONEY = /"error"\s*:\s*"(insufficient_balance|paid_balance_required)"/;
+/** An empty balance answers 409, not 402. */
+const refused = refusals("prized", [
+  { status: 409, body: /"error"\s*:\s*"(insufficient_balance|paid_balance_required)"/, kind: "quota", why: "no balance left" },
+]);
 
-/** Prized's calls, with balance refusals turned into 402s the router counts as quota. */
+/** Prized's calls, with balance refusals reported as the quota they are. */
 async function call(url: string, opts: HttpOptions = {}): Promise<Response> {
   try {
     return await http(url, opts);
   } catch (err) {
-    if (err instanceof HttpError && err.status === 409 && MONEY.test(err.message)) throw new HttpError(402, err.message);
-    throw err;
+    throw refused(err);
   }
 }
 const callJson = async <T>(url: string, opts: HttpOptions = {}): Promise<T> => {

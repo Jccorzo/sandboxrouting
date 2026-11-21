@@ -13,8 +13,7 @@
 // Commands start with `wait: false` and their output is read from a byte cursor until they end.
 
 import { randomUUID } from "node:crypto";
-import { SandboxRouterError } from "../core/errors.js";
-import { defineProvider, http, httpJson, HttpError } from "./util.js";
+import { defineProvider, http, httpJson, HttpError, refusals } from "./util.js";
 import { pollMs, sbrName, sleep } from "./rest-helpers.js";
 import type { ProviderContext } from "../core/types.js";
 
@@ -39,10 +38,7 @@ interface Process {
  * A 403 `limit_exceeded` is the plan's vCPUs-at-once limit, not a bad key: it clears when
  * machines end, so it is a rate limit rather than spent credit.
  */
-function refusal(err: unknown): unknown {
-  if (err instanceof HttpError && err.status === 403 && /limit_exceeded/.test(err.message)) return new SandboxRouterError("rate_limit", err.message, "runtime", { cause: err });
-  return err;
-}
+const refusal = refusals("runtime", [{ status: 403, body: /limit_exceeded/, kind: "rate_limit", why: "the plan's vCPUs-at-once limit" }]);
 
 export const runtimeProvider = defineProvider({
   info: {

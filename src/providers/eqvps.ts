@@ -8,9 +8,9 @@
 // Ephemeral sandboxes are deleted at `ttl` (24 h max) or after `idle_timeout` (1 h max) without
 // activity. A synchronous command is capped at 55 s, so longer ones run as tasks that are polled.
 // An empty balance answers 402; the account's own spending cap answers 429 `budget_exceeded`,
-// which is turned into a 402 here so the router reads it as used-up credit, not a rate limit.
+// which the adapter reports as a quota refusal (used-up credit), not a rate limit.
 
-import { defineProvider, http, httpJson, HttpError } from "./util.js";
+import { defineProvider, http, httpJson, HttpError, refusals } from "./util.js";
 import { pollMs, sleep } from "./rest-helpers.js";
 import { SandboxRouterError } from "../core/errors.js";
 import type { ProviderContext } from "../core/types.js";
@@ -50,10 +50,7 @@ interface Task {
 }
 
 /** The spending cap is the account's own limit on credit: a quota refusal, not a rate limit. */
-function budgetAsQuota(err: unknown): never {
-  if (err instanceof HttpError && err.status === 429 && /budget_exceeded/.test(err.message)) throw new HttpError(402, err.message);
-  throw err;
-}
+const refused = refusals("eqvps", [{ status: 429, body: /budget_exceeded/, kind: "quota", why: "the account's spending cap is reached" }]);
 
 export const eqvpsProvider = defineProvider({
   info: {
@@ -83,7 +80,9 @@ export const eqvpsProvider = defineProvider({
     let s = await httpJson<Sandbox>(`${base(ctx)}/sandboxes`, {
       headers: auth(ctx),
       body: { mode: "ephemeral", tariff: size.tariff, ttl, idle_timeout: Math.min(3600, ttl), env: spec.env },
-    }).catch(budgetAsQuota);
+    }).catch((err: unknown) => {
+      throw refused(err);
+    });
     const id = s.id;
     try {
       for (let i = 0; i < 300 && !(s.state === "running" && s.ready !== false); i++) {

@@ -1,7 +1,7 @@
 // Small helpers adapters share: lazy SDK loading, HTTP with errors the router can classify,
 // and shell wrapping for providers that take argv.
 
-import { SandboxRouterError } from "../core/errors.js";
+import { SandboxRouterError, type ErrorKind } from "../core/errors.js";
 import type { ProviderAdapter } from "../core/types.js";
 
 /** Defines a provider adapter. Exists for type inference and to keep adapters uniform. */
@@ -33,6 +33,36 @@ export class HttpError extends Error {
   }
 }
 
+/**
+ * A refusal whose HTTP status would make `classify` read it wrong. Some providers answer a spent
+ * balance with 409, their own spending cap with 429 (which reads as a rate limit), or a plan
+ * limit with 403 (which reads as a bad key). An adapter declares these once with `refusals` and
+ * rethrows errors through the function it returns, so the router's marks see what the refusal
+ * really is: `quota` (credit or a plan limit used up, waits for the period to reset) or
+ * `rate_limit` (too many at once, clears when sandboxes end).
+ */
+export interface Refusal {
+  status: number;
+  /** Matched against the error's message, which carries the response body. Omitted: any body. */
+  body?: RegExp;
+  kind: Extract<ErrorKind, "quota" | "rate_limit">;
+  /** What the refusal means, put before the provider's own message. */
+  why?: string;
+}
+
+/**
+ * Turns an `HttpError` that matches one of `rules` into the SandboxRouterError it means, and
+ * returns anything else unchanged. Use it as `catch (err) { throw refused(err); }`.
+ */
+export function refusals(provider: string, rules: readonly Refusal[]): (err: unknown) => unknown {
+  return (err) => {
+    if (!(err instanceof HttpError)) return err;
+    const rule = rules.find((r) => r.status === err.status && (!r.body || r.body.test(err.message)));
+    if (!rule) return err;
+    return new SandboxRouterError(rule.kind, rule.why ? `${provider}: ${rule.why}: ${err.message}` : err.message, provider, { cause: err });
+  };
+}
+
 export interface HttpOptions {
   method?: string;
   headers?: Record<string, string>;
@@ -42,6 +72,37 @@ export interface HttpOptions {
   timeoutMs?: number;
 }
 
+/**
+ * Node's fetch is undici, whose dispatcher stops waiting for response headers, and between body
+ * chunks, after 300 s whatever the request's own signal says. An adapter whose exec answers in
+ * one response would then fail every command longer than five minutes. undici takes both
+ * timeouts per request too, so this dispatcher hands each request to the global one (the one
+ * fetch would use, which keeps any proxy agent the app installed) with both set just past the
+ * request's own timeout: the AbortSignal below is what ends a request. The global dispatcher is
+ * found under undici's registry symbol (versioned: 1 up to undici 7, 2 from undici 8, Node 26),
+ * the cross-copy contract undici itself relies on, so no undici dependency is needed.
+ */
+const BUILTIN_UNDICI_MAJOR = Number(process.versions["undici"]?.split(".")[0] ?? 0);
+const GLOBAL_DISPATCHER = [Symbol.for("undici.globalDispatcher.2"), Symbol.for("undici.globalDispatcher.1")];
+if (BUILTIN_UNDICI_MAJOR < 8) GLOBAL_DISPATCHER.reverse();
+
+interface Dispatcher {
+  dispatch(opts: Record<string, unknown>, handler: unknown): boolean;
+}
+
+/** A fetch `dispatcher` whose headers and body timeouts are `limitMs`. */
+export function dispatcherFor(limitMs: number): Dispatcher {
+  return {
+    dispatch(opts, handler) {
+      // Looked up per request: Node's fetch installs its global dispatcher when first called.
+      const g = globalThis as unknown as Record<symbol, Dispatcher | undefined>;
+      const global = g[GLOBAL_DISPATCHER[0]!] ?? g[GLOBAL_DISPATCHER[1]!];
+      if (!global) throw new Error("fetch has no global dispatcher");
+      return global.dispatch({ ...opts, headersTimeout: limitMs, bodyTimeout: limitMs }, handler);
+    },
+  };
+}
+
 export async function http(url: string, opts: HttpOptions = {}): Promise<Response> {
   const headers: Record<string, string> = { ...opts.headers };
   let body: RequestInit["body"] | undefined = opts.raw;
@@ -49,11 +110,14 @@ export async function http(url: string, opts: HttpOptions = {}): Promise<Respons
     headers["content-type"] ??= "application/json";
     body = JSON.stringify(opts.body);
   }
+  const timeoutMs = opts.timeoutMs ?? 120_000;
   const res = await fetch(url, {
     method: opts.method ?? (body ? "POST" : "GET"),
     headers,
     body,
-    signal: AbortSignal.timeout(opts.timeoutMs ?? 120_000),
+    signal: AbortSignal.timeout(timeoutMs),
+    // fetch only ever calls a dispatcher's dispatch(); the type wants undici's whole class.
+    dispatcher: dispatcherFor(timeoutMs + 1000) as unknown as RequestInit["dispatcher"],
   });
   if (!res.ok) {
     const text = await res.text().catch(() => "");

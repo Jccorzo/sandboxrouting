@@ -86,7 +86,7 @@ export function classify(err: unknown, provider?: string): SandboxRouterError {
   if (status === 402) kind = "quota";
   else if (status === 429) kind = QUOTA.test(message) ? "quota" : "rate_limit";
   else if (status === 401 || status === 403) kind = QUOTA.test(message) ? "quota" : "auth";
-  else if (status === 404) kind = "not_found";
+  else if (status === 404 || status === 410) kind = "not_found"; // 410 Gone: deleted, for good
   else if (status === 400 || status === 422) kind = QUOTA.test(message) ? "quota" : "invalid";
   else if (QUOTA.test(message)) kind = "quota";
   else if (RATE.test(message)) kind = "rate_limit";

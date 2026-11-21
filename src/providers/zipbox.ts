@@ -15,7 +15,7 @@
 // to be Tiny..Large.
 
 import { createHash } from "node:crypto";
-import { defineProvider, http, HttpError, httpJson } from "./util.js";
+import { defineProvider, http, HttpError, httpJson, refusals } from "./util.js";
 import { ENV_FILE, envFileBody, grantCache, pollMs, sleep, sse, withEnvFile } from "./rest-helpers.js";
 import type { ProviderContext } from "../core/types.js";
 
@@ -94,6 +94,12 @@ async function waitReady(ctx: ProviderContext, id: string): Promise<Box> {
   }
 }
 
+/**
+ * A new name past the account's 250 ever answers 403 `machine_limit_reached`, which would read as
+ * a bad key. It never clears (deleted names still count), so it is a quota.
+ */
+const refused = refusals("zipbox", [{ status: 403, body: /machine_limit_reached/, kind: "quota", why: "the account's 250 box names are used up" }]);
+
 export const zipboxProvider = defineProvider({
   info: {
     id: "zipbox",
@@ -135,7 +141,7 @@ export const zipboxProvider = defineProvider({
         break;
       } catch (err) {
         if (err instanceof HttpError && err.status === 409) continue;
-        throw err;
+        throw refused(err);
       }
     }
     if (!made) throw new HttpError(429, "zipbox: every name in the pool has a box (too many sandboxes at once; raise options.pool)");

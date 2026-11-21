@@ -12,8 +12,7 @@
 // A synchronous exec answers within 60 s; longer commands run async and are polled.
 
 import { randomUUID } from "node:crypto";
-import { SandboxRouterError } from "../core/errors.js";
-import { defineProvider, http, httpJson, HttpError } from "./util.js";
+import { defineProvider, http, httpJson, HttpError, refusals } from "./util.js";
 import { inline, pollMs, sbrName, sleep } from "./rest-helpers.js";
 import type { ProviderContext } from "../core/types.js";
 import { USD_PER_EUR } from "./currency.js";
@@ -44,10 +43,7 @@ interface Briq {
 }
 
 /** `plan_limit` is a 403, which would read as a bad key: it is the plan's size or count limit. */
-function refusal(err: unknown): unknown {
-  if (err instanceof HttpError && err.status === 403 && /plan_limit/.test(err.message)) return new SandboxRouterError("quota", err.message, "briq", { cause: err });
-  return err;
-}
+const refusal = refusals("briq", [{ status: 403, body: /plan_limit/, kind: "quota", why: "the plan's size or count limit" }]);
 
 export const briqProvider = defineProvider({
   info: {
