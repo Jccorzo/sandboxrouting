@@ -18,44 +18,35 @@ await sbx.kill();
 
 ## Providers
 
-82 providers are built in: 79 cloud providers plus your own hardware (openci, OpenSandbox,
-81 providers are built in: 78 cloud providers plus your own hardware (openci, OpenSandbox,
-local Docker). Terms were checked on 2026-11-11 or 2026-11-12 against each provider's pricing
-page, which its adapter links, and those that had changed were updated on 2026-11-21 (each
-adapter's `checked` date says which). Terms change, so you can override any of them in config.
+108 providers are built in: 105 cloud providers plus your own hardware (openci, OpenSandbox,
+local Docker). One of them, `runloop`, is [off by default](#off-by-default). Terms were checked
+on 2026-11-11 or 2026-11-12 against each provider's pricing page, which its adapter links, and
+those that had changed, or were added since, on 2026-11-21 (each adapter's `checked` date says
+which). Terms change, so you can override any of them in config.
 
 The 17 added on 2026-11-12 (`tensorlake`, `buddy`, `boxd`, `maritime`, `promigence`, `zode`,
 `boxcompute`, `lizard`, `munito`, `nanite`, `render`, `quave`, `beam`, `mosaic`, `nodus`,
-`cathedral`, `dory`) are written from each provider's published API and tested against
-local servers that speak it. None has been run against the real service yet. Nor has
-`opensandbox` (added 2026-11-14), written from OpenSandbox's OpenAPI specs and its JS SDK, nor
-the 32 added on 2026-11-21 (`groundbox`, `briq`, `kubi`, `orble`, `runtime`, `digitalocean`,
-`docker-cloud`, `novita`, `smol`, `isorun`, `instavm`, `prized`, `zipbox`, `superserve`,
-`eqvps`, `solari`, `pilldrops`, `langsmith`, `miosa`, `cloudrun`, `gke-agent-sandbox`,
-`azure-sandboxes`, `agentbay`, `tencent`, `volcengine`, `railway`, `vers`, `oblien`, `runta`,
-`stateset`, `saas-sandbox`, `sandbox0`, `watasu`), written the same way from each provider's
-docs, OpenAPI spec or official SDK and checked against its pages that day.
-`azure-sandboxes`, `agentbay`, `tencent`, `volcengine`, `railway`), written the same way from
-each provider's docs, OpenAPI spec or official SDK and checked against its pages that day,
-and the 7 added later that day (`keln`, `mandala`, `platinum`, `inngest`, `archil`,
-`openpond`, `gmi`), written the same way.
-`azure-sandboxes`, `agentbay`, `tencent`, `volcengine`, `railway`), nor the 7 added later that day
-(`openreward`, `baseten`, `chalk`, `voidrun`, `kosa8`, `primeintellect`, `sandboxer`), written the
-same way from each provider's docs, OpenAPI spec or official SDK and checked against its pages
-that day. `chalk`, and `primeintellect`'s commands, speak the Connect protocol's JSON form to
-services whose SDKs speak gRPC; `openreward` speaks a session API known only from its SDK.
-`azure-sandboxes`, `agentbay`, `tencent`, `volcengine`, `railway`, `cyqle`, `machine0`,
+`cathedral`, `dory`) are written from each provider's published API and tested against local
+servers that speak it. None has been run against the real service yet. Nor has `opensandbox`
+(added 2026-11-14), written from OpenSandbox's OpenAPI specs and its JS SDK, nor the 59 added on
+2026-11-21 (`groundbox`, `briq`, `kubi`, `orble`, `runtime`, `digitalocean`, `docker-cloud`,
+`novita`, `smol`, `isorun`, `instavm`, `prized`, `zipbox`, `superserve`, `eqvps`, `solari`,
+`pilldrops`, `langsmith`, `miosa`, `cloudrun`, `gke-agent-sandbox`, `azure-sandboxes`,
+`agentbay`, `tencent`, `volcengine`, `railway`, `vers`, `oblien`, `runta`, `stateset`,
+`saas-sandbox`, `sandbox0`, `watasu`, `keln`, `mandala`, `platinum`, `inngest`, `archil`,
+`openpond`, `gmi`, `openreward`, `baseten`, `chalk`, `voidrun`, `kosa8`, `primeintellect`,
+`sandboxer`, `workpaper`, `rayrun`, `tama`, `tangle`, `nirvana`, `agental`, `cyqle`, `machine0`,
 `hyperbrowser`, `lightcone`, `offstage`, `islo`), written the same way from each provider's
-docs, OpenAPI spec or official SDK and checked against its pages that day. `machine0` has no
-REST API: its adapter calls the tools of machine0's MCP server over HTTP.
-`novita`, `tencent` and `volcengine` speak E2B's API and share the `e2b` adapter's code. The
-`azure-sandboxes`, `agentbay`, `tencent`, `volcengine`, `railway`, `workpaper`, `rayrun`,
-`tama`, `tangle`, `nirvana`, `agental`), written the same way from each provider's docs,
-OpenAPI spec or official SDK and checked against its pages that day.
-`novita`, `tencent` and `volcengine` speak E2B's API and share the `e2b` adapter's code;
-`nirvana` serves OpenSandbox's API and shares the `opensandbox` adapter's code. The
-big clouds (`cloudrun`, `gke-agent-sandbox`, `azure-sandboxes`, `agentbay`, `tencent`,
-`volcengine`, `railway`) need some console setup first, described in
+docs, OpenAPI spec or official SDK and checked against its pages that day.
+
+Some of those speak another provider's API or reach theirs indirectly. `novita`, `tencent` and
+`volcengine` speak E2B's API and share the `e2b` adapter's code; `nirvana` serves OpenSandbox's
+API and shares the `opensandbox` adapter's code. `chalk`, and `primeintellect`'s commands, speak
+the Connect protocol's JSON form to services whose SDKs speak gRPC; `tama` and
+`gke-agent-sandbox`'s commands speak gRPC-Web. `openreward` speaks a session API known only from
+its SDK, and `machine0` has no REST API: its adapter calls the tools of machine0's MCP server
+over HTTP. The big clouds (`cloudrun`, `gke-agent-sandbox`, `azure-sandboxes`, `agentbay`,
+`tencent`, `volcengine`, `railway`) need some console setup first, described in
 [docs/providers-iam.md](docs/providers-iam.md).
 
 ### Free every month
@@ -65,110 +56,109 @@ big clouds (`cloudrun`, `gke-agent-sandbox`, `azure-sandboxes`, `agentbay`, `ten
 | `modal` | $30 / month | 100 concurrent, 24 h | ~$0.19/h (2 vCPU, 2 GiB) | gVisor |
 | `northflank` | $20 / month | 2 sandboxes | ~$0.017/vCPU-h | container |
 | `freestyle` | 200 vCPU-h + 400 GiB-h (≈ $13) | 10 concurrent | $0.040/vCPU-h | microVM |
-| `vercel` | 5 CPU-h + 420 GB-h (≈ $9.5) | 10 concurrent, 45 min | $0.128/CPU-h (active only) | Firecracker |
-| `instabox` | one 4 vCPU / 8 GiB machine, always free‡ | 1 machine, 8 h per run | $0.004/vCPU-h | Firecracker |
-| `upstash` | 5 CPU-hours | 10 concurrent, 2 vCPU / 4 GB | $0.10 per active hour (2 vCPU / 4 GB); memory free | container |
-| `cloudflare` | 375 vCPU-min + 25 GiB-h (≈ $0.68) with Workers Paid ($5/mo) | — | $0.072/vCPU-h (active only) + $0.009/GiB-h; 2 vCPU comes with 8 GiB, ≈ $0.22/h busy | container |
-| `tensorlake` | one 1 vCPU / 1 GB sandbox, always free | 1 sandbox, 1 h (2 h once verified) | $0.07/vCPU-h (active, 20% minimum) + $0.015/GB-h | Firecracker |
-| `fly` | $5 / month shared with `sprites` (counted as $2.50 each¶; card required) | 3 machines | ~$0.035/h (2 shared vCPU / 4 GB) | Firecracker |
-| `sprites` | $5 / month shared with `fly` (counted as $2.50 each¶; card required) | 3 Sprites | $0.0385/CPU-h + $0.021875/GB-h (as used); idle Sprites are free | Firecracker |
+| `vercel` | 5 CPU-h + 420 GB-h (≈ $9.5) | 10 concurrent, 45 min | $0.128/vCPU-h (active CPU only) + $0.0212/GB-h | Firecracker |
+| `instabox` | one 4 vCPU / 8 GiB machine, always free[^1] | 1 machine, 8 h per run | $0.004/vCPU-h | Firecracker |
+| `upstash` | 5 CPU-hours | 10 concurrent, 2 vCPU / 4 GB | $0.05/vCPU-h (active CPU only), memory free: $0.10/h for 2 vCPU / 4 GB busy | container |
+| `cloudflare` | 375 vCPU-min + 25 GiB-h (≈ $0.68) with Workers Paid ($5/mo) | — | $0.072/vCPU-h (active CPU only) + $0.009/GiB-h; 2 vCPU comes with 8 GiB, ≈ $0.22/h busy | container |
+| `tensorlake` | one 1 vCPU / 1 GB sandbox, always free | 1 sandbox, 1 h (2 h once verified) | $0.07/vCPU-h (active CPU only, 20% minimum) + $0.015/GB-h | Firecracker |
+| `fly` | $5 / month shared with `sprites` (counted as $2.50 each[^2]; card required) | 3 machines | ~$0.035/h (2 shared vCPU / 4 GB) | Firecracker |
+| `sprites` | $5 / month shared with `fly` (counted as $2.50 each[^2]; card required) | 3 Sprites | $0.0385/vCPU-h (active CPU only) + $0.021875/GB-h; idle Sprites are free | Firecracker |
 | `solari` | $3 / month | 1 sandbox, 1 h | $0.171/h (2 vCPU / 4 GB) | Cloud Hypervisor |
-| `langsmith` | 8 LSU / month ($8, ≈ 42 h) | 10 sandboxes | $0.189/h (2 vCPU / 4 GiB) | Firecracker‡‡ |
+| `langsmith` | 8 LSU / month ($8, ≈ 42 h) | 10 sandboxes | $0.189/h (2 vCPU / 4 GiB) | Firecracker[^3] |
 | `miosa` | $1 / month | 5 sandboxes | $0.0893/h (2 vCPU / 4 GB) | Firecracker |
-| `cloudrun` | 240k vCPU-s + 450k GiB-s (≈ $5.22; billing account) | Preview; needs the execd image | $0.158/h (2 vCPU / 4 GiB) | gVisor§§ |
-| `azure-sandboxes` | 180k vCPU-s + 360k GiB-s (≈ $5.40)§§ | 2 vCPU / 4 GiB is tier L | $0.216/h (2 vCPU / 4 GiB) | microVM |
+| `cloudrun` | 240k vCPU-s + 450k GiB-s (≈ $5.22; billing account) | Preview; needs the execd image | $0.158/h (2 vCPU / 4 GiB) | gVisor[^4] |
+| `azure-sandboxes` | 180k vCPU-s + 360k GiB-s (≈ $5.40)[^4] | 2 vCPU / 4 GiB is tier L | $0.216/h (2 vCPU / 4 GiB) | microVM |
 | `archil` | 1 vCPU-h + 2 GiB-h (≈ $0.095), no card | 5 concurrent, 30 min sessions, egress allowlist | $0.055/vCPU-h + $0.020/GiB-h | Firecracker |
 | `agental` | $5 / month (card required) | 2 small at once until the first top-up; tiny and small only | $0.027/h (2 vCPU / 4 GiB) | VM |
-| `cyqle` | 60 min a day (counted as 30 h a month), no card¶¶ | 1 desktop, 1 vCPU / 1 GB, 60-minute sessions | $0.04/h pay as you go (2 vCPU / 4 GB), or $12/mo per desktop | not published§ |
-| `islo` | included in a plan from $20/mo (counted as one Machine's month)¶¶ | usage limits unpublished | ≈ $0.027/h (the $20 plan over a month) | microVM |
+| `cyqle` | 60 min a day (counted as 30 h a month), no card[^5] | 1 desktop, 1 vCPU / 1 GB, 60-minute sessions | $0.04/h pay as you go (2 vCPU / 4 GB), or $12/mo per desktop | not published[^6] |
+| `islo` | included in a plan from $20/mo (counted as one Machine's month)[^5] | usage limits unpublished | ≈ $0.027/h (the $20 plan over a month) | microVM |
 
 ### One-time credit
 
 | id | Free usage | Free limits | Paid after | Isolation |
 |---|---|---|---|---|
-| `daytona` | $200* | 10 vCPU total | $0.050/vCPU-h | container |
-| `blaxel` | up to $200* | 10 concurrent, 7 days | $0.041/GB-h (memory only) | microVM |
+| `daytona` | $200[^7] | 10 vCPU total | $0.050/vCPU-h | container |
+| `blaxel` | up to $200[^7] | 10 concurrent, 7 days | $0.041/GB-h (memory only) | microVM |
 | `e2b` | $100 | 10 concurrent, 1 h | $0.050/vCPU-h | Firecracker |
 | `tenki` (Luxor Agent Cloud, was Tenki) | $100 when you first add a card | 5 concurrent | $0.050/vCPU-h | microVM |
-| `boxlite` | $100 when you add a card* | per plan | $0.050/vCPU-h | microVM |
-| `runloop` | $50 (winding down, see below) | 3 running, 48 h | $0.108/vCPU-h | VM |
+| `boxlite` | $100 when you add a card[^7] | per plan | $0.050/vCPU-h | microVM |
 | `dedalus` | $20 (beta access needed) | — | rates unpublished (estimate $0.05/vCPU-h) | Cloud Hypervisor |
-| `createos` | ~$5 (500 credits)* | 1 sandbox, 1 vCPU / 1 GB | $0.036/vCPU-h | Firecracker |
+| `createos` | ~$5 (500 credits)[^7] | 1 sandbox, 1 vCPU / 1 GB | $0.036/vCPU-h | Firecracker |
 | `quivvo` | $5 (signup queue) | 1 machine | $0.005/vCPU-h (shared) | Firecracker |
 | `celesto` | $5, expires after 30 days | 1 sandbox | $0.015/h (1 vCPU / 2 GB) | Firecracker |
 | `agent37` | $5 (card required) | 3 awake | $0.0011/vCPU-h | gVisor |
 | `boat` | 25 trial hours (≈ $0.45; card required) | 2 concurrent, 2 h | $0.018/h (2 vCPU / 4 GB) | VM |
-| `boxd` | €30 (counted as $32.97; card likely required) | 50 machines | €0.039/vCPU-h + €0.012/GiB-h (in use only) | KVM microVM |
+| `boxd` | €30 (counted as $32.97; card likely required) | 50 machines | €0.039/vCPU-h (active CPU only) + €0.012/GiB-h | KVM microVM |
 | `maritime` | $20 trial cap, 7 days (card required) | 24 h | $0.022/h (2 vCPU / 4 GB) | Firecracker |
-| `promigence` | $100 (card and expiry not stated) | 20 concurrent, 1 h | $0.166/h (2 vCPU / 4 GiB) | not published§ |
+| `promigence` | $100 (card and expiry not stated) | 20 concurrent, 1 h | $0.166/h (2 vCPU / 4 GiB) | not published[^6] |
 | `zode` | $10, no card | 2 running, 55 s per command | $0.0175/h (2 vCPU / 4 GB) | Cloud Hypervisor |
 | `boxcompute` | $5, expires after 14 days | 2 running | $0.05/h (0.5 vCPU / 1 GiB) | VM |
 | `lizard` | $5, 7-day trial (card required) | 1 Small running, 1 h | $0.0162/h (2 vCPU / 4 GB) | Firecracker |
 | `munito` | $0.90, 7-day trial (card required) | 2 concurrent, 2 h | $0.018/h (2 vCPU / 4 GiB) | microVM |
 | `buddy` | $5 for 14 days (card required) | — | $0.0144/vCPU-h + $0.0144/GB-h | VM |
-| `groundbox` | $5 (no card; 3,000 CI min a month too)* | 2 concurrent, 2 vCPU / 4 GB, 1 h until a card | $0.04/vCPU-h, memory included | Firecracker |
+| `groundbox` | $5 (no card; 3,000 CI min a month too)[^7] | 2 concurrent, 2 vCPU / 4 GB, 1 h until a card | $0.04/vCPU-h, memory included | Firecracker |
 | `briq` | €10 (counted as $10.99; no card) | 5 at once, up to medium (2 vCPU / 4 GB) | €0.03/h (2 shared vCPU / 4 GB); free asleep | Firecracker |
-| `runtime` | $5 in a 7-day Pro trial (card required) | 100 vCPUs at once | $0.03/vCPU-h (active only) + $0.008/GB-h; $25/mo plan | Firecracker |
+| `runtime` | $5 in a 7-day Pro trial (card required) | 100 vCPUs at once | $0.03/vCPU-h (active CPU only) + $0.008/GB-h; $25/mo plan | Firecracker |
 | `docker-cloud` | $250 promotional credit (card required) | 10 concurrent, 24 h | $0.07/vCPU-h, memory included | microVM |
-| `novita` | $100 after a short survey, no card | 5 concurrent, 1 h, 2 vCPU / 4 GiB | $0.035/vCPU-h + $0.0115/GiB-h | not published§ |
-| `smol` | $100, no card | 4 running, 4 vCPU each | $0.04/h base + $0.05/vCPU-h used + $0.0162/GB-h | microVM |
+| `novita` | $100 after a short survey, no card | 5 concurrent, 1 h, 2 vCPU / 4 GiB | $0.035/vCPU-h + $0.0115/GiB-h | not published[^6] |
+| `smol` | $100, no card | 4 running, 4 vCPU each | $0.05/vCPU-h (active CPU only) + $0.0162/GB-h used + a $0.04/h base | microVM |
 | `isorun` | $50, no card | — | $0.025/vCPU-h + $0.015/GiB-h | microVM |
 | `instavm` | $50 (card on file) | 5 active | $0.050/vCPU-h + $0.016/GB-h | microVM |
 | `prized` | $30, no card | 10 at once, 2 vCPU / 4 GB, 60 min of running | $0.04/vCPU-h + $0.0125/GB-h | Firecracker |
-| `zipbox` | $25 for a $5 top-up (counted as $20; card required) | 250 box names ever†† | $0.0137/h (2 vCPU / 4 GB) | not published§ |
-| `pilldrops` | $5 (no card) | 5 concurrent, 4 h, 2 vCPU / 2 GB | $0.13/h (2 vCPU / 2 GB) | container# |
-| `railway` | $5, expires after 30 days (no card) | 10 running, 2 vCPU / 2 GB, 5 idle minutes | $0.069/vCPU-h + $0.069/GB-h (active CPU only) | VM |
-| `vers` | $5 ($50 more with a card)* | — | $0.04/vCPU-h + $0.01/GiB-h; asleep, only disk is billed | VM |
-| `runta` | $50, no card* | 32 vCPU / 64 GiB across runtimes on the trial | $0.0504/vCPU-h + $0.0162/GiB-h | not published§ |
-| `stateset` | $25 trial (card required) | Hobby: 10 at once, 45 min | $0.0746/h (2 vCPU / 4 GB dedicated, billed at 50% of allocation)†‡ | gVisor |
+| `zipbox` | $25 for a $5 top-up (counted as $20; card required) | 250 box names ever[^8] | $0.0137/h (2 vCPU / 4 GB) | not published[^6] |
+| `pilldrops` | $5 (no card) | 5 concurrent, 4 h, 2 vCPU / 2 GB | $0.13/h (2 vCPU / 2 GB) | container[^9] |
+| `railway` | $5, expires after 30 days (no card) | 10 running, 2 vCPU / 2 GB, 5 idle minutes | $0.069/vCPU-h (active CPU only) + $0.069/GB-h | VM |
+| `vers` | $5 ($50 more with a card)[^7] | — | $0.04/vCPU-h + $0.01/GiB-h; asleep, only disk is billed | VM |
+| `runta` | $50, no card[^7] | 32 vCPU / 64 GiB across runtimes on the trial | $0.0504/vCPU-h + $0.0162/GiB-h | not published[^6] |
+| `stateset` | $25 trial (card required) | Hobby: 10 at once, 45 min | $0.0746/h (2 vCPU / 4 GB dedicated, billed at 50% of allocation)[^10] | gVisor |
 | `saas-sandbox` (Sandbox as a Service) | $5, no card | 20 at once, 24 h, 10 min per command | $0.09/h (2 vCPU / 4 GB) | VM |
 | `sandbox0` | $5 (card required) | 20 running | $0.015/GiB-h (memory only; CPU follows memory) | gVisor |
-| `voidrun` | ₹4,600 (counted as $49.64; no card)* | 300 s per command; sleeps after 60 idle seconds | ₹3.71/vCPU-h (active only) + ₹1.19/GB-h (≈ $0.040 + $0.0129) | microVM |
+| `voidrun` | ₹4,600 (counted as $49.64; no card)[^7] | 300 s per command; sleeps after 60 idle seconds | ₹3.71/vCPU-h (active CPU only) + ₹1.19/GB-h (≈ $0.040 + $0.0129) | microVM |
 | `workpaper` | one free hour (counted as $0.01, no card) | 4 running; India only; no incoming ports | $0.010/h (2 vCPU / 4 GB) on Pro ($15/mo, all credit); $0.033/h pay as you go | VM |
-| `rayrun` | ¥50 (≈ $7.04)‖‖ | — | $0.014/h (2 vCPU / 4 GiB, ¥0.10)‖‖ | microVM |
+| `rayrun` | ¥50 (≈ $7.04)[^11] | — | $0.014/h (2 vCPU / 4 GiB, ¥0.10)[^11] | microVM |
 | `hyperbrowser` | $5 (5,000 credits), no card | 1 concurrent session | $0.045/vCPU-h + $0.015/GiB-h ($0.15/h at 2 vCPU / 4 GiB) | Firecracker |
-| `offstage` | $5, no card (prepaid: each create reserves its timeout) | macOS only (`os: "macos"`), 24 h, 30 min per command | $1.10/h per sandbox | macOS user account## |
+| `offstage` | $5, no card (prepaid: each create reserves its timeout) | macOS only (`os: "macos"`), 24 h, 30 min per command | $1.10/h per sandbox | macOS user account[^12] |
 
 ### Paid only
 
 | id | Price | Notes | Isolation |
 |---|---|---|---|
 | `koyeb` | $0.0144/h per vCPU, 1 GB each included ($0.0288/h for 2 vCPU / 2 GB) | | microVM |
-| `morph` | $0.05/vCPU-h | free credit disputed† | VM (memory snapshots) |
+| `morph` | $0.05/vCPU-h | free credit disputed[^13] | VM (memory snapshots) |
 | `together` | $0.045/vCPU-h | custom plans | Firecracker |
 | `depot` | $0.18/vCPU-h (CPU only) | 7-day trial | microVM |
 | `namespace` | $0.09/h per vCPU + 2 GB | 3 h max; a 30-day trial (no card) isn't counted | microVM |
 | `lambda-microvm` | $0.10/vCPU-h + $0.013/GB-h | needs the execd image | Firecracker (ARM64) |
 | `thunder` | $0.051/vCPU-h | access through sales; exec over SSH | Firecracker (GPUs) |
 | `exedev` | $0.105/h (2 vCPU + 4 GiB) on top of a plan | 30 s per command | VM |
-| `nanite` | $0.072/vCPU-h + $0.0432/GB-h (in use only) | fixed size; stops after 30 idle seconds | microVM |
-| `render` | $0.12/CPU-h (active only) + $0.019/GB-h | beta; no public URLs yet | Firecracker |
+| `nanite` | $0.072/vCPU-h (active CPU only) + $0.0432/GB-h | fixed size; stops after 30 idle seconds | microVM |
+| `render` | $0.12/vCPU-h (active CPU only) + $0.019/GB-h | beta; no public URLs yet | Firecracker |
 | `quave` | $0.03125/h per zCloud (0.5 vCPU + 0.5 GB), as many as the larger of CPU or memory needs: $0.25/h for 2 vCPU / 4 GB | enabled per account; size and image come from a template | gVisor |
 | `beam` | $0.05/vCPU-h + $0.01/GiB-h | $20/mo plan includes $20 of credit | container |
 | `mosaic` | $0.05/h per 2 vCPU / 4 GiB | free while hibernated | Firecracker |
 | `nodus` | $0.0357/h (2 vCPU / 4 GiB) | prepaid; no outbound network unless asked | gVisor-style |
-| `cathedral` | $0.01/h (2 vCPU / 4 GiB) | prepaid; 24 h max; files under /work; asleep, only disk is billed | confidential VM, shared‖ |
+| `cathedral` | $0.01/h (2 vCPU / 4 GiB) | prepaid; 24 h max; files under /work; asleep, only disk is billed | confidential VM, shared[^14] |
 | `dory` | $0.0288/h (2 shared vCPU / 4 GB) | prepaid; 10 min per command | VM |
 | `kubi` | $0.035/h (4 vCPU / 8 GB, the only size) | private beta, accounts approved by hand; credit needs a $20/mo persistent screen first | VM |
 | `orble` | $0.015/h (2 vCPU / 4 GiB) | prepaid; 10 min per command; free while suspended | VM |
-| `digitalocean` | $0.044/vCPU-h (active only) + $0.0095/GB-h | prepaid; 4 min per command; files only under /workspace | microVM |
+| `digitalocean` | $0.044/vCPU-h (active CPU only) + $0.0095/GB-h | prepaid; 4 min per command; files only under /workspace | microVM |
 | `superserve` | $0.166/h (2 vCPU / 4 GiB) | a free trial of unpublished size, no card | Firecracker |
 | `eqvps` | $0.132/h (2 vCPU / 4 GB) | prepaid in crypto; 20 at once, 24 h max | Firecracker |
-| `gke-agent-sandbox` | $0.109/h (2 vCPU / 4 GiB, Autopilot pod rate) | your cluster with agent-sandbox, a warm pool and the sandbox-router§§ | container (the warm pool's runtime) |
-| `agentbay` | $0.0992/h (2 vCPU / 4 GB) | free Basic plan, but compute is billed; 50 s per command | not published§ |
-| `tencent` | $0.13/h (2 vCPU / 4 GiB, 0.94 CNY)‖‖ | size set by a sandbox tool made in the console | microVM (Cube) |
-| `volcengine` | $0.062/h (2 vCPU / 4 GB, 0.44 CNY)‖‖ | size set by an E2B-compatible template; only the creating process reaches a sandbox | microVM |
-| `oblien` | $0.03/vCPU-h (active only) + $0.008/GiB-h | prepaid wallet; files move through exec (its file API is text-only) | Firecracker |
-| `watasu` | €0.072/vCPU-h + €0.0144/GiB-h (≈ $0.22/h for 2 vCPU / 4 GiB) | prepaid balance needed to start; size from the template on the free Basic plan | not published§ |
+| `gke-agent-sandbox` | $0.109/h (2 vCPU / 4 GiB, Autopilot pod rate) | your cluster with agent-sandbox, a warm pool and the sandbox-router[^4] | container (the warm pool's runtime) |
+| `agentbay` | $0.0992/h (2 vCPU / 4 GB) | free Basic plan, but compute is billed; 50 s per command | not published[^6] |
+| `tencent` | $0.13/h (2 vCPU / 4 GiB, 0.94 CNY)[^11] | size set by a sandbox tool made in the console | microVM (Cube) |
+| `volcengine` | $0.062/h (2 vCPU / 4 GB, 0.44 CNY)[^11] | size set by an E2B-compatible template; only the creating process reaches a sandbox | microVM |
+| `oblien` | $0.03/vCPU-h (active CPU only) + $0.008/GiB-h | prepaid wallet; files move through exec (its file API is text-only) | Firecracker |
+| `watasu` | €0.072/vCPU-h + €0.0144/GiB-h (≈ $0.22/h for 2 vCPU / 4 GiB) | prepaid balance needed to start; size from the template on the free Basic plan | not published[^6] |
 | `keln` | $0.0504/vCPU-h + $0.0162/GiB-h ($0.166/h for 2 vCPU / 4 GiB) | prepaid; 3 running until the first top-up, 24 h max | microVM |
 | `mandala` | $0.03/vCPU-h + $0.015/GB-h ($0.12/h for 2 vCPU / 4 GB), pay as you go | whole desktops; a plan or prepaid credits needed; ends 10 min at the earliest | VM |
 | `platinum` | $0.0324/vCPU-h + $0.0108/GiB-h ($0.108/h for 2 vCPU / 4 GiB) | prepaid; new orgs capped at 2 vCPU / 2 GiB a sandbox; no TTL | Cloud Hypervisor |
 | `inngest` | $0.0396/vCPU-h + $0.0108/GB-h ($0.1224/h for 2 vCPU / 4 GB) | beta, Pro plan and up; 1 h of runtime a sandbox, 5 min per command; REST taken from the SDK | microVM |
-| `openpond` | $0.072/vCPU-h + $0.0234/GiB-h + disk ($0.24/h for 2 vCPU / 4 GiB) | free plan's monthly usage unpublished, not counted; one combined output stream | not published§ |
-| `gmi` | $0.17/h (2 vCPU / 4 GiB; $0.0861 1 / 2, $0.34 4 / 8) | early access; size and image set by a template | not published§ |
+| `openpond` | $0.072/vCPU-h + $0.0234/GiB-h + disk ($0.24/h for 2 vCPU / 4 GiB) | free plan's monthly usage unpublished, not counted; one combined output stream | not published[^6] |
+| `gmi` | $0.17/h (2 vCPU / 4 GiB; $0.0861 1 / 2, $0.34 4 / 8) | early access; size and image set by a template | not published[^6] |
 | `openreward` | $0.0504/vCPU-h + $0.0162/GiB-h ($0.1656/h for 2 vCPU / 4 GiB) | runs in an environment workspace made on openreward.ai; an idle session is reaped after about 15 min | container |
-| `baseten` | $0.0655/vCPU-h + $0.0211/GiB-h ($0.2154/h for 2 vCPU / 4 GiB) | 10 at once; idle sandboxes go on standby (storage only) | not published§ |
-| `chalk` | $0.0249/vCPU-h + $0.008/GiB-h preemptible ($0.082/h for 2 vCPU / 4 GiB) | preemptible by default; runs on the K8S compute class¶¶ | container¶¶ |
+| `baseten` | $0.0655/vCPU-h + $0.0211/GiB-h ($0.2154/h for 2 vCPU / 4 GiB) | 10 at once; idle sandboxes go on standby (storage only) | not published[^6] |
+| `chalk` | $0.0249/vCPU-h + $0.008/GiB-h preemptible ($0.082/h for 2 vCPU / 4 GiB) | preemptible by default; runs on the K8S compute class[^15] | container[^15] |
 | `kosa8` | $0.15/h (2 vCPU / 4 GB), counted by vCPU | a plan first (from $29/mo with 100 sandbox-hours); hours past it in $15 packs | microVM |
 | `primeintellect` | $0.02/vCPU-h + $0.0125/GiB-h ($0.09/h for 2 vCPU / 4 GiB; launch rates until 2026-12-22) | prepaid; first use of an image converts it to a VM image | microVM |
 | `sandboxer` | $0.018/h (2 vCPU / 4 GB) | a plan first (from $20/mo, its dollars come back as machine time); 600 s per command | Cloud Hypervisor |
@@ -176,7 +166,7 @@ big clouds (`cloudrun`, `gke-agent-sandbox`, `azure-sandboxes`, `agentbay`, `ten
 | `tangle` | $0.049/h (2 vCPU / 4 GB), never below $0.04/h | prepaid credit; size set by the template | container (Docker or Firecracker, its choice) |
 | `nirvana` | $0.048/h (2 vCPU / 4 GB) | you pay for the sandbox cluster's nodes, idle or not; needs a cluster made first | container (on per-customer VM nodes) |
 | `machine0` | $0.052/h (2 vCPU / 4 GB) | prepaid; bills while stopped too, so pause suspends (image storage only); 5 min per command; MCP API only | VM |
-| `lightcone` | $0.38/core-h (active only) + $0.095/GiB-h (in use) | computer-use desktops; screenshots and clicks aren't exposed through the router | VM |
+| `lightcone` | $0.38/vCPU-h (active CPU only, 6.25% minimum) + $0.095/GiB-h | computer-use desktops; screenshots and clicks aren't exposed through the router | VM |
 
 ### Your own hardware
 
@@ -186,94 +176,99 @@ big clouds (`cloudrun`, `gke-agent-sandbox`, `azure-sandboxes`, `agentbay`, `ten
 | `opensandbox` | unlimited, on your Docker host or Kubernetes cluster | container (set `isolation` in config if your runtime is stronger) |
 | `docker` | unlimited, on this machine | container |
 
-Footnotes:
+### Off by default
 
-- \* The provider doesn't say whether the credit recurs, so it's treated as one-time, the safe reading.
-- † Morph's own pages disagree (a 300 MCU starting credit vs none). If your account has it, set
-  `"morph": { "freeTier": { "kind": "one-time-credit", "usd": 15 } }`.
-- ‡ InstaBox's free plan is never billed, but it says its "early allowance" can end. It's
-  modelled as a month of hours for one machine.
-- § Promigence, Novita, Zipbox, AgentBay, Runta and Watasu don't say how their sandboxes are isolated, so a
-- § Promigence, Novita, Zipbox, AgentBay and Baseten don't say how their sandboxes are isolated, so a
-- § Promigence, Novita, Zipbox, AgentBay and Cyqle don't say how their sandboxes are isolated, so a
-  request with `minIsolation` skips them.
-- § Promigence, Novita, Zipbox, AgentBay, OpenPond and GMI Agentbox don't say how their sandboxes
-  are isolated, so a request with `minIsolation` skips them.
-- ¶ Fly's Free plan has one $5 a month for Machines and Sprites together, and the router
-  meters each provider apart, so each counts $2.50: with both on, the two can't spend more
-  than the $5. If you use only one, give it all:
-  `"fly": { "freeTier": { "kind": "monthly-credit", "usd": 5 } }`.
-- ‖ Cathedral's rooms share one AMD SEV-SNP VM and are kept apart by a container runtime it
-  doesn't name, so the adapter claims `container`, the weakest.
-- \# PillDrops' pricing page says each sandbox is a dedicated microVM, but its llms.txt says "a
-  microVM (or container)", so the adapter claims `container`, the weaker.
-- †† Zipbox names are permanent and an account may ever create 250, so its adapter reuses a pool
-  of names (`options.pool`, default 32). Its docs don't pair tiers with sizes; `xs` to `l` are
-  taken to be Tiny to Large.
-- ‡‡ LangSmith documents Firecracker for its self-hosted sandboxes; its cloud pages say only
-  "isolated". An LSU is $1; 8 LSU at 0.0576 LSU/vCPU-h + 0.01845 LSU/GiB-h is about 42 hours.
-- §§ Cloud Run sandboxes start only from inside a Cloud Run container, so each router sandbox is
-  one Cloud Run instance (Preview) running [templates/cloud-run-sandbox](templates/cloud-run-sandbox),
-  which runs commands in a sandbox with `sandbox exec`. Cloud Run claims gVisor, the weaker of
-  its two generations. Azure says Container Apps Sandboxes bill like the Consumption plan but lists no
-  sandbox meter, so its Consumption rates and free grant are used; Azure deletes a sandbox a day
-  after it stops, paused ones included. `gke-agent-sandbox` runs in your own cluster: it's
-  priced at GKE Autopilot's pod rate. On a cluster whose nodes you already pay for, set
-  `"gke-agent-sandbox": { "pricing": { "vcpuSecondUsd": 0, "gibSecondUsd": 0 } }`.
-- ¶¶ Cyqle and Islo sell plans. Cyqle's free plan gives one desktop 60 minutes a day; a paid
-  desktop ($6 to $45 a month) has unlimited session time, so model it as usage included in the
-  plan: `"cyqle": { "freeTier": { "tier": { "kind": "monthly-hours", "hours": 744 }, "concurrency": 1 },
-  "options": { "slotId": "<slot>", "plan": "standard" } }`. Islo has no hourly rate: Machines are
-  unlimited on every plan within usage limits it doesn't publish, so a plan is counted as one
-  Machine's month of hours, and the paid rate is the $20 Engineer plan spread over that month.
-- \#\# offstage cloud runs each sandbox as a macOS user account on a shared Mac Studio, wiped when
-  it closes; other accounts' processes and localhost servers are visible, so the adapter claims
-  `container`, the weakest level. It's the only macOS provider: only requests with
-  `os: "macos"` go to it, and no other request does.
-- ‖‖ Tencent and Volcengine bill in yuan; their prices are converted at 7.1 CNY per USD.
-- †‡ StateSet bills dedicated compute ($0.128/vCPU-h + $0.0106/GB-h on Hobby and Pro) at 50% of
-  what is allocated, its estimate of average use, so the router counts half those rates. The Hobby
-  plan's monthly allowance (5 vCPU-hours, 420 GB-hours) isn't counted as free usage.
-- Runta and Watasu run commands only over a WebSocket, so their adapters load the official SDK
-  (`@runta/runta-sdk`, `@watasu/sdk`) for `exec` and use REST for everything else. Reaching a
-  Watasu sandbox's data plane resets its deadline, so the adapter passes the time it has left and
-  the router also deletes it at its deadline.
-- Vers's newer docs create computers through a v2 operation API whose exec and file routes aren't
-  documented; the adapter uses the v1 API its generated SDKs speak, which has no TTL, so the router
-  deletes a Vers VM at its deadline.
-- boxd, briq and watasu bill in euros. Their prices and free credit are converted at one rate,
-- ¶¶ Chalk's SDK runs a command on its default host compute class only over a bidirectional
-  stream, which fetch can't open, and on the K8S class through one unary call, so the adapter
-  creates K8S-class sandboxes; one docs page says those don't support exec, which only a live
-  run will settle. Chalk documents gVisor for its sandboxes but not for that class, so the
-  adapter claims `container`. Non-preemptible work costs $0.0747/vCPU-h + $0.024/GiB-h.
-- VoidRun bills in rupees, converted at the ECB rates of 2026-11-20 (≈ 92.67 INR per USD),
-  kept in `src/providers/currency.ts`.
-- ‖‖ Tencent, Volcengine and Rayrun bill in yuan; their prices are converted at 7.1 CNY per USD.
-- boxd and briq bill in euros. Their prices and free credit are converted at one rate,
-  1.099 USD per euro (the ECB reference rate on 2026-11-20), kept in `src/providers/currency.ts`.
-- smol bills CPU and memory as used, plus a $0.04/h wall-clock base. Its vCPUs are priced as
-  active CPU, and the base rides on its memory rate ($0.01 per GiB-hour over the default
-  4 GiB), which the router counts for every second a box runs.
-- Groundbox's pricing page says its CI minutes reset each month but not that the $5 does, so
-  the $5 is treated as one-time. Its free credit can be exhausted by CI minutes as well.
+`runloop` is built in but off: a `RUNLOOP_API_KEY` alone doesn't route there. Runloop is
+winding down. Its docs say transition support for existing customers ended 2026-11-13, and on
+2026-11-21 `api.runloop.ai` no longer resolved and platform.runloop.ai answered 503. If your
+account still works, turn it on with `"runloop": { "enabled": true }`. Its terms when it was
+last checked: $50 of one-time credit, 3 running, 48 h each, then $0.108/vCPU-h, VM isolation.
+
+[^1]: InstaBox's free plan is never billed, but it says its "early allowance" can end. It's
+    modelled as a month of hours for one machine.
+[^2]: Fly's Free plan has one $5 a month for Machines and Sprites together, and the router
+    meters each provider apart, so each counts $2.50: with both on, the two can't spend more
+    than the $5. If you use only one, give it all: `"fly": { "freeTier": { "kind":
+    "monthly-credit", "usd": 5 } }`.
+[^3]: LangSmith documents Firecracker for its self-hosted sandboxes; its cloud pages say only
+    "isolated". An LSU is $1; 8 LSU at 0.0576 LSU/vCPU-h + 0.01845 LSU/GiB-h is about 42 hours.
+[^4]: Cloud Run sandboxes start only from inside a Cloud Run container, so each router sandbox
+    is one Cloud Run instance (Preview) running
+    [templates/cloud-run-sandbox](templates/cloud-run-sandbox), which runs commands in a sandbox
+    with `sandbox exec`. Cloud Run claims gVisor, the weaker of its two generations. Azure says
+    Container Apps Sandboxes bill like the Consumption plan but lists no sandbox meter, so its
+    Consumption rates and free grant are used; Azure deletes a sandbox a day after it stops,
+    paused ones included. `gke-agent-sandbox` runs in your own cluster: it's priced at GKE
+    Autopilot's pod rate. On a cluster whose nodes you already pay for, set
+    `"gke-agent-sandbox": { "pricing": { "vcpuSecondUsd": 0, "gibSecondUsd": 0 } }`.
+[^5]: Cyqle and Islo sell plans. Cyqle's free plan gives one desktop 60 minutes a day; a paid
+    desktop ($6 to $45 a month) has unlimited session time, so model it as usage included in the
+    plan: `"cyqle": { "freeTier": { "tier": { "kind": "monthly-hours", "hours": 744 },
+    "concurrency": 1 }, "options": { "slotId": "<slot>", "plan": "standard" } }`. Islo has no
+    hourly rate: Machines are unlimited on every plan within usage limits it doesn't publish, so
+    a plan is counted as one Machine's month of hours, and the paid rate is the $20 Engineer
+    plan spread over that month.
+[^6]: Promigence, Novita, Zipbox, AgentBay, Runta, Watasu, OpenPond, GMI Agentbox, Baseten and
+    Cyqle don't say how their sandboxes are isolated, so a request with `minIsolation` skips
+    them.
+[^7]: The provider doesn't say whether the credit recurs, so it's treated as one-time, the safe
+    reading.
+[^8]: Zipbox names are permanent and an account may ever create 250, so its adapter reuses a
+    pool of names (`options.pool`, default 32). Its docs don't pair tiers with sizes; `xs` to
+    `l` are taken to be Tiny to Large.
+[^9]: PillDrops' pricing page says each sandbox is a dedicated microVM, but its llms.txt says "a
+    microVM (or container)", so the adapter claims `container`, the weaker.
+[^10]: StateSet bills dedicated compute ($0.128/vCPU-h + $0.0106/GB-h on Hobby and Pro) at 50%
+    of what is allocated, its estimate of average use, so the router counts half those rates.
+    The Hobby plan's monthly allowance (5 vCPU-hours, 420 GB-hours) isn't counted as free usage.
+[^11]: Tencent, Volcengine and Rayrun bill in yuan; their prices are converted at 7.1 CNY per
+    USD, kept in `src/providers/currency.ts`.
+[^12]: offstage cloud runs each sandbox as a macOS user account on a shared Mac Studio, wiped
+    when it closes; other accounts' processes and localhost servers are visible, so the adapter
+    claims `container`, the weakest level. It's the only macOS provider: only requests with `os:
+    "macos"` go to it, and no other request does.
+[^13]: Morph's own pages disagree (a 300 MCU starting credit vs none). If your account has it,
+    set `"morph": { "freeTier": { "kind": "one-time-credit", "usd": 15 } }`.
+[^14]: Cathedral's rooms share one AMD SEV-SNP VM and are kept apart by a container runtime it
+    doesn't name, so the adapter claims `container`, the weakest.
+[^15]: Chalk's SDK runs a command on its default host compute class only over a bidirectional
+    stream, which fetch can't open, and on the K8S class through one unary call, so the adapter
+    creates K8S-class sandboxes; one docs page says those don't support exec, which only a live
+    run will settle. Chalk documents gVisor for its sandboxes but not for that class, so the
+    adapter claims `container`. Non-preemptible work costs $0.0747/vCPU-h + $0.024/GiB-h.
+
+Notes:
+
+- boxd, briq and Watasu bill in euros. Their prices and free credit are converted at one rate,
+  1.099 USD per euro (the ECB reference rate on 2026-11-20). VoidRun bills in rupees, converted
+  at the ECB rates of that day (≈ 92.67 INR per USD). Both rates are kept in
+  `src/providers/currency.ts`.
+- A vCPU rate marked "active CPU only" is billed only while the CPUs are busy; memory is billed
+  for every second the box runs. smol also bills a $0.04/h wall-clock base, which rides on its
+  memory rate ($0.01 per GiB-hour over the default 4 GiB). See [Active-CPU
+  billing](docs/routing.md#active-cpu-billing) for how the router ranks and meters them.
+- Groundbox's pricing page says its CI minutes reset each month but not that the $5 does, so the
+  $5 is treated as one-time. Its free credit can be exhausted by CI minutes as well.
 - Superserve gives new accounts a free trial for their first sandbox without saying how much, so
   nothing is counted as free; set `freeTier` in config once you know your account's.
-- Tenki is now Luxor Agent Cloud (tenki.cloud redirects to luxor.ai). The id stays `tenki`;
-  the adapter reads `LUXOR_API_KEY` / `LUXOR_AUTH_TOKEN` / `LUXOR_API_ENDPOINT` as the SDK
-  does, and the old `TENKI_*` names still work.
-- Runloop is winding down. Its docs say transition support for existing customers ended
-  2026-11-13. runloop.ai's homepage still offers sign-up with no notice, but on 2026-11-21
-  `api.runloop.ai` no longer resolved and platform.runloop.ai answered 503. The adapter is
-  still here, and its creates fail as network errors that open its circuit; set
-  `"runloop": { "enabled": false }` to stop trying it.
+- Tenki is now Luxor Agent Cloud (tenki.cloud redirects to luxor.ai). The id stays `tenki`; the
+  adapter reads `LUXOR_API_KEY` / `LUXOR_AUTH_TOKEN` / `LUXOR_API_ENDPOINT` as the SDK does, and
+  the old `TENKI_*` names still work.
+- Runta, Watasu and Archil run commands only over a WebSocket protocol their SDKs speak, so
+  their adapters load the SDK for `exec` (`@runta/runta-sdk`, `@watasu/sdk`, `disk`; Archil's
+  needs Node 22.19 or newer) and use REST for everything else. Install the one you use. Reaching
+  a Watasu sandbox's data plane resets its deadline, so the adapter passes the time it has left
+  and the router also deletes it at its deadline.
+- Vers's newer docs create computers through a v2 operation API whose exec and file routes
+  aren't documented; the adapter uses the v1 API its generated SDKs speak, which has no TTL, so
+  the router deletes a Vers VM at its deadline.
 - Inngest documents its sandboxes through its TypeScript SDK; the `inngest` adapter speaks the
   REST calls that SDK makes (read from `inngest` 4.26.2), which Inngest says may change during
   the beta. OpenPond likewise names `openpond-sdk` as the contract, and its adapter speaks that
-  SDK's calls. Archil's lifecycle is REST, but commands go over a WebSocket protocol only its
-  SDK speaks, so `archil` needs `npm install disk` (Node 22.19 or newer) to run commands.
-- Mandala, Platinum, Archil, Inngest and OpenPond stop or pause a sandbox at its deadline instead
-  of deleting it (Platinum has no deadline at all), so the router deletes those at the deadline.
+  SDK's calls.
+- Mandala, Platinum, Archil, Inngest and OpenPond stop or pause a sandbox at its deadline
+  instead of deleting it (Platinum has no deadline at all), so the router deletes those at the
+  deadline.
 
 ### Not built
 

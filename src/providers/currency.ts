@@ -9,7 +9,7 @@
  */
 export const USD_PER_EUR = 1.099;
 
-/** Chinese yuan per US dollar, approximate as of 2026-11-21. Used by `tencent` and `volcengine`. */
+/** Chinese yuan per US dollar, approximate as of 2026-11-21. Used by `tencent`, `volcengine` and `rayrun`. */
 export const CNY_PER_USD = 7.1;
 
 /**
