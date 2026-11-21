@@ -18,7 +18,7 @@ await sbx.kill();
 
 ## Providers
 
-75 providers are built in: 72 cloud providers plus your own hardware (openci, OpenSandbox,
+81 providers are built in: 78 cloud providers plus your own hardware (openci, OpenSandbox,
 local Docker). Terms were checked on 2026-11-11 or 2026-11-12 against each provider's pricing
 page, which its adapter links, and those that had changed were updated on 2026-11-21 (each
 adapter's `checked` date says which). Terms change, so you can override any of them in config.
@@ -31,8 +31,10 @@ local servers that speak it. None has been run against the real service yet. Nor
 the 26 added on 2026-11-21 (`groundbox`, `briq`, `kubi`, `orble`, `runtime`, `digitalocean`,
 `docker-cloud`, `novita`, `smol`, `isorun`, `instavm`, `prized`, `zipbox`, `superserve`,
 `eqvps`, `solari`, `pilldrops`, `langsmith`, `miosa`, `cloudrun`, `gke-agent-sandbox`,
-`azure-sandboxes`, `agentbay`, `tencent`, `volcengine`, `railway`), written the same way from
-each provider's docs, OpenAPI spec or official SDK and checked against its pages that day.
+`azure-sandboxes`, `agentbay`, `tencent`, `volcengine`, `railway`, `cyqle`, `machine0`,
+`hyperbrowser`, `lightcone`, `offstage`, `islo`), written the same way from each provider's
+docs, OpenAPI spec or official SDK and checked against its pages that day. `machine0` has no
+REST API: its adapter calls the tools of machine0's MCP server over HTTP.
 `novita`, `tencent` and `volcengine` speak E2B's API and share the `e2b` adapter's code. The
 big clouds (`cloudrun`, `gke-agent-sandbox`, `azure-sandboxes`, `agentbay`, `tencent`,
 `volcengine`, `railway`) need some console setup first, described in
@@ -57,6 +59,8 @@ big clouds (`cloudrun`, `gke-agent-sandbox`, `azure-sandboxes`, `agentbay`, `ten
 | `miosa` | $1 / month | 5 sandboxes | $0.0893/h (2 vCPU / 4 GB) | Firecracker |
 | `cloudrun` | 240k vCPU-s + 450k GiB-s (≈ $5.22; billing account) | Preview; needs the execd image | $0.158/h (2 vCPU / 4 GiB) | gVisor§§ |
 | `azure-sandboxes` | 180k vCPU-s + 360k GiB-s (≈ $5.40)§§ | 2 vCPU / 4 GiB is tier L | $0.216/h (2 vCPU / 4 GiB) | microVM |
+| `cyqle` | 60 min a day (counted as 30 h a month), no card¶¶ | 1 desktop, 1 vCPU / 1 GB, 60-minute sessions | $0.04/h pay as you go (2 vCPU / 4 GB), or $12/mo per desktop | not published§ |
+| `islo` | included in a plan from $20/mo (counted as one Machine's month)¶¶ | usage limits unpublished | ≈ $0.027/h (the $20 plan over a month) | microVM |
 
 ### One-time credit
 
@@ -94,6 +98,8 @@ big clouds (`cloudrun`, `gke-agent-sandbox`, `azure-sandboxes`, `agentbay`, `ten
 | `zipbox` | $25 for a $5 top-up (counted as $20; card required) | 250 box names ever†† | $0.0137/h (2 vCPU / 4 GB) | not published§ |
 | `pilldrops` | $5 (no card) | 5 concurrent, 4 h, 2 vCPU / 2 GB | $0.13/h (2 vCPU / 2 GB) | container# |
 | `railway` | $5, expires after 30 days (no card) | 10 running, 2 vCPU / 2 GB, 5 idle minutes | $0.069/vCPU-h + $0.069/GB-h (active CPU only) | VM |
+| `hyperbrowser` | $5 (5,000 credits), no card | 1 concurrent session | $0.045/vCPU-h + $0.015/GiB-h ($0.15/h at 2 vCPU / 4 GiB) | Firecracker |
+| `offstage` | $5, no card (prepaid: each create reserves its timeout) | macOS only (`os: "macos"`), 24 h, 30 min per command | $1.10/h per sandbox | macOS user account## |
 
 ### Paid only
 
@@ -124,6 +130,8 @@ big clouds (`cloudrun`, `gke-agent-sandbox`, `azure-sandboxes`, `agentbay`, `ten
 | `agentbay` | $0.0992/h (2 vCPU / 4 GB) | free Basic plan, but compute is billed; 50 s per command | not published§ |
 | `tencent` | $0.13/h (2 vCPU / 4 GiB, 0.94 CNY)‖‖ | size set by a sandbox tool made in the console | microVM (Cube) |
 | `volcengine` | $0.062/h (2 vCPU / 4 GB, 0.44 CNY)‖‖ | size set by an E2B-compatible template; only the creating process reaches a sandbox | microVM |
+| `machine0` | $0.052/h (2 vCPU / 4 GB) | prepaid; bills while stopped too, so pause suspends (image storage only); 5 min per command; MCP API only | VM |
+| `lightcone` | $0.38/core-h (active only) + $0.095/GiB-h (in use) | computer-use desktops; screenshots and clicks aren't exposed through the router | VM |
 
 ### Your own hardware
 
@@ -140,7 +148,7 @@ Footnotes:
   `"morph": { "freeTier": { "kind": "one-time-credit", "usd": 15 } }`.
 - ‡ InstaBox's free plan is never billed, but it says its "early allowance" can end. It's
   modelled as a month of hours for one machine.
-- § Promigence, Novita, Zipbox and AgentBay don't say how their sandboxes are isolated, so a
+- § Promigence, Novita, Zipbox, AgentBay and Cyqle don't say how their sandboxes are isolated, so a
   request with `minIsolation` skips them.
 - ¶ Fly's Free plan has one $5 a month for Machines and Sprites together, and the router
   meters each provider apart, so each counts $2.50: with both on, the two can't spend more
@@ -163,6 +171,16 @@ Footnotes:
   after it stops, paused ones included. `gke-agent-sandbox` runs in your own cluster: it's
   priced at GKE Autopilot's pod rate. On a cluster whose nodes you already pay for, set
   `"gke-agent-sandbox": { "pricing": { "vcpuSecondUsd": 0, "gibSecondUsd": 0 } }`.
+- ¶¶ Cyqle and Islo sell plans. Cyqle's free plan gives one desktop 60 minutes a day; a paid
+  desktop ($6 to $45 a month) has unlimited session time, so model it as usage included in the
+  plan: `"cyqle": { "freeTier": { "tier": { "kind": "monthly-hours", "hours": 744 }, "concurrency": 1 },
+  "options": { "slotId": "<slot>", "plan": "standard" } }`. Islo has no hourly rate: Machines are
+  unlimited on every plan within usage limits it doesn't publish, so a plan is counted as one
+  Machine's month of hours, and the paid rate is the $20 Engineer plan spread over that month.
+- \#\# offstage cloud runs each sandbox as a macOS user account on a shared Mac Studio, wiped when
+  it closes; other accounts' processes and localhost servers are visible, so the adapter claims
+  `container`, the weakest level. It's the only macOS provider: only requests with
+  `os: "macos"` go to it, and no other request does.
 - ‖‖ Tencent and Volcengine bill in yuan; their prices are converted at 7.1 CNY per USD.
 - boxd and briq bill in euros. Their prices and free credit are converted at one rate,
   1.099 USD per euro (the ECB reference rate on 2026-11-20), kept in `src/providers/currency.ts`.
@@ -189,6 +207,7 @@ Footnotes:
 | AWS Nitro Sandboxes | It has no sandbox API. It's an EC2 feature: Firecracker on a Nitro Enclaves parent instance, or `ISOLATED_SANDBOX` tasks in ECS/EKS. The ECS path (`RunTask` plus ECS Exec) could become an adapter, but AWS doesn't say whether ECS Exec works in sandboxed tasks. |
 | OpenAI hosted containers | Checked 2026-11-21. The Containers API creates, lists and deletes containers and moves files, but has no call that runs a command: commands run only when a model issues a shell or code-interpreter call through the Responses API. |
 | Cube | It never had an API (Mac app, web and SSH only), and it is shutting down: new machines blocked since 2026-11-06, all machines deleted 2026-12-20. |
+| Cloudish | Checked 2026-11-21. A container host for web apps: its API deploys an image as a project and starts replicas reached over HTTP through its proxy, with no call that runs a command or moves a file. A sandbox would need our own exec server deployed as a private project (as `cloudrun` does), but Cloudish doesn't restrict traffic between tenants' pods, and a replica loses everything when it idles out. $0.1007/h at 2 CPU / 4 GB, $0.10 credit with no card. |
 | microsandbox cloud | The cloud is a private beta (access on request). Its REST API creates, starts, stops and deletes sandboxes but has no exec or file route: commands ride an undocumented "sandbox command channel" that only the SDK speaks, and the npm SDK is a native binding. Checked 2026-11-21. |
 
 ### Keys and access surfaces
@@ -264,6 +283,12 @@ Footnotes:
 | `agentbay` | `AGENTBAY_API_KEY` (`AGENTBAY_REGION`, `AGENTBAY_IMAGE_ID` optional) | REST (OpenAPI RPC) agentbay.&lt;region&gt;.aliyuncs.com |
 | `tencent` | `TENCENT_AGS_API_KEY`, `TENCENT_AGS_TOOL` (`TENCENT_AGS_REGION` optional) | SDK `e2b`, at &lt;region&gt;.tencentags.com |
 | `volcengine` | `VOLCENGINE_E2B_API_KEY`, `VOLCENGINE_E2B_TEMPLATE_ID` (`VOLCENGINE_E2B_REGION` optional) | SDK `e2b`, at api.vefaas-e2b.sandbox-&lt;region&gt;.volcapig.com |
+| `cyqle` | `CYQLE_API_KEY` (`options.slotId` for a paid desktop) | REST api.cyqle.in/v1, then the desktop's region (api-us / api-eu) |
+| `islo` | `ISLO_API_KEY` | REST api.islo.dev/auth/token (key for a session token) + ca.compute.islo.dev |
+| `hyperbrowser` | `HYPERBROWSER_API_KEY` | REST api.hyperbrowser.ai/api + each sandbox's runtime URL and token |
+| `offstage` | `OFFSTAGE_API_KEY` | REST api.offstage.cloud/v1 |
+| `machine0` | `MACHINE0_API_KEY` (`MACHINE0_SSH_KEY_ID` optional) | MCP app.machine0.io/mcp (JSON-RPC `tools/call` over HTTP) |
+| `lightcone` | `TZAFON_API_KEY` | REST api.tzafon.ai |
 | `openci` | `OPENCI_URL`, `OPENCI_TOKEN` | REST /v1/sandboxes |
 | `opensandbox` | `OPEN_SANDBOX_DOMAIN`, optional `OPEN_SANDBOX_API_KEY` | REST /v1/sandboxes + execd in the sandbox |
 | `cloudrun` | `GOOGLE_CLOUD_PROJECT`, `CLOUD_RUN_REGION`, `CLOUD_RUN_SANDBOX_IMAGE` + `GOOGLE_OAUTH_ACCESS_TOKEN` or `GOOGLE_APPLICATION_CREDENTIALS(_JSON)` | REST run.googleapis.com/v2 (instances), plus execd (templates/cloud-run-sandbox) |
@@ -312,6 +337,8 @@ A provider is left out when:
 - the timeout is over its maximum;
 - `execTimeoutSec` is over its per-command cap (exe.dev cuts commands off at 30 s);
 - its isolation is weaker than `minIsolation` (`container` < `gvisor` < `microvm`/`vm`);
+- it runs another operating system than the request's `os` (`linux` unless the request says
+  `macos`; `offstage` is the macOS provider);
 - its circuit is open (see below);
 - neither free nor paid usage can take the request. Free fails when:
   - the tier is used up;
