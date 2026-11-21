@@ -18,7 +18,7 @@ await sbx.kill();
 
 ## Providers
 
-49 providers are built in: 46 cloud providers plus your own hardware (openci, OpenSandbox,
+50 providers are built in: 47 cloud providers plus your own hardware (openci, OpenSandbox,
 local Docker). Terms were checked on 2026-11-11 or 2026-11-12 against each provider's pricing
 page, which its adapter links. Terms change, so you can override any of them in config.
 
@@ -27,6 +27,7 @@ The 17 added on 2026-11-12 (`tensorlake`, `buddy`, `boxd`, `maritime`, `promigen
 `cathedral`, `dory`) are written from each provider's published API and tested against
 local servers that speak it. None has been run against the real service yet. Nor has
 `opensandbox` (added 2026-11-14), written from OpenSandbox's OpenAPI specs and its JS SDK.
+`groundbox` (added 2026-11-21) was run against the real service with `sbr check`.
 
 ### Free every month
 
@@ -56,6 +57,7 @@ local servers that speak it. None has been run against the real service yet. Nor
 | `createos` | ~$5 (500 credits)* | 1 sandbox, 1 vCPU / 1 GB | $0.036/vCPU-h | Firecracker |
 | `quivvo` | $5 (signup queue) | 1 machine | $0.005/vCPU-h (shared) | Firecracker |
 | `celesto` | $5, expires after 30 days | 1 sandbox | $0.015/h (1 vCPU / 2 GB) | Firecracker |
+| `groundbox` | $5, once per person | before a card: 2 live, 2 vCPU / 4 GB, 1 h each | $0.04/vCPU-h, memory included (up to 4 GB per vCPU); $20/mo plan includes $20 | Firecracker |
 | `agent37` | $5 (card required) | 3 awake | $0.0011/vCPU-h | gVisor |
 | `boat` | 25 trial hours (≈ $0.45; card required) | 2 concurrent, 2 h | $0.018/h (2 vCPU / 4 GB) | VM |
 | `boxd` | €30 (counted as $30; card likely required) | 50 machines | €0.039/vCPU-h + €0.012/GiB-h (in use only) | KVM microVM |
@@ -154,6 +156,7 @@ Footnotes:
 | `boxcompute` | `BOXCOMPUTE_API_KEY` | REST api.boxcompute.ai/api/v2 |
 | `lizard` | `LIZARD_API_KEY`, `LIZARD_PROJECT_ID` | REST lizard.build/api |
 | `munito` | `MUNITO_API_KEY` | REST api.munito.ai/sandboxes/v1 |
+| `groundbox` | `GROUNDBOX_API_KEY` | REST api.groundbox.dev/v1 |
 | `koyeb` | `KOYEB_API_TOKEN` | SDK `@koyeb/sandbox-sdk` |
 | `fly` | `FLY_API_TOKEN`, `FLY_APP` | REST api.machines.dev/v1 |
 | `sprites` | `SPRITES_TOKEN` | REST api.sprites.dev/v1 (the SDK needs Node 24) |

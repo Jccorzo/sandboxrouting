@@ -24,6 +24,7 @@ import { e2bProvider } from "./e2b.js";
 import { exedevProvider } from "./exedev.js";
 import { flyProvider } from "./fly.js";
 import { freestyleProvider } from "./freestyle.js";
+import { groundboxProvider } from "./groundbox.js";
 import { instaboxProvider } from "./instabox.js";
 import { koyebProvider } from "./koyeb.js";
 import { lambdaMicrovmProvider } from "./lambda-microvm.js";
@@ -76,6 +77,7 @@ export function builtinProviders(): ProviderAdapter[] {
     createosProvider,
     quivvoProvider,
     celestoProvider,
+    groundboxProvider,
     agent37Provider,
     boatProvider,
     boxdProvider,
@@ -133,6 +135,7 @@ export {
   exedevProvider,
   flyProvider,
   freestyleProvider,
+  groundboxProvider,
   instaboxProvider,
   koyebProvider,
   lambdaMicrovmProvider,
