@@ -64,6 +64,7 @@
     "@upstash/box": "*",
     "@vercel/sandbox": "*",
     "@watasu/sdk": "*",
+    "disk": "*",
     "e2b": "*",
     "freestyle": "*",
     "modal": "*",
@@ -120,6 +121,9 @@
       "optional": true
     },
     "@watasu/sdk": {
+      "optional": true
+    },
+    "disk": {
       "optional": true
     },
     "e2b": {

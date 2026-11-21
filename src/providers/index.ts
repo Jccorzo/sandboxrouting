@@ -85,6 +85,13 @@ import { sandbox0Provider } from "./sandbox0.js";
 import { statesetProvider } from "./stateset.js";
 import { versProvider } from "./vers.js";
 import { watasuProvider } from "./watasu.js";
+import { kelnProvider } from "./keln.js";
+import { mandalaProvider } from "./mandala.js";
+import { platinumProvider } from "./platinum.js";
+import { inngestProvider } from "./inngest.js";
+import { archilProvider } from "./archil.js";
+import { openpondProvider } from "./openpond.js";
+import { gmiProvider } from "./gmi.js";
 
 export function builtinProviders(): ProviderAdapter[] {
   return [
@@ -103,6 +110,7 @@ export function builtinProviders(): ProviderAdapter[] {
     miosaProvider,
     cloudrunProvider,
     azureSandboxesProvider,
+    archilProvider,
     // One-time credit.
     daytonaProvider,
     blaxelProvider,
@@ -170,6 +178,12 @@ export function builtinProviders(): ProviderAdapter[] {
     volcengineProvider,
     oblienProvider,
     watasuProvider,
+    kelnProvider,
+    mandalaProvider,
+    platinumProvider,
+    inngestProvider,
+    openpondProvider,
+    gmiProvider,
     // Your own hardware.
     openciProvider,
     opensandboxProvider,
@@ -179,6 +193,13 @@ export function builtinProviders(): ProviderAdapter[] {
 
 export {
   agent37Provider,
+  archilProvider,
+  gmiProvider,
+  inngestProvider,
+  kelnProvider,
+  mandalaProvider,
+  openpondProvider,
+  platinumProvider,
   azureSandboxesProvider,
   agentbayProvider,
   beamProvider,

@@ -34,6 +34,10 @@ the 26 added on 2026-11-21 (`groundbox`, `briq`, `kubi`, `orble`, `runtime`, `di
 `azure-sandboxes`, `agentbay`, `tencent`, `volcengine`, `railway`, `vers`, `oblien`, `runta`,
 `stateset`, `saas-sandbox`, `sandbox0`, `watasu`), written the same way from each provider's
 docs, OpenAPI spec or official SDK and checked against its pages that day.
+`azure-sandboxes`, `agentbay`, `tencent`, `volcengine`, `railway`), written the same way from
+each provider's docs, OpenAPI spec or official SDK and checked against its pages that day,
+and the 7 added later that day (`keln`, `mandala`, `platinum`, `inngest`, `archil`,
+`openpond`, `gmi`), written the same way.
 `novita`, `tencent` and `volcengine` speak E2B's API and share the `e2b` adapter's code. The
 big clouds (`cloudrun`, `gke-agent-sandbox`, `azure-sandboxes`, `agentbay`, `tencent`,
 `volcengine`, `railway`) need some console setup first, described in
@@ -58,6 +62,7 @@ big clouds (`cloudrun`, `gke-agent-sandbox`, `azure-sandboxes`, `agentbay`, `ten
 | `miosa` | $1 / month | 5 sandboxes | $0.0893/h (2 vCPU / 4 GB) | Firecracker |
 | `cloudrun` | 240k vCPU-s + 450k GiB-s (≈ $5.22; billing account) | Preview; needs the execd image | $0.158/h (2 vCPU / 4 GiB) | gVisor§§ |
 | `azure-sandboxes` | 180k vCPU-s + 360k GiB-s (≈ $5.40)§§ | 2 vCPU / 4 GiB is tier L | $0.216/h (2 vCPU / 4 GiB) | microVM |
+| `archil` | 1 vCPU-h + 2 GiB-h (≈ $0.095), no card | 5 concurrent, 30 min sessions, egress allowlist | $0.055/vCPU-h + $0.020/GiB-h | Firecracker |
 
 ### One-time credit
 
@@ -132,6 +137,12 @@ big clouds (`cloudrun`, `gke-agent-sandbox`, `azure-sandboxes`, `agentbay`, `ten
 | `volcengine` | $0.062/h (2 vCPU / 4 GB, 0.44 CNY)‖‖ | size set by an E2B-compatible template; only the creating process reaches a sandbox | microVM |
 | `oblien` | $0.03/vCPU-h (active only) + $0.008/GiB-h | prepaid wallet; files move through exec (its file API is text-only) | Firecracker |
 | `watasu` | €0.072/vCPU-h + €0.0144/GiB-h (≈ $0.22/h for 2 vCPU / 4 GiB) | prepaid balance needed to start; size from the template on the free Basic plan | not published§ |
+| `keln` | $0.0504/vCPU-h + $0.0162/GiB-h ($0.166/h for 2 vCPU / 4 GiB) | prepaid; 3 running until the first top-up, 24 h max | microVM |
+| `mandala` | $0.03/vCPU-h + $0.015/GB-h ($0.12/h for 2 vCPU / 4 GB), pay as you go | whole desktops; a plan or prepaid credits needed; ends 10 min at the earliest | VM |
+| `platinum` | $0.0324/vCPU-h + $0.0108/GiB-h ($0.108/h for 2 vCPU / 4 GiB) | prepaid; new orgs capped at 2 vCPU / 2 GiB a sandbox; no TTL | Cloud Hypervisor |
+| `inngest` | $0.0396/vCPU-h + $0.0108/GB-h ($0.1224/h for 2 vCPU / 4 GB) | beta, Pro plan and up; 1 h of runtime a sandbox, 5 min per command; REST taken from the SDK | microVM |
+| `openpond` | $0.072/vCPU-h + $0.0234/GiB-h + disk ($0.24/h for 2 vCPU / 4 GiB) | free plan's monthly usage unpublished, not counted; one combined output stream | not published§ |
+| `gmi` | $0.17/h (2 vCPU / 4 GiB; $0.0861 1 / 2, $0.34 4 / 8) | early access; size and image set by a template | not published§ |
 
 ### Your own hardware
 
@@ -150,6 +161,8 @@ Footnotes:
   modelled as a month of hours for one machine.
 - § Promigence, Novita, Zipbox, AgentBay, Runta and Watasu don't say how their sandboxes are isolated, so a
   request with `minIsolation` skips them.
+- § Promigence, Novita, Zipbox, AgentBay, OpenPond and GMI Agentbox don't say how their sandboxes
+  are isolated, so a request with `minIsolation` skips them.
 - ¶ Fly's Free plan has one $5 a month for Machines and Sprites together, and the router
   meters each provider apart, so each counts $2.50: with both on, the two can't spend more
   than the $5. If you use only one, give it all:
@@ -199,6 +212,13 @@ Footnotes:
   `api.runloop.ai` no longer resolved and platform.runloop.ai answered 503. The adapter is
   still here, and its creates fail as network errors that open its circuit; set
   `"runloop": { "enabled": false }` to stop trying it.
+- Inngest documents its sandboxes through its TypeScript SDK; the `inngest` adapter speaks the
+  REST calls that SDK makes (read from `inngest` 4.26.2), which Inngest says may change during
+  the beta. OpenPond likewise names `openpond-sdk` as the contract, and its adapter speaks that
+  SDK's calls. Archil's lifecycle is REST, but commands go over a WebSocket protocol only its
+  SDK speaks, so `archil` needs `npm install disk` (Node 22.19 or newer) to run commands.
+- Mandala, Platinum, Archil, Inngest and OpenPond stop or pause a sandbox at its deadline instead
+  of deleting it (Platinum has no deadline at all), so the router deletes those at the deadline.
 
 ### Not built
 
@@ -264,6 +284,13 @@ Footnotes:
 | `mosaic` | `MOSAIC_API_TOKEN` | REST sandbox.mosaicos.com/v1 |
 | `nodus` | `NODUS_API_KEY`, `NODUS_PROJECT` | REST api.nodus-compute.ai/apis/nodus.dev/v1 |
 | `cathedral` | `CATHEDRAL_API_KEY` | REST cathedral.computer/v1 |
+| `keln` | `KELN_API_KEY` | REST sandbox.keln.ai/v1 (commands stream as SSE) |
+| `mandala` | `MANDALA_API_KEY` | REST app.mandala.computer/api/v1 |
+| `platinum` | `PT_TOKEN` (`PT_API_URL` for a self-hosted control plane) | REST api.platinum.dev/v1 |
+| `inngest` | `INNGEST_SIGNING_KEY` (`INNGEST_ENV` for a branch environment) | REST api.inngest.com/v2/sandboxes, the calls the `inngest` SDK makes |
+| `archil` | `ARCHIL_API_KEY` (`ARCHIL_REGION`, default `aws-us-east-1`) | REST control.&lt;region&gt;.archil.com/api for the lifecycle; SDK `disk` (Node 22.19+) for commands |
+| `openpond` | `OPENPOND_API_KEY` | REST api.openpond.ai/v1/sandboxes, the calls `openpond-sdk` makes |
+| `gmi` | `GMI_SANDBOX_API_KEY`, `GMI_SANDBOX_TEMPLATE` (an Agent template id or name) | REST console.gmicloud.ai/api/v2 + the sandbox's data plane |
 | `dory` | `DORY_API_KEY` | REST api.dory.run/v1 + data.dory.run |
 | `groundbox` | `GROUNDBOX_API_KEY` | REST api.groundbox.dev/v1 |
 | `briq` | `BRIQ_API_KEY` | REST api.briq.cloud/v1 |
