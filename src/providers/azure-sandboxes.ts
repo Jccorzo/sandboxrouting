@@ -28,7 +28,7 @@ import { pollMs, shq, sleep } from "./rest-helpers.js";
 import { azureToken, hasAzureCredentials } from "./azure-auth.js";
 import type { ProviderContext, ResolvedSpec } from "../core/types.js";
 
-const ID = "azure-sessions";
+const ID = "azure-sandboxes";
 const RESOURCE = "https://dynamicsessions.io";
 const LABEL = "sandboxrouting";
 
@@ -112,7 +112,7 @@ async function remove(ctx: ProviderContext, id: string): Promise<void> {
   }
 }
 
-export const azureSessionsProvider = defineProvider({
+export const azureSandboxesProvider = defineProvider({
   info: {
     id: ID,
     name: "Azure Container Apps Sandboxes",

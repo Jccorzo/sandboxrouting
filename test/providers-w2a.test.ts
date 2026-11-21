@@ -10,7 +10,7 @@ import { classify } from "../src/core/errors.js";
 import type { ProviderContext, ResolvedSpec } from "../src/index.js";
 import { cloudRunSize, cloudrunProvider } from "../src/providers/cloudrun.js";
 import { encodeExecuteRequest, gkeAgentSandboxProvider, parseGrpcWeb, protoFields } from "../src/providers/gke-agent-sandbox.js";
-import { azureSessionsProvider, azureTier } from "../src/providers/azure-sessions.js";
+import { azureSandboxesProvider, azureTier } from "../src/providers/azure-sandboxes.js";
 import { signedAssertion } from "../src/providers/google-auth.js";
 
 const spec = (id: string, over: Partial<ResolvedSpec> = {}): ResolvedSpec => ({
@@ -328,7 +328,7 @@ describe("gke-agent-sandbox", () => {
   });
 });
 
-describe("azure-sessions", () => {
+describe("azure-sandboxes", () => {
   async function azureMock(opts: { fail?: boolean; quota?: boolean } = {}) {
     const boxes = new Map<string, { state: string; polls: number; labels: Record<string, string>; files: Map<string, Buffer> }>();
     let tokenCalls = 0;
@@ -419,46 +419,46 @@ describe("azure-sessions", () => {
 
   it("runs the lifecycle with native files, minting one client-credentials token", async () => {
     const m = await azureMock();
-    const { router } = routerFor(azureSessionsProvider, m.env);
+    const { router } = routerFor(azureSandboxesProvider, m.env);
     const sbx = await lifecycle(router, { files: true });
     expect(m.boxes.size).toBe(0);
     expect(m.tokenCalls()).toBe(1);
     expect(m.seen).toContain(`DELETE /subscriptions/sub/resourceGroups/rg/sandboxGroups/grp/sandboxes/${sbx.providerSandboxId}`);
-    await expect(azureSessionsProvider.kill(sbx.providerSandboxId, ctxOf(m.env))).resolves.toBeUndefined();
+    await expect(azureSandboxesProvider.kill(sbx.providerSandboxId, ctxOf(m.env))).resolves.toBeUndefined();
   });
 
   it("pauses, resumes, lists files, opens a port and lists live sandboxes across pages", async () => {
     const m = await azureMock();
     const ctx = ctxOf(m.env);
-    const a = await azureSessionsProvider.create(spec("a"), ctx);
-    const b = await azureSessionsProvider.create(spec("b"), ctx);
+    const a = await azureSandboxesProvider.create(spec("a"), ctx);
+    const b = await azureSandboxesProvider.create(spec("b"), ctx);
     expect(m.boxes.get(a.providerSandboxId)!.labels).toEqual({ sandboxrouting: "sbr", "sandboxrouting-id": "a" });
-    await azureSessionsProvider.writeFile!(a.providerSandboxId, "/home/a.txt", new TextEncoder().encode("hello"), ctx);
-    expect(await azureSessionsProvider.listFiles!(a.providerSandboxId, "/home", ctx)).toEqual([{ name: "a.txt", path: "/home/a.txt", isDir: false, size: 5 }]);
-    expect(await azureSessionsProvider.getUrl!(a.providerSandboxId, 3000, ctx)).toBe(`https://${a.providerSandboxId}-3000.sandboxes.example`);
-    await azureSessionsProvider.pause!(a.providerSandboxId, ctx);
+    await azureSandboxesProvider.writeFile!(a.providerSandboxId, "/home/a.txt", new TextEncoder().encode("hello"), ctx);
+    expect(await azureSandboxesProvider.listFiles!(a.providerSandboxId, "/home", ctx)).toEqual([{ name: "a.txt", path: "/home/a.txt", isDir: false, size: 5 }]);
+    expect(await azureSandboxesProvider.getUrl!(a.providerSandboxId, 3000, ctx)).toBe(`https://${a.providerSandboxId}-3000.sandboxes.example`);
+    await azureSandboxesProvider.pause!(a.providerSandboxId, ctx);
     expect(m.boxes.get(a.providerSandboxId)!.state).toBe("Stopped");
-    await azureSessionsProvider.resume!(a.providerSandboxId, ctx);
+    await azureSandboxesProvider.resume!(a.providerSandboxId, ctx);
     expect(m.boxes.get(a.providerSandboxId)!.state).toBe("Running");
-    expect((await azureSessionsProvider.listAlive!(ctx)).sort()).toEqual([a.providerSandboxId, b.providerSandboxId].sort());
+    expect((await azureSandboxesProvider.listAlive!(ctx)).sort()).toEqual([a.providerSandboxId, b.providerSandboxId].sort());
   });
 
   it("deletes a sandbox that failed to start, then throws", async () => {
     const m = await azureMock({ fail: true });
-    await expect(azureSessionsProvider.create(spec("f"), ctxOf(m.env))).rejects.toThrow(/StopFailed/);
+    await expect(azureSandboxesProvider.create(spec("f"), ctxOf(m.env))).rejects.toThrow(/StopFailed/);
     expect(m.boxes.size).toBe(0);
   });
 
   it("classifies a quota refusal and a bad secret", async () => {
     const q = await azureMock({ quota: true });
-    expect(await refusal(azureSessionsProvider.create(spec("q"), ctxOf(q.env)))).toBe("quota");
+    expect(await refusal(azureSandboxesProvider.create(spec("q"), ctxOf(q.env)))).toBe("quota");
     const bad = await azureMock();
-    expect(await refusal(azureSessionsProvider.create(spec("x"), ctxOf({ ...bad.env, AZURE_CLIENT_SECRET: "nope" })))).toBe("auth");
+    expect(await refusal(azureSandboxesProvider.create(spec("x"), ctxOf({ ...bad.env, AZURE_CLIENT_SECRET: "nope" })))).toBe("auth");
   });
 
   it("is deleted by the sweep at the deadline", async () => {
     const m = await azureMock();
-    const { router, clock } = routerFor(azureSessionsProvider, m.env);
+    const { router, clock } = routerFor(azureSandboxesProvider, m.env);
     await deletedAtDeadline(router, clock, m.seen, (id) => `DELETE /subscriptions/sub/resourceGroups/rg/sandboxGroups/grp/sandboxes/${id}`);
   });
 });

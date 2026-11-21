@@ -67,8 +67,9 @@ took the last free slot or the last of the credit. It moves to the next candidat
 ### Active-CPU billing
 
 Some providers bill the vCPUs only while they are busy and memory for every second the box
-runs (Vercel, Cloudflare, Render, Upstash Box, Fly Sprites, boxd, SuperHQ Nanite; Tensorlake
-with a 20% floor). Their adapters set `pricing.billing: "active-cpu"`. Priced by wall clock,
+runs (Vercel, Cloudflare, Render, Upstash Box, Fly Sprites, boxd, SuperHQ Nanite, Runtime,
+DigitalOcean Harness Runtime, Railway; Tensorlake with a 20% floor; smol, whose wall-clock
+base rides on its memory rate). Their adapters set `pricing.billing: "active-cpu"`. Priced by wall clock,
 they would look up to three times dearer than they are, and `cheapest` would never pick them.
 
 The router can't see a sandbox's CPU time, so it keeps two rates:

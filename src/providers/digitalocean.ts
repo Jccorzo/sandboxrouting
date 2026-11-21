@@ -96,8 +96,7 @@ export const digitaloceanProvider = defineProvider({
       source: "https://docs.digitalocean.com/products/managed-agents/agent-harness-runtime/details/pricing/",
       checked: "2026-11-21",
     },
-    // billing: active-cpu
-    pricing: { vcpuSecondUsd: 0.044 / 3600, gibSecondUsd: 0.0095 / 3600, defaultCpu: 2, defaultMemoryMiB: 4096, source: "https://docs.digitalocean.com/products/managed-agents/agent-harness-runtime/details/pricing/" },
+    pricing: { billing: "active-cpu", vcpuSecondUsd: 0.044 / 3600, gibSecondUsd: 0.0095 / 3600, defaultCpu: 2, defaultMemoryMiB: 4096, source: "https://docs.digitalocean.com/products/managed-agents/agent-harness-runtime/details/pricing/" },
     surfaces: { rest: "https://api.digitalocean.com/v2/harness-runtime", sdk: ["pydo (PyPI)", "@digitalocean/dots (npm)", "godo (Go)"], cli: "doctl harness-runtime" },
   },
 

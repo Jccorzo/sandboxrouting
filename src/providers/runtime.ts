@@ -59,8 +59,7 @@ export const runtimeProvider = defineProvider({
       source: "https://withruntime.com/docs/pricing.md",
       checked: "2026-11-21",
     },
-    // billing: active-cpu
-    pricing: { vcpuSecondUsd: 0.03 / 3600, gibSecondUsd: 0.008 / 3600, defaultCpu: 2, defaultMemoryMiB: 4096, source: "https://withruntime.com/docs/pricing.md" },
+    pricing: { billing: "active-cpu", vcpuSecondUsd: 0.03 / 3600, gibSecondUsd: 0.008 / 3600, defaultCpu: 2, defaultMemoryMiB: 4096, source: "https://withruntime.com/docs/pricing.md" },
     surfaces: { rest: "https://api.withruntime.com/v2", sdk: ["withruntime (npm)", "withruntime (PyPI)"], cli: "npx withruntime", mcp: "Runtime MCP server" },
   },
 

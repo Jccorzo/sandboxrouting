@@ -3,7 +3,7 @@
 The big clouds need some setup in their consoles before the router can use them: an identity
 or key, sometimes a template, and a region. Each section below covers one provider.
 
-`cloudrun`, `gke-agent-sandbox` and `azure-sessions` need a cloud identity and the right role
+`cloudrun`, `gke-agent-sandbox` and `azure-sandboxes` need a cloud identity and the right role
 on it. None of these adapters uses the Google or Azure SDK. They read the credentials below
 and mint tokens themselves.
 
@@ -95,7 +95,7 @@ If the sandbox-router runs with `--authz-mode=tokenreview`, the same token authe
 Files go through sandboxd's REST API only under its root (`/workspace`, or `options.rootDir`);
 other paths fall back to exec.
 
-## `azure-sessions`: Azure Container Apps Sandboxes
+## `azure-sandboxes`: Azure Container Apps Sandboxes
 
 Create a sandbox group, then give the router identity the *Container Apps SandboxGroup Data
 Owner* role on it:

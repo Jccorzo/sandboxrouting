@@ -49,7 +49,7 @@ the 7 added on 2026-11-21 (`groundbox`, `briq`, `kubi`, `orble`, `runtime`, `dig
 | `langsmith` | 8 LSU / month ($8, ≈ 42 h) | 10 sandboxes | $0.189/h (2 vCPU / 4 GiB) | Firecracker¶ |
 | `miosa` | $1 / month | 5 sandboxes | $0.0893/h (2 vCPU / 4 GB) | Firecracker |
 | `cloudrun` | 240k vCPU-s + 450k GiB-s (≈ $5.22; billing account) | Preview; needs the execd image | $0.158/h (2 vCPU / 4 GiB) | gVisor¶ |
-| `azure-sessions` | 180k vCPU-s + 360k GiB-s (≈ $5.40)¶ | 2 vCPU / 4 GiB is tier L | $0.216/h (2 vCPU / 4 GiB) | microVM |
+| `azure-sandboxes` | 180k vCPU-s + 360k GiB-s (≈ $5.40)¶ | 2 vCPU / 4 GiB is tier L | $0.216/h (2 vCPU / 4 GiB) | microVM |
 
 ### One-time credit
 
@@ -67,7 +67,7 @@ the 7 added on 2026-11-21 (`groundbox`, `briq`, `kubi`, `orble`, `runtime`, `dig
 | `celesto` | $5, expires after 30 days | 1 sandbox | $0.015/h (1 vCPU / 2 GB) | Firecracker |
 | `agent37` | $5 (card required) | 3 awake | $0.0011/vCPU-h | gVisor |
 | `boat` | 25 trial hours (≈ $0.45; card required) | 2 concurrent, 2 h | $0.018/h (2 vCPU / 4 GB) | VM |
-| `boxd` | €30 (counted as $30; card likely required) | 50 machines | €0.039/vCPU-h + €0.012/GiB-h (in use only) | KVM microVM |
+| `boxd` | €30 (counted as $32.97; card likely required) | 50 machines | €0.039/vCPU-h + €0.012/GiB-h (in use only) | KVM microVM |
 | `maritime` | $20 trial cap, 7 days (card required) | 24 h | $0.022/h (2 vCPU / 4 GB) | Firecracker |
 | `promigence` | $100 (card and expiry not stated) | 20 concurrent, 1 h | $0.166/h (2 vCPU / 4 GiB) | not published§ |
 | `zode` | $10, no card | 2 running, 55 s per command | $0.0175/h (2 vCPU / 4 GB) | Cloud Hypervisor |
@@ -76,7 +76,7 @@ the 7 added on 2026-11-21 (`groundbox`, `briq`, `kubi`, `orble`, `runtime`, `dig
 | `munito` | $0.90, 7-day trial (card required) | 2 concurrent, 2 h | $0.018/h (2 vCPU / 4 GiB) | microVM |
 | `buddy` | $5 for 14 days (card required) | — | $0.0144/vCPU-h + $0.0144/GB-h | VM |
 | `groundbox` | $5 (no card; 3,000 CI min a month too)* | 2 concurrent, 2 vCPU / 4 GB, 1 h until a card | $0.04/vCPU-h, memory included | Firecracker |
-| `briq` | €10 (counted as $11.60; no card) | 5 at once, up to medium (2 vCPU / 4 GB) | €0.03/h (2 shared vCPU / 4 GB); free asleep | Firecracker |
+| `briq` | €10 (counted as $10.99; no card) | 5 at once, up to medium (2 vCPU / 4 GB) | €0.03/h (2 shared vCPU / 4 GB); free asleep | Firecracker |
 | `runtime` | $5 in a 7-day Pro trial (card required) | 100 vCPUs at once | $0.03/vCPU-h (active only) + $0.008/GB-h; $25/mo plan | Firecracker |
 | `docker-cloud` | $250 promotional credit (card required) | 10 concurrent, 24 h | $0.07/vCPU-h, memory included | microVM |
 | `novita` | $100 after a short survey, no card | 5 concurrent, 1 h, 2 vCPU / 4 GiB | $0.035/vCPU-h + $0.0115/GiB-h | not published§ |
@@ -139,8 +139,9 @@ Footnotes:
 - ¶ Zipbox names are permanent and an account may ever create 250, so its adapter reuses a pool
   of names (`options.pool`, default 32). Its docs don't pair tiers with sizes; `xs` to `l` are
   taken to be Tiny to Large.
-- smol bills CPU and memory as used, plus a wall-clock base; the base is spread over the default
-  2 vCPU in its pricing.
+- smol bills CPU and memory as used, plus a $0.04/h wall-clock base. Its vCPUs are priced as
+  active CPU, and the base rides on its memory rate ($0.01 per GiB-hour over the default
+  4 GiB), which the router counts for every second a box runs.
 - ¶ Tencent and Volcengine bill in yuan; their prices are converted at 7.1 CNY per USD.
 - ‖ Cathedral's rooms share one AMD SEV-SNP VM and are kept apart by a container runtime it
   doesn't name, so the adapter claims `container`, the weakest.
@@ -149,9 +150,8 @@ Footnotes:
   `api.runloop.ai` no longer resolved and platform.runloop.ai answered 503. The adapter is
   still here, and its creates fail as network errors that open its circuit; set
   `"runloop": { "enabled": false }` to stop trying it.
-- boxd bills in euros; its prices are converted at about 1.10 USD per euro (the ECB rate was
-  1.099 on 2026-11-20). briq bills in euros too, converted at 1.16 (its own dollar display
-  on 2026-11-20).
+- boxd and briq bill in euros. Their prices and free credit are converted at one rate,
+  1.099 USD per euro (the ECB reference rate on 2026-11-20), kept in `src/providers/currency.ts`.
 - ¶ Fly's Free plan has one $5 a month for Machines and Sprites together, and the router
   meters each provider apart, so each counts $2.50: with both on, the two can't spend more
   than the $5. If you use only one, give it all:
@@ -161,8 +161,6 @@ Footnotes:
   does, and the old `TENKI_*` names still work.
 - Groundbox's pricing page says its CI minutes reset each month but not that the $5 does, so
   the $5 is treated as one-time. Its free credit can be exhausted by CI minutes as well.
-- `runtime` and `digitalocean` bill CPU only while it is busy; the prices above assume it
-  always is, so a mostly idle sandbox costs much less.
 - ¶ LangSmith documents Firecracker for its self-hosted sandboxes; its cloud pages say only
   "isolated". An LSU is $1; 8 LSU at 0.0576 LSU/vCPU-h + 0.01845 LSU/GiB-h is about 42 hours.
 - \# PillDrops' pricing page says each sandbox is a dedicated microVM, but its llms.txt says "a
@@ -264,7 +262,7 @@ Footnotes:
 | `opensandbox` | `OPEN_SANDBOX_DOMAIN`, optional `OPEN_SANDBOX_API_KEY` | REST /v1/sandboxes + execd in the sandbox |
 | `cloudrun` | `GOOGLE_CLOUD_PROJECT`, `CLOUD_RUN_REGION`, `CLOUD_RUN_SANDBOX_IMAGE` + `GOOGLE_OAUTH_ACCESS_TOKEN` or `GOOGLE_APPLICATION_CREDENTIALS(_JSON)` | REST run.googleapis.com/v2 (instances), plus execd (templates/cloud-run-sandbox) |
 | `gke-agent-sandbox` | `AGENT_SANDBOX_K8S_API`, `AGENT_SANDBOX_ROUTER_URL`, `AGENT_SANDBOX_WARM_POOL` + `AGENT_SANDBOX_K8S_TOKEN` or Google credentials | Kubernetes API (SandboxClaim) + sandbox-router (gRPC-Web, REST) |
-| `azure-sessions` | `AZURE_SUBSCRIPTION_ID`, `AZURE_RESOURCE_GROUP`, `AZURE_SANDBOX_GROUP`, `AZURE_REGION` + `AZURE_ACCESS_TOKEN` or `AZURE_TENANT_ID`/`AZURE_CLIENT_ID`/`AZURE_CLIENT_SECRET` | REST management.{region}.azuredevcompute.io |
+| `azure-sandboxes` | `AZURE_SUBSCRIPTION_ID`, `AZURE_RESOURCE_GROUP`, `AZURE_SANDBOX_GROUP`, `AZURE_REGION` + `AZURE_ACCESS_TOKEN` or `AZURE_TENANT_ID`/`AZURE_CLIENT_ID`/`AZURE_CLIENT_SECRET` | REST management.{region}.azuredevcompute.io |
 | `docker` | none (`SBR_DOCKER=0` turns it off) | `docker` CLI |
 
 Provider SDKs are optional peer dependencies, loaded only when that provider is used:
@@ -357,7 +355,8 @@ credit you have already spent part of, set `usedBeforeUsd`. If a provider refuse
 anyway, the mark above catches it.
 
 Some providers bill the vCPUs only while they are busy (`pricing.billing: "active-cpu"`:
-Vercel, Cloudflare, Render, Upstash Box, Fly Sprites, boxd, SuperHQ Nanite, Tensorlake).
+Vercel, Cloudflare, Render, Upstash Box, Fly Sprites, boxd, SuperHQ Nanite, Tensorlake, Runtime,
+DigitalOcean Harness Runtime, Railway, smol).
 Strategies rank these by the expected cost, with the vCPUs busy `activeCpuShare` of the time
 (default 0.3; set `routing.activeCpuShare` for your workload, or
 `providers.<id>.pricing.activeCpuShare` for one provider), so `cheapest` compares them fairly.
@@ -584,7 +583,7 @@ Then add it to [src/providers/index.ts](src/providers/index.ts), or call
   `NODE_EXTRA_CA_CERTS`.
 - **Azure Container Apps Sandboxes** need a sandbox group (`Microsoft.App/sandboxGroups`).
   The default image is the public `ubuntu` disk image; `options.image` names another public
-  one, and a template (`--template azure-sessions=<disk image id>`) uses your own.
+  one, and a template (`--template azure-sandboxes=<disk image id>`) uses your own.
 - **Thunder Compute** runs commands over SSH only. The adapter generates a throwaway key,
   gets a certificate from the API, and uses the system `ssh` and `ssh-keygen`. Sandbox
   access is enabled through Thunder's sales team.

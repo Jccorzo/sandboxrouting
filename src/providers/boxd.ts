@@ -8,12 +8,10 @@
 import { defineProvider, loadSdk, withCwdEnv } from "./util.js";
 import { sbrName } from "./rest-helpers.js";
 import type { ProviderContext } from "../core/types.js";
+import { USD_PER_EUR } from "./currency.js";
 
 type BoxdSdk = typeof import("@boxd-sh/sdk");
 type Client = InstanceType<BoxdSdk["Boxd"]>;
-
-/** Prices are in euros; this is an approximate rate. Override `pricing` in config to be exact. */
-const EUR_USD = 1.1;
 
 // One client per key and endpoint: it keeps the session it exchanged the key for.
 const clients = new Map<string, Client>();
@@ -47,7 +45,7 @@ export const boxdProvider = defineProvider({
     capabilities: ["customImage", "ports", "pause", "fileList", "extendTimeout", "snapshot"],
     isolation: "microvm",
     freeTier: {
-      tier: { kind: "one-time-credit", usd: 30 },
+      tier: { kind: "one-time-credit", usd: 30 * USD_PER_EUR },
       requiresCard: true,
       notes: "€30 of credit. One page says a payment method is needed before the first machine, another that without one you get 2 machines. 50 machines per org per region.",
       source: "https://boxd.sh/pricing",
@@ -55,7 +53,7 @@ export const boxdProvider = defineProvider({
     },
     // Billed while in use: ranked at the expected CPU share; memory, the reservation and
     // metering at the ceiling for a machine that is busy with all its memory in use.
-    pricing: { vcpuSecondUsd: (0.039 * EUR_USD) / 3600, gibSecondUsd: (0.012 * EUR_USD) / 3600, defaultCpu: 1, defaultMemoryMiB: 4096, billing: "active-cpu", source: "https://boxd.sh/pricing" },
+    pricing: { vcpuSecondUsd: (0.039 * USD_PER_EUR) / 3600, gibSecondUsd: (0.012 * USD_PER_EUR) / 3600, defaultCpu: 1, defaultMemoryMiB: 4096, billing: "active-cpu", source: "https://boxd.sh/pricing" },
     surfaces: { rest: "gRPC boxd.sh:9443 (no REST)", sdk: ["@boxd-sh/sdk (npm)", "boxd (PyPI)"], cli: "boxd" },
   },
 

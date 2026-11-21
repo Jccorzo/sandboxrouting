@@ -54,10 +54,20 @@ export const smolProvider = defineProvider({
       source: "https://smolmachines.com/pricing",
       checked: "2026-11-21",
     },
-    // The $0.04/h base is wall clock while running and is spread over the default 2 vCPU here
-    // ($0.02 per vCPU-hour), since a flat rate would replace the per-vCPU and per-GiB ones.
-    // billing: active-cpu (CPU and memory are what's used, sampled; the base is wall clock)
-    pricing: { vcpuSecondUsd: (0.05 + 0.04 / 2) / 3600, gibSecondUsd: 0.0162 / 3600, defaultCpu: 2, defaultMemoryMiB: 4096, source: "https://smolmachines.com/pricing" },
+    // smol bills a $0.04/h wall-clock base while a machine runs, plus $0.05 per vCPU-hour and
+    // $0.0162 per GB-hour of what it uses. The vCPU rate is `active-cpu`. The base can't be a
+    // floor (activeCpuFloor models max(floor, use), smol charges base + use), so it rides on the
+    // memory rate, which the router counts for every second a box runs: $0.04/h over the default
+    // 4 GiB is $0.01 per GiB-hour. At 2 vCPU / 4 GiB that is exact when memory is fully used, and
+    // memory used below the size makes the estimate high, never low.
+    pricing: {
+      billing: "active-cpu",
+      vcpuSecondUsd: 0.05 / 3600,
+      gibSecondUsd: (0.0162 + 0.04 / 4) / 3600,
+      defaultCpu: 2,
+      defaultMemoryMiB: 4096,
+      source: "https://smolmachines.com/pricing",
+    },
     surfaces: { rest: "https://api.smolmachines.com/v1", sdk: ["smolvm (npm)", "smolvm (PyPI)"], cli: "smol" },
   },
 

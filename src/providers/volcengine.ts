@@ -12,9 +12,9 @@
 // https://docs.volcengine.com/docs/agentkit/tool-overview (microVM),
 // https://docs.volcengine.com/docs/agentkit/create-manage-e2b-api-key (keys).
 
+import { CNY_PER_USD } from "./currency.js";
 import { e2bCompatible } from "./e2b-compatible.js";
 
-const CNY_PER_USD = 7.1;
 const apiUrl = (env: Record<string, string | undefined>) =>
   env["VOLCENGINE_E2B_API_URL"] ?? `https://api.vefaas-e2b.sandbox-${env["VOLCENGINE_E2B_REGION"] ?? "cn-beijing"}.volcapig.com`;
 

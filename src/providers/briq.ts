@@ -16,12 +16,12 @@ import { SandboxRouterError } from "../core/errors.js";
 import { defineProvider, http, httpJson, HttpError } from "./util.js";
 import { inline, pollMs, sbrName, sleep } from "./rest-helpers.js";
 import type { ProviderContext } from "../core/types.js";
+import { USD_PER_EUR } from "./currency.js";
 
 const base = (ctx: ProviderContext) => String(ctx.env["BRIQ_API_URL"] ?? "https://api.briq.cloud").replace(/\/+$/, "");
 const auth = (ctx: ProviderContext) => ({ authorization: `Bearer ${ctx.env["BRIQ_API_KEY"]}` });
 const box = (ctx: ProviderContext, id: string, path = "") => `${base(ctx)}/v1/briqs/${encodeURIComponent(id)}${path}`;
 const gone = (err: unknown) => err instanceof HttpError && (err.status === 404 || err.status === 410);
-const EUR_USD = 1.16;
 const SYNC_EXEC_SEC = 60;
 
 const SIZES = [
@@ -59,7 +59,7 @@ export const briqProvider = defineProvider({
     isolation: "microvm",
     enforcesTimeout: false,
     freeTier: {
-      tier: { kind: "one-time-credit", usd: 10 * EUR_USD },
+      tier: { kind: "one-time-credit", usd: 10 * USD_PER_EUR },
       concurrency: 5,
       requiresCard: false,
       notes: "€10 of credits on every new account, no card. Hobby (free): 5 briqs at once, 16 GB across live briqs, sizes up to medium; large needs a card on file.",
@@ -67,7 +67,7 @@ export const briqProvider = defineProvider({
       checked: "2026-11-21",
     },
     // Priced per size and close to linear in memory: €0.03/h for medium (2 vCPU / 4 GB).
-    pricing: { vcpuSecondUsd: 0, gibSecondUsd: ((0.03 / 4) * EUR_USD) / 3600, defaultCpu: 2, defaultMemoryMiB: 4096, source: "https://briq.cloud/docs/cost.md" },
+    pricing: { vcpuSecondUsd: 0, gibSecondUsd: ((0.03 / 4) * USD_PER_EUR) / 3600, defaultCpu: 2, defaultMemoryMiB: 4096, source: "https://briq.cloud/docs/cost.md" },
     surfaces: { rest: "https://api.briq.cloud/v1", cli: "briq (@briq-cloud/cli)", mcp: "https://api.briq.cloud/mcp" },
   },
 

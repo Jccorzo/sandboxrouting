@@ -104,8 +104,7 @@ export const railwayProvider = defineProvider({
       source: "https://railway.com/pricing",
       checked: "2026-11-21",
     },
-    // billing: active-cpu
-    pricing: { vcpuSecondUsd: 0.00001929, gibSecondUsd: 0.00001929, defaultCpu: 2, defaultMemoryMiB: 2048, source: "https://docs.railway.com/sandboxes.md" },
+    pricing: { billing: "active-cpu", vcpuSecondUsd: 0.00001929, gibSecondUsd: 0.00001929, defaultCpu: 2, defaultMemoryMiB: 2048, source: "https://docs.railway.com/sandboxes.md" },
     surfaces: { rest: "https://backboard.railway.com/graphql/v2 (GraphQL)", sdk: ["railway (npm)"], cli: "railway sandbox" },
   },
 

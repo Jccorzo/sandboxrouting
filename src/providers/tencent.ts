@@ -13,9 +13,8 @@
 // The docs show only create, run code and kill through the SDK, so pause, timeouts, URLs and
 // listing are left out until they're confirmed against the service.
 
+import { CNY_PER_USD } from "./currency.js";
 import { e2bCompatible } from "./e2b-compatible.js";
-
-const CNY_PER_USD = 7.1;
 
 export const tencentProvider = e2bCompatible({
   info: {

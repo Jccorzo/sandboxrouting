@@ -4,7 +4,7 @@
 
 import type { ProviderAdapter } from "../core/types.js";
 import { agent37Provider } from "./agent37.js";
-import { azureSessionsProvider } from "./azure-sessions.js";
+import { azureSandboxesProvider } from "./azure-sandboxes.js";
 import { agentbayProvider } from "./agentbay.js";
 import { beamProvider } from "./beam.js";
 import { blaxelProvider } from "./blaxel.js";
@@ -95,7 +95,7 @@ export function builtinProviders(): ProviderAdapter[] {
     langsmithProvider,
     miosaProvider,
     cloudrunProvider,
-    azureSessionsProvider,
+    azureSandboxesProvider,
     // One-time credit.
     daytonaProvider,
     blaxelProvider,
@@ -165,7 +165,7 @@ export function builtinProviders(): ProviderAdapter[] {
 
 export {
   agent37Provider,
-  azureSessionsProvider,
+  azureSandboxesProvider,
   agentbayProvider,
   beamProvider,
   blaxelProvider,
