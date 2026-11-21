@@ -1,6 +1,6 @@
 // Promigence (private beta; new accounts may need an invite): sandboxes started as "runs"
-// from a snapshot. Free: $50 once, valid 30 days ($10 without a card, $40 more with one);
-// 20 concurrent, 1 h each. $0.0504 per vCPU-hour and $0.0162 per GiB-hour, awake time only.
+// from a snapshot. Free: $100 of credit (the pricing page doesn't say whether it needs a
+// card or expires); 20 concurrent, 1 h each. $0.0504 per vCPU-hour and $0.0162 per GiB-hour, awake time only.
 // Promigence ends the sandbox at `timeout_ms`. It does not publish how sandboxes are isolated.
 // REST: https://api.promigence.ai/v1 (Bearer prom_api_…), OpenAPI at promigence.ai/openapi.json.
 // npm `@promigence/sdk` (beta), CLI `promigence` (also a local MCP server).
@@ -46,14 +46,12 @@ export const promigenceProvider = defineProvider({
     // Isolation is left unset: Promigence does not publish it, so `minIsolation` requests skip it.
     maxTimeoutSec: 30 * 86_400,
     freeTier: {
-      // Only the part that needs no card is counted.
-      tier: { kind: "one-time-credit", usd: 10 },
+      tier: { kind: "one-time-credit", usd: 100 },
       concurrency: 20,
       maxLifetimeSec: 3600,
-      requiresCard: false,
-      notes: "$50 once, valid 30 days: $10 without a card, $40 more once one is added. New accounts: 20 concurrent, 1 h each, sizes up to large.",
-      source: "https://www.promigence.ai/docs/limits.md",
-      checked: "2026-11-12",
+      notes: "Free plan: $100 of credit (card and expiry not stated). New accounts: 20 concurrent, 1 h each, sizes up to large.",
+      source: "https://www.promigence.ai/pricing.md",
+      checked: "2026-11-21",
     },
     pricing: { vcpuSecondUsd: 0.0504 / 3600, gibSecondUsd: 0.0162 / 3600, defaultCpu: 2, defaultMemoryMiB: 4096, source: "https://www.promigence.ai/facts.json" },
     surfaces: { rest: "https://api.promigence.ai/v1", sdk: ["@promigence/sdk (npm)", "promigence (PyPI)"], cli: "promigence (npm)", mcp: "promigence mcp (stdio)" },

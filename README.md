@@ -20,7 +20,8 @@ await sbx.kill();
 
 49 providers are built in: 46 cloud providers plus your own hardware (openci, OpenSandbox,
 local Docker). Terms were checked on 2026-11-11 or 2026-11-12 against each provider's pricing
-page, which its adapter links. Terms change, so you can override any of them in config.
+page, which its adapter links, and those that had changed were updated on 2026-11-21 (each
+adapter's `checked` date says which). Terms change, so you can override any of them in config.
 
 The 17 added on 2026-11-12 (`tensorlake`, `buddy`, `boxd`, `maritime`, `promigence`, `zode`,
 `boxcompute`, `lizard`, `munito`, `nanite`, `render`, `quave`, `beam`, `mosaic`, `nodus`,
@@ -37,10 +38,11 @@ local servers that speak it. None has been run against the real service yet. Nor
 | `freestyle` | 200 vCPU-h + 400 GiB-h (≈ $13) | 10 concurrent | $0.040/vCPU-h | microVM |
 | `vercel` | 5 CPU-h + 420 GB-h (≈ $9.5) | 10 concurrent, 45 min | $0.128/CPU-h (active only) | Firecracker |
 | `instabox` | one 4 vCPU / 8 GiB machine, always free‡ | 1 machine, 8 h per run | $0.004/vCPU-h | Firecracker |
-| `upstash` | 5 CPU-hours | 10 concurrent, 2 vCPU / 4 GB | $0.10/h (2 vCPU) | container |
-| `cloudflare` | 375 vCPU-min + 25 GiB-h (≈ $0.68) with Workers Paid ($5/mo) | — | $0.072/vCPU-h (active only) | container |
-| `tensorlake` | one 1 vCPU / 1 GB sandbox, always free | 1 sandbox, 1 h (2 h once verified) | $0.07/vCPU-h + $0.015/GB-h | Firecracker |
-| `buddy` | $1 / month | — | $0.0144/vCPU-h + $0.0144/GB-h | VM |
+| `upstash` | 5 CPU-hours | 10 concurrent, 2 vCPU / 4 GB | $0.10 per active hour (2 vCPU / 4 GB); memory free | container |
+| `cloudflare` | 375 vCPU-min + 25 GiB-h (≈ $0.68) with Workers Paid ($5/mo) | — | $0.072/vCPU-h (active only) + $0.009/GiB-h; 2 vCPU comes with 8 GiB, ≈ $0.22/h busy | container |
+| `tensorlake` | one 1 vCPU / 1 GB sandbox, always free | 1 sandbox, 1 h (2 h once verified) | $0.07/vCPU-h (active, 20% minimum) + $0.015/GB-h | Firecracker |
+| `fly` | $5 / month shared with `sprites` (counted as $2.50 each¶; card required) | 3 machines | ~$0.035/h (2 shared vCPU / 4 GB) | Firecracker |
+| `sprites` | $5 / month shared with `fly` (counted as $2.50 each¶; card required) | 3 Sprites | $0.0385/CPU-h + $0.021875/GB-h (as used); idle Sprites are free | Firecracker |
 
 ### One-time credit
 
@@ -49,9 +51,9 @@ local servers that speak it. None has been run against the real service yet. Nor
 | `daytona` | $200* | 10 vCPU total | $0.050/vCPU-h | container |
 | `blaxel` | up to $200* | 10 concurrent, 7 days | $0.041/GB-h (memory only) | microVM |
 | `e2b` | $100 | 10 concurrent, 1 h | $0.050/vCPU-h | Firecracker |
-| `tenki` | $100 (card required) | 5 concurrent | $0.050/vCPU-h | microVM |
+| `tenki` (Luxor Agent Cloud, was Tenki) | $100 when you first add a card | 5 concurrent | $0.050/vCPU-h | microVM |
 | `boxlite` | $100 when you add a card* | per plan | $0.050/vCPU-h | microVM |
-| `runloop` | $50 | 3 running, 48 h | $0.108/vCPU-h | VM |
+| `runloop` | $50 (winding down, see below) | 3 running, 48 h | $0.108/vCPU-h | VM |
 | `dedalus` | $20 (beta access needed) | — | rates unpublished (estimate $0.05/vCPU-h) | Cloud Hypervisor |
 | `createos` | ~$5 (500 credits)* | 1 sandbox, 1 vCPU / 1 GB | $0.036/vCPU-h | Firecracker |
 | `quivvo` | $5 (signup queue) | 1 machine | $0.005/vCPU-h (shared) | Firecracker |
@@ -60,33 +62,32 @@ local servers that speak it. None has been run against the real service yet. Nor
 | `boat` | 25 trial hours (≈ $0.45; card required) | 2 concurrent, 2 h | $0.018/h (2 vCPU / 4 GB) | VM |
 | `boxd` | €30 (counted as $30; card likely required) | 50 machines | €0.039/vCPU-h + €0.012/GiB-h (in use only) | KVM microVM |
 | `maritime` | $20 trial cap, 7 days (card required) | 24 h | $0.022/h (2 vCPU / 4 GB) | Firecracker |
-| `promigence` | $10 without a card ($50 with one), 30 days | 20 concurrent, 1 h | $0.166/h (2 vCPU / 4 GiB) | not published§ |
-| `zode` | $10 (card check) | 2 running, 55 s per command | $0.0225/h (2 vCPU / 4 GB) | Cloud Hypervisor |
+| `promigence` | $100 (card and expiry not stated) | 20 concurrent, 1 h | $0.166/h (2 vCPU / 4 GiB) | not published§ |
+| `zode` | $10, no card | 2 running, 55 s per command | $0.0175/h (2 vCPU / 4 GB) | Cloud Hypervisor |
 | `boxcompute` | $5, expires after 14 days | 2 running | $0.05/h (0.5 vCPU / 1 GiB) | VM |
 | `lizard` | $5, 7-day trial (card required) | 1 Small running, 1 h | $0.0162/h (2 vCPU / 4 GB) | Firecracker |
 | `munito` | $0.90, 7-day trial (card required) | 2 concurrent, 2 h | $0.018/h (2 vCPU / 4 GiB) | microVM |
+| `buddy` | $5 for 14 days (card required) | — | $0.0144/vCPU-h + $0.0144/GB-h | VM |
 
 ### Paid only
 
 | id | Price | Notes | Isolation |
 |---|---|---|---|
-| `koyeb` | $0.0144/h (1 vCPU, 1 GB) | | microVM |
-| `fly` | ~$0.01/h shared vCPU | needs an app (`FLY_APP`) | Firecracker |
-| `sprites` | $0.039/CPU-h; idle Sprites are free | | Firecracker |
+| `koyeb` | $0.0144/h per vCPU, 1 GB each included ($0.0288/h for 2 vCPU / 2 GB) | | microVM |
 | `morph` | $0.05/vCPU-h | free credit disputed† | VM (memory snapshots) |
 | `together` | $0.045/vCPU-h | custom plans | Firecracker |
 | `depot` | $0.18/vCPU-h (CPU only) | 7-day trial | microVM |
-| `namespace` | $0.09/h per vCPU + 2 GB | 3 h max | microVM |
+| `namespace` | $0.09/h per vCPU + 2 GB | 3 h max; a 30-day trial (no card) isn't counted | microVM |
 | `lambda-microvm` | $0.10/vCPU-h + $0.013/GB-h | needs the execd image | Firecracker (ARM64) |
 | `thunder` | $0.051/vCPU-h | access through sales; exec over SSH | Firecracker (GPUs) |
 | `exedev` | $0.105/h (2 vCPU + 4 GiB) on top of a plan | 30 s per command | VM |
 | `nanite` | $0.072/vCPU-h + $0.0432/GB-h (in use only) | fixed size; stops after 30 idle seconds | microVM |
 | `render` | $0.12/CPU-h (active only) + $0.019/GB-h | beta; no public URLs yet | Firecracker |
-| `quave` | $0.03125/h per 0.5 vCPU + 512 MB | enabled per account; size and image come from a template | gVisor |
+| `quave` | $0.03125/h per zCloud (0.5 vCPU + 0.5 GB), as many as the larger of CPU or memory needs: $0.25/h for 2 vCPU / 4 GB | enabled per account; size and image come from a template | gVisor |
 | `beam` | $0.05/vCPU-h + $0.01/GiB-h | $20/mo plan includes $20 of credit | container |
 | `mosaic` | $0.05/h per 2 vCPU / 4 GiB | free while hibernated | Firecracker |
 | `nodus` | $0.0357/h (2 vCPU / 4 GiB) | prepaid; no outbound network unless asked | gVisor-style |
-| `cathedral` | $0.035/h (2 vCPU / 4 GiB) | prepaid; 24 h max; files under /work | confidential VM, shared‖ |
+| `cathedral` | $0.01/h (2 vCPU / 4 GiB) | prepaid; 24 h max; files under /work; asleep, only disk is billed | confidential VM, shared‖ |
 | `dory` | $0.0288/h (2 shared vCPU / 4 GB) | prepaid; 10 min per command | VM |
 
 ### Your own hardware
@@ -108,12 +109,20 @@ Footnotes:
 - § Promigence doesn't say how its sandboxes are isolated, so a request with `minIsolation` skips it.
 - ‖ Cathedral's rooms share one AMD SEV-SNP VM and are kept apart by a container runtime it
   doesn't name, so the adapter claims `container`, the weakest.
-- Runloop is winding down: its docs say transition support ends 2026-11-13. The adapter is
-  still here; set `"runloop": { "enabled": false }` once your account stops working.
-- boxd bills in euros; its prices are converted at about 1.10 USD per euro.
-- Zode's docs ($0.0175/h) and homepage ($0.0225/h) disagree on price, and on the free tier
-  ($10 once after a card check, vs 50 free hours a month). The higher price and the docs'
-  free tier are used.
+- Runloop is winding down. Its docs say transition support for existing customers ended
+  2026-11-13. runloop.ai's homepage still offers sign-up with no notice, but on 2026-11-21
+  `api.runloop.ai` no longer resolved and platform.runloop.ai answered 503. The adapter is
+  still here, and its creates fail as network errors that open its circuit; set
+  `"runloop": { "enabled": false }` to stop trying it.
+- boxd bills in euros; its prices are converted at about 1.10 USD per euro (the ECB rate was
+  1.099 on 2026-11-20).
+- ¶ Fly's Free plan has one $5 a month for Machines and Sprites together, and the router
+  meters each provider apart, so each counts $2.50: with both on, the two can't spend more
+  than the $5. If you use only one, give it all:
+  `"fly": { "freeTier": { "kind": "monthly-credit", "usd": 5 } }`.
+- Tenki is now Luxor Agent Cloud (tenki.cloud redirects to luxor.ai). The id stays `tenki`;
+  the adapter reads `LUXOR_API_KEY` / `LUXOR_AUTH_TOKEN` / `LUXOR_API_ENDPOINT` as the SDK
+  does, and the old `TENKI_*` names still work.
 
 ### Not built
 
@@ -137,7 +146,7 @@ Footnotes:
 | `cloudflare` | `CLOUDFLARE_SANDBOX_URL`, `CLOUDFLARE_SANDBOX_TOKEN` | REST, to the bridge Worker in templates/cloudflare-worker |
 | `instabox` | `INSTABOX_API_KEY` | REST api.instabox.sh |
 | `upstash` | `UPSTASH_BOX_API_KEY` | SDK `@upstash/box` |
-| `tenki` | `TENKI_API_KEY` | SDK `@tenkicloud/sandbox` |
+| `tenki` | `LUXOR_API_KEY` or `LUXOR_AUTH_TOKEN` (the old `TENKI_API_KEY` / `TENKI_AUTH_TOKEN` still work) | SDK `@tenkicloud/sandbox` (also published as `@luxorai/sandbox`) |
 | `boxlite` | `BOXLITE_API_KEY` | SDK `@boxlite-ai/boxlite` (native: macOS arm64, Linux glibc) |
 | `dedalus` | `DEDALUS_API_KEY` | REST dcs.dedaluslabs.ai/v1 |
 | `createos` | `CREATEOS_SANDBOX_API_KEY` | REST api.sb.createos.sh/v1 |

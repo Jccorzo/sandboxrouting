@@ -1,6 +1,6 @@
 // Zode (zode.dev): Cloud Hypervisor microVMs for coding agents, in eu-central only.
-// Free: $10 once after a card check, 2 running (the homepage advertises 50 free hours a month
-// with no card instead; the API docs, which define the 402 errors, are followed here).
+// Free: $10 once, no card (a team workspace gets it when its first card is saved), 2 running.
+// $0.00875 per vCPU-hour: $0.0175/h for 2 vCPU / 4 GB (docs and homepage agree, 2026-11-21).
 // A sandbox has no TTL and lives until deleted, so the router deletes it at the deadline.
 // REST: https://api.zode.dev/v1 (Bearer zode_tok_…), OpenAPI at docs.zode.dev.
 // The buffered exec stops at 55 s; longer commands need its WebSocket, which this adapter
@@ -43,13 +43,13 @@ export const zodeProvider = defineProvider({
     freeTier: {
       tier: { kind: "one-time-credit", usd: 10 },
       concurrency: 2,
-      requiresCard: true,
-      notes: "$10 once after a card check; 2 running. Storage is free for 48 h, then $0.10/GB-month until deleted.",
+      requiresCard: false,
+      notes: "$10 once, no card (a team workspace gets it when its first card is saved); 2 running. Storage is free for 48 h, then $0.10/GB-month until deleted.",
       source: "https://docs.zode.dev/pricing.md",
-      checked: "2026-11-12",
+      checked: "2026-11-21",
     },
-    // The docs say $0.00875 per vCPU-hour and the homepage $0.01125; the higher one is used.
-    pricing: { vcpuSecondUsd: 0.01125 / 3600, gibSecondUsd: 0, defaultCpu: 2, defaultMemoryMiB: 4096, source: "https://docs.zode.dev/pricing.md" },
+    // $0.00875 per vCPU-hour, memory included: $0.0175/h for the default 2 vCPU / 4 GB.
+    pricing: { vcpuSecondUsd: 0.00875 / 3600, gibSecondUsd: 0, defaultCpu: 2, defaultMemoryMiB: 4096, source: "https://docs.zode.dev/pricing.md" },
     surfaces: { rest: "https://api.zode.dev/v1", sdk: ["@zodedev/sdk (npm)"], cli: "zode", mcp: "zode mcp (stdio)" },
   },
 

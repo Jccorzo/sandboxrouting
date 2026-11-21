@@ -1,7 +1,10 @@
-// Tenki: disposable Linux microVM sessions for agents. Free: $100 one-time credit (card
-// required, $0 auth), 5 concurrent sessions on Starter.
-// SDK: npm `@tenkicloud/sandbox` (ConnectRPC at https://api.tenki.cloud). CLI: `tenki`.
-// MCP: https://mcp.tenki.cloud/mcp.
+// Luxor Agent Cloud (was Tenki; tenki.cloud redirects to luxor.ai since 2026-11): disposable
+// Linux microVM sessions for agents. Free: $100 one-time credit the first time a payment method
+// is added ($0 auth, turns on auto-reload), 5 concurrent sessions on Starter.
+// SDK: npm `@tenkicloud/sandbox`, also published as `@luxorai/sandbox` (same code, ConnectRPC
+// at https://api.luxor.ai). It reads LUXOR_* variables first and TENKI_* after; so does this
+// adapter, and the provider id stays `tenki`. CLI: `luxor` (@luxorai/cli). MCP: https://mcp.luxor.ai/mcp.
+// Docs: https://luxor.ai/docs/pricing, https://luxor.ai/docs/account/free-credits.
 
 import { defineProvider, loadSdk } from "./util.js";
 import type { ProviderContext } from "../core/types.js";
@@ -17,9 +20,9 @@ const cache = new Map<string, TSession>();
 async function tenki(ctx: ProviderContext): Promise<{ client: TClient; sdk: TenkiSdk }> {
   sdkMod ??= await loadSdk<TenkiSdk>("@tenkicloud/sandbox", "tenki");
   client ??= new sdkMod.TenkiSandbox({
-    apiKey: ctx.env["TENKI_API_KEY"],
-    authToken: ctx.env["TENKI_AUTH_TOKEN"],
-    baseUrl: ctx.env["TENKI_API_ENDPOINT"],
+    apiKey: ctx.env["LUXOR_API_KEY"] || ctx.env["TENKI_API_KEY"],
+    authToken: ctx.env["LUXOR_AUTH_TOKEN"] || ctx.env["TENKI_AUTH_TOKEN"],
+    baseUrl: ctx.env["LUXOR_API_ENDPOINT"] || ctx.env["TENKI_API_ENDPOINT"],
   });
   return { client, sdk: sdkMod };
 }
@@ -35,9 +38,9 @@ async function get(id: string, ctx: ProviderContext): Promise<TSession> {
 export const tenkiProvider = defineProvider({
   info: {
     id: "tenki",
-    name: "Tenki",
-    homepage: "https://tenki.cloud",
-    env: ["TENKI_API_KEY"],
+    name: "Luxor Agent Cloud (was Tenki)",
+    homepage: "https://luxor.ai",
+    env: ["LUXOR_API_KEY"], // or TENKI_API_KEY, LUXOR_AUTH_TOKEN, TENKI_AUTH_TOKEN (isConfigured)
     sdkPackage: "@tenkicloud/sandbox",
     capabilities: ["customImage", "ports", "pause", "fileList", "extendTimeout", "snapshot"],
     isolation: "microvm",
@@ -45,16 +48,21 @@ export const tenkiProvider = defineProvider({
       tier: { kind: "one-time-credit", usd: 100 },
       concurrency: 5,
       requiresCard: true,
-      notes: "$100 one-time credit; card required ($0 auth, auto-reload on by default). 5 concurrent on Starter.",
-      source: "https://tenki.cloud/docs/account/free-credits",
-      checked: "2026-11-11",
+      notes: "$100 one-time credit when a payment method is first added ($0 auth; turns on auto-reload of $20 below $5). 5 concurrent on Starter.",
+      source: "https://luxor.ai/docs/account/free-credits",
+      checked: "2026-11-21",
     },
-    pricing: { vcpuSecondUsd: 0.000014, gibSecondUsd: 0.0000045, defaultCpu: 2, defaultMemoryMiB: 4096, source: "https://tenki.cloud/docs/pricing" },
-    surfaces: { rest: "https://api.tenki.cloud (ConnectRPC)", sdk: ["@tenkicloud/sandbox (npm)", "tenki (PyPI)"], cli: "tenki", mcp: "https://mcp.tenki.cloud/mcp" },
+    pricing: { vcpuSecondUsd: 0.000014, gibSecondUsd: 0.0000045, defaultCpu: 2, defaultMemoryMiB: 4096, source: "https://luxor.ai/docs/pricing" },
+    surfaces: {
+      rest: "https://api.luxor.ai (ConnectRPC)",
+      sdk: ["@tenkicloud/sandbox (npm), also @luxorai/sandbox", "tenki (PyPI)"],
+      cli: "luxor",
+      mcp: "https://mcp.luxor.ai/mcp",
+    },
   },
 
   isConfigured(ctx) {
-    return Boolean(ctx.env["TENKI_API_KEY"] || ctx.env["TENKI_AUTH_TOKEN"]);
+    return Boolean(ctx.env["LUXOR_API_KEY"] || ctx.env["LUXOR_AUTH_TOKEN"] || ctx.env["TENKI_API_KEY"] || ctx.env["TENKI_AUTH_TOKEN"]);
   },
 
   async create(spec, ctx) {

@@ -1,6 +1,6 @@
 // Cathedral (cathedral.computer): "sealed" sandboxes, rooms inside an AMD SEV-SNP
-// confidential VM shared by several customers. No free tier: prepaid credit. $0.035/h per
-// 2 vCPU / 4 GiB; three sizes; 24 h at most. Cathedral stops the sandbox at its stop time.
+// confidential VM shared by several customers. No free tier: prepaid credit. $0.01/h per
+// 2 vCPU / 4 GiB ($0.0025 per GiB-hour at every size); 24 h at most. Cathedral stops the sandbox at its stop time.
 // REST: https://cathedral.computer/v1 (Bearer cat_sk_…), OpenAPI at /openapi.json. Most
 // mutations need an Idempotency-Key. The synchronous exec waits 45 s at most, so commands
 // run as background execs that are polled. Files only under /work; no listing; no public URLs.
@@ -19,7 +19,7 @@ const box = (ctx: ProviderContext, id: string, path = "") => `${base(ctx)}/v1/sa
 const ROOTS = ["/work"];
 const MAX_LIFETIME_SEC = 86_400;
 const EXEC_LIMIT_SEC = 14_400;
-const HOURLY_PER_UNIT_USD = 0.035;
+const HOURLY_PER_UNIT_USD = 0.01; // per 2 vCPU / 4 GiB
 
 /** Sealed sizes: 2x4, 4x8 or 8x16 (vCPU x GiB). */
 export function cathedralTemplate(cpu: number, memoryMiB: number): { template: string; cpu: number; memoryMiB: number } {
@@ -57,9 +57,9 @@ export const cathedralProvider = defineProvider({
     maxExecSec: EXEC_LIMIT_SEC,
     freeTier: {
       tier: { kind: "none" },
-      notes: "Prepaid credit only (packs from $10). Billed from running until deleted, the stop time or the spend cap; pausing does not stop charges.",
+      notes: "Prepaid credit only. Billed per second from booking until deleted or the stop time; the whole lifetime is held from credit at create and the unused part refunded. Asleep, only disk is billed ($0.002/day per 4 GiB).",
       source: "https://cathedral.computer/docs/pricing.md",
-      checked: "2026-11-12",
+      checked: "2026-11-21",
     },
     pricing: { vcpuSecondUsd: HOURLY_PER_UNIT_USD / 2 / 3600, gibSecondUsd: 0, defaultCpu: 2, defaultMemoryMiB: 4096, source: "https://cathedral.computer/docs/pricing.md" },
     surfaces: { rest: "https://cathedral.computer/v1", sdk: ["e2b (npm), with E2B_DOMAIN=sandbox.cathedral.computer"], cli: "ctcli", mcp: "cathedral-mcp (stdio)" },

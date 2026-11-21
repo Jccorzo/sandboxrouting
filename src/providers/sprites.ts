@@ -1,5 +1,6 @@
 // Fly Sprites: persistent Firecracker VMs that are not billed for compute while warm or cold.
-// No free tier (Fly's $1 trial). The official SDK (@fly/sprites) needs Node 24, so this
+// Fly's Free plan includes $5 of usage a month, shared with Machines. CPU and memory are
+// billed on actual usage, measured hourly. The official SDK (@fly/sprites) needs Node 24, so this
 // adapter speaks the same REST API directly: https://api.sprites.dev/v1, Bearer token.
 // Sprites have no TTL, so the router deletes them at the deadline (enforcesTimeout: false).
 
@@ -58,13 +59,16 @@ export const spritesProvider = defineProvider({
     isolation: "microvm",
     enforcesTimeout: false,
     freeTier: {
-      tier: { kind: "none" },
-      notes: "Fly's $1 trial only. Idle (warm/cold) Sprites are not billed for compute.",
-      source: "https://fly.io/docs/about/pricing/",
-      checked: "2026-11-11",
+      tier: { kind: "monthly-credit", usd: 2.5 },
+      concurrency: 3,
+      requiresCard: true,
+      notes: "Fly's Free plan: $5 of usage a month shared by Machines and Sprites (card required; up to 3 of each). Split evenly between fly and sprites here, since the router meters each apart; give one all of it in config if you use only one. New accounts also get a $1 trial for 7 days.",
+      source: "https://fly.io/pricing/",
+      checked: "2026-11-21",
     },
-    // CPU time billed as used; idle Sprites cost nothing.
-    pricing: { vcpuSecondUsd: 0.0385 / 3600, gibSecondUsd: 0.021875 / 3600, defaultCpu: 1, defaultMemoryMiB: 1024, billing: "active-cpu", source: "https://fly.io/docs/about/pricing/" },
+    // CPU time and memory billed as used (memory here at its provisioned ceiling); warm and
+    // cold Sprites are not billed for compute.
+    pricing: { vcpuSecondUsd: 0.0385 / 3600, gibSecondUsd: 0.021875 / 3600, defaultCpu: 1, defaultMemoryMiB: 1024, billing: "active-cpu", source: "https://fly.io/sprites/" },
     surfaces: { rest: "https://api.sprites.dev/v1", sdk: ["@fly/sprites (npm, Node 24+)", "sprites-py"], cli: "sprite" },
   },
 

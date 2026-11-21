@@ -1,4 +1,7 @@
 // Runloop devboxes: VMs. Free: $50 one-time trial credit, 3 running devboxes, 48 h max.
+// Winding down: Runloop's docs (docs.runloop.ai/docs/transitions/overview) say transition
+// support for existing customers ended 2026-11-13. On 2026-11-21 api.runloop.ai no longer
+// resolved and platform.runloop.ai answered 503, though runloop.ai still offered sign-up.
 // SDK: npm `@runloop/api-client`. REST: https://api.runloop.ai (Bearer). CLI + MCP: `rli mcp start`.
 
 import { defineProvider, loadSdk } from "./util.js";
@@ -36,9 +39,9 @@ export const runloopProvider = defineProvider({
       concurrency: 3,
       maxLifetimeSec: 48 * 3600,
       requiresCard: false,
-      notes: "$50 one-time trial credit; 3 running devboxes.",
-      source: "https://www.runloop.ai/pricing",
-      checked: "2026-11-11",
+      notes: "$50 one-time trial credit; 3 running devboxes. Winding down: transition support ended 2026-11-13 and the API host stopped resolving by 2026-11-21.",
+      source: "https://docs.runloop.ai/docs/transitions/overview",
+      checked: "2026-11-21",
     },
     pricing: { vcpuSecondUsd: 0.00003, gibSecondUsd: 0.000007, defaultCpu: 1, defaultMemoryMiB: 2048, source: "https://www.runloop.ai/pricing" },
     surfaces: { rest: "https://api.runloop.ai", sdk: ["@runloop/api-client (npm)", "runloop_api_client (PyPI)"], cli: "rli", mcp: "rli mcp start" },

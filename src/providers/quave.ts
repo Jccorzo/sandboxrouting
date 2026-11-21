@@ -67,10 +67,12 @@ export const quaveProvider = defineProvider({
       tier: { kind: "none" },
       notes: "Enabled per account by Quave; billed by allocation, not while suspended. 200 active sandboxes per account.",
       source: "https://docs.quave.one/billing/pricing-details",
-      checked: "2026-11-12",
+      checked: "2026-11-21",
     },
-    // One zCloud is 0.5 vCPU with 512 MB at $0.03125/h; memory comes bundled with the CPU.
-    pricing: { vcpuSecondUsd: 0.0625 / 3600, gibSecondUsd: 0, defaultCpu: 0.5, defaultMemoryMiB: 512, source: "https://docs.quave.one/billing/pricing-details" },
+    // One zCloud is 0.5 vCPU + 0.5 GB at $0.03125/h, and a sandbox takes as many as the larger
+    // of its CPU or memory needs. Priced on memory, which is the larger for any size with at least
+    // 1 GB per vCPU: 2 vCPU / 4 GB is 8 zClouds, $0.25/h. A CPU-heavier template costs more.
+    pricing: { vcpuSecondUsd: 0, gibSecondUsd: 0.0625 / 3600, defaultCpu: 0.5, defaultMemoryMiB: 512, source: "https://docs.quave.one/billing/pricing-details" },
     surfaces: { rest: "https://api.quave.cloud/api/public/v1", cli: "quaveone", mcp: "https://mcp.quave.cloud/" },
   },
 

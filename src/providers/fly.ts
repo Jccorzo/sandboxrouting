@@ -1,5 +1,5 @@
-// Fly.io Machines over the public REST API (https://api.machines.dev/v1, Bearer). No free
-// tier (a $1 trial), but cheap shared-CPU machines billed per second. Needs an app you own:
+// Fly.io Machines over the public REST API (https://api.machines.dev/v1, Bearer). Fly's Free
+// plan includes $5 of usage a month, shared with Sprites; shared-CPU machines billed per second. Needs an app you own:
 // FLY_APP (or providers.fly.options.app). Rate limit: about 1 request/s per action.
 
 import { defineProvider, http, httpJson, withCwdEnv } from "./util.js";
@@ -25,13 +25,16 @@ export const flyProvider = defineProvider({
     capabilities: ["customImage"],
     isolation: "microvm",
     freeTier: {
-      tier: { kind: "none" },
-      notes: "$1 trial for 7 days; personal bills under $5/month are waived.",
-      source: "https://fly.io/docs/about/pricing/",
-      checked: "2026-11-11",
+      tier: { kind: "monthly-credit", usd: 2.5 },
+      concurrency: 3,
+      requiresCard: true,
+      notes: "Fly's Free plan: $5 of usage a month shared by Machines and Sprites (card required; up to 3 of each). Split evenly between fly and sprites here, since the router meters each apart; give one all of it in config if you use only one. New accounts also get a $1 trial for 7 days.",
+      source: "https://fly.io/pricing/",
+      checked: "2026-11-21",
     },
-    // Shared-CPU rates, approximated from shared-cpu-1x list prices.
-    pricing: { vcpuSecondUsd: 0.0000028, gibSecondUsd: 0.0000017, defaultCpu: 1, defaultMemoryMiB: 1024, source: "https://fly.io/docs/about/pricing/" },
+    // Shared-CPU list prices fit $0.69/month per vCPU plus $6/GB-month of memory (shared-cpu-1x
+    // 256 MB $2.19, 1 GB $6.70; shared-cpu-2x 2 GB $13.39), over a 730-hour month.
+    pricing: { vcpuSecondUsd: 0.69 / 730 / 3600, gibSecondUsd: 6 / 730 / 3600, defaultCpu: 1, defaultMemoryMiB: 1024, source: "https://fly.io/docs/about/pricing/" },
     surfaces: { rest: API, sdk: ["fly-go (Go)"], cli: "fly" },
   },
 

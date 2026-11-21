@@ -35,10 +35,11 @@ export const koyebProvider = defineProvider({
       requiresCard: true,
       notes: "Sandboxes need the Starter plan or above; the free instance does not cover them.",
       source: "https://www.koyeb.com/docs/reference/instances",
-      checked: "2026-11-11",
+      checked: "2026-11-21",
     },
-    // $0.000004/s for 1 vCPU + 1 GB, split evenly between CPU and memory.
-    pricing: { vcpuSecondUsd: 0.000002, gibSecondUsd: 0.000002, defaultCpu: 1, defaultMemoryMiB: 1024, source: "https://www.koyeb.com/pricing" },
+    // Standard instances are $0.0144/h per vCPU with memory included (1 GB per vCPU, nano to
+    // large), which is what `instanceType` creates: medium (2 vCPU / 2 GB) is $0.0288/h.
+    pricing: { vcpuSecondUsd: 0.0144 / 3600, gibSecondUsd: 0, defaultCpu: 1, defaultMemoryMiB: 1024, source: "https://www.koyeb.com/docs/reference/instances" },
     surfaces: { rest: "https://app.koyeb.com/v1", sdk: ["@koyeb/sandbox-sdk (npm)", "koyeb-sdk (PyPI)"], cli: "koyeb" },
   },
 

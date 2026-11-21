@@ -39,9 +39,9 @@ export const namespaceProvider = defineProvider({
     maxTimeoutSec: 3 * 3600,
     freeTier: {
       tier: { kind: "none" },
-      notes: "Developer plan: $0 base, pay as you go, 32 vCPU concurrency, 3 h max instance life.",
+      notes: "Developer plan: $0 base, pay as you go, 32 vCPU concurrency, 3 h max instance life. A 30-day free trial (no card) isn't counted as free usage.",
       source: "https://namespace.so/pricing",
-      checked: "2026-11-11",
+      checked: "2026-11-21",
     },
     // One unit = 1 vCPU + 2 GB for a minute at $0.0015 (overage rate): $0.000025/vCPU-s incl. memory.
     pricing: { vcpuSecondUsd: 0.000025, gibSecondUsd: 0, defaultCpu: 2, defaultMemoryMiB: 4096, source: "https://namespace.so/pricing" },

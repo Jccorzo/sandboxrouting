@@ -2,6 +2,8 @@
 // you deploy the bridge Worker in templates/cloudflare-worker, and this adapter talks to it.
 // No free plan: Workers Paid ($5/mo) includes 375 vCPU-min, 25 GiB-h memory and 200 GB-h
 // disk every month, which the router treats as monthly credit you already pay for.
+// Sizes are fixed per Worker (instance_type in wrangler.jsonc): the template's standard-1 is
+// 1/2 vCPU with 4 GiB; the smallest with 2 vCPU is standard-3 with 8 GiB, about $0.22/h busy.
 
 import { createHash } from "node:crypto";
 import { defineProvider, http, httpJson } from "./util.js";
@@ -26,12 +28,13 @@ export const cloudflareProvider = defineProvider({
     freeTier: {
       tier: { kind: "monthly-credit", usd: Math.round(INCLUDED_USD * 100) / 100 },
       requiresCard: true,
-      notes: "Usage included with Workers Paid ($5/mo): 375 vCPU-min + 25 GiB-h memory a month. Needs the bridge Worker.",
+      notes: "Usage included with Workers Paid ($5/mo): 375 vCPU-min + 25 GiB-h memory + 200 GB-h disk a month. Needs the bridge Worker.",
       source: "https://developers.cloudflare.com/containers/pricing/",
-      checked: "2026-11-11",
+      checked: "2026-11-21",
     },
     // CPU is billed only while active (ranked at the expected share); memory while it runs.
-    pricing: { vcpuSecondUsd: 0.00002, gibSecondUsd: 0.0000025, defaultCpu: 1, defaultMemoryMiB: 4096, billing: "active-cpu", source: "https://developers.cloudflare.com/containers/pricing/" },
+    // The default size is the template's standard-1 (1/2 vCPU, 4 GiB).
+    pricing: { vcpuSecondUsd: 0.00002, gibSecondUsd: 0.0000025, defaultCpu: 0.5, defaultMemoryMiB: 4096, billing: "active-cpu", source: "https://developers.cloudflare.com/containers/pricing/" },
     surfaces: { rest: "your bridge Worker (templates/cloudflare-worker)", sdk: ["@cloudflare/sandbox (npm, inside a Worker)"], cli: "wrangler" },
   },
 

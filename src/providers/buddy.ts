@@ -1,5 +1,6 @@
 // Buddy Sandboxes (buddy.works): stateful Ubuntu VMs from a pre-warmed pool, 50 GB disk.
-// Free plan: $1 of usage every month, no card. $0.0144 per vCPU-hour and per GB-hour.
+// No free plan: a 14-day trial with $5 of usage (card required). $0.0144 per vCPU-hour and
+// per GB-hour ($0.00024 per CPU-minute and GB-minute).
 // A sandbox's `timeout` only stops it after inactivity and never deletes it (a stopped one
 // still bills disk), so the router deletes it at the deadline (enforcesTimeout: false).
 // REST: https://api.buddy.works (EU and Asia are separate installations with their own
@@ -75,11 +76,11 @@ export const buddyProvider = defineProvider({
     enforcesTimeout: false,
     maxExecSec: EXEC_LIMIT_SEC,
     freeTier: {
-      tier: { kind: "monthly-credit", usd: 1 },
-      requiresCard: false,
-      notes: "Free plan: $1 of usage a month (compute and storage), no card; sandboxes stop when it is used up.",
+      tier: { kind: "one-time-credit", usd: 5 },
+      requiresCard: true,
+      notes: "Trial: $5 of usage for 14 days, card required; it ends when either runs out. Then the Pro plan (EUR 29/month).",
       source: "https://buddy.works/pricing",
-      checked: "2026-11-12",
+      checked: "2026-11-21",
     },
     pricing: { vcpuSecondUsd: 0.0144 / 3600, gibSecondUsd: 0.0144 / 3600, defaultCpu: 2, defaultMemoryMiB: 4096, source: "https://buddy.works/pricing" },
     surfaces: { rest: "https://api.buddy.works", sdk: ["@buddy-works/sandbox-sdk (npm)"], cli: "bdy sandbox", mcp: "https://mcp.buddy.works/mcp" },
