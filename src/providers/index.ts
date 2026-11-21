@@ -92,6 +92,13 @@ import { inngestProvider } from "./inngest.js";
 import { archilProvider } from "./archil.js";
 import { openpondProvider } from "./openpond.js";
 import { gmiProvider } from "./gmi.js";
+import { basetenProvider } from "./baseten.js";
+import { chalkProvider } from "./chalk.js";
+import { kosa8Provider } from "./kosa8.js";
+import { openrewardProvider } from "./openreward.js";
+import { primeintellectProvider } from "./primeintellect.js";
+import { sandboxerProvider } from "./sandboxer.js";
+import { voidrunProvider } from "./voidrun.js";
 
 export function builtinProviders(): ProviderAdapter[] {
   return [
@@ -148,6 +155,7 @@ export function builtinProviders(): ProviderAdapter[] {
     statesetProvider,
     saasSandboxProvider,
     sandbox0Provider,
+    voidrunProvider,
     // Paid only.
     koyebProvider,
     flyProvider,
@@ -184,6 +192,12 @@ export function builtinProviders(): ProviderAdapter[] {
     inngestProvider,
     openpondProvider,
     gmiProvider,
+    openrewardProvider,
+    basetenProvider,
+    chalkProvider,
+    kosa8Provider,
+    primeintellectProvider,
+    sandboxerProvider,
     // Your own hardware.
     openciProvider,
     opensandboxProvider,
@@ -281,4 +295,11 @@ export {
   saasSandboxProvider,
   sandbox0Provider,
   watasuProvider,
+  basetenProvider,
+  chalkProvider,
+  kosa8Provider,
+  openrewardProvider,
+  primeintellectProvider,
+  sandboxerProvider,
+  voidrunProvider,
 };
