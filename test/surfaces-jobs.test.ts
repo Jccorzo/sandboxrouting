@@ -43,7 +43,7 @@ function shellRouter() {
 }
 
 async function serve(r: SandboxRouter) {
-  const server = createServer(r).listen(0);
+  const server = createServer(r).listen(0, "127.0.0.1");
   await new Promise((ok) => server.once("listening", ok));
   const base = `http://127.0.0.1:${(server.address() as AddressInfo).port}/v1`;
   const post = (path: string, body?: unknown) =>

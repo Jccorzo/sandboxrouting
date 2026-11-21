@@ -37,7 +37,9 @@ export async function mock(handler: (r: Req) => Reply | undefined) {
     res.writeHead(out.status ?? 200, { "content-type": out.type ?? (out.raw !== undefined ? "application/octet-stream" : "application/json"), ...out.headers });
     res.end(payload);
   });
-  servers.push(server.listen(0));
+  // On the address the tests dial. A server on every address (`::`) shares its port number with
+  // any other process that binds 127.0.0.1 to it, and macOS sends 127.0.0.1 to that one.
+  servers.push(server.listen(0, "127.0.0.1"));
   await new Promise((ok) => server.once("listening", ok));
   return { url: `http://127.0.0.1:${(server.address() as AddressInfo).port}`, seen };
 }

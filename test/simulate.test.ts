@@ -12,7 +12,7 @@ const byStrategy = (sim: Simulation) => Object.fromEntries(runs(sim).map((r) => 
 describe("the simulator", () => {
   it("gives the same numbers for the same seed, and different ones for another", async () => {
     // Two strategies are enough to show determinism; all five only make the file slower.
-    const options = { days: 1, scenarios: ["steady"], only: ["free-first", "balanced"] };
+    const options = { days: 0.5, scenarios: ["steady"], only: ["free-first", "balanced"] };
     const a = await simulate({ ...options, seed: 7 });
     const b = await simulate({ ...options, seed: 7 });
     const c = await simulate({ ...options, seed: 8 });
@@ -48,12 +48,29 @@ describe("the simulator", () => {
 });
 
 describe("allowPaid false", () => {
-  // tight's small free tiers run out within the run, which is where paid usage could slip in.
+  // Free tiers a tenth of tight's (whose own, with Fly's free $2.50 since 2026-11-21, last the
+  // run out) run dry within a day, which is where paid usage could slip in. With allowPaid on,
+  // every strategy then bills 27 to 38 of these ~200 sandboxes as paid; one day keeps this fast.
+  const tiny = {
+    modal: { freeTier: { kind: "monthly-credit", usd: 0.3 } },
+    northflank: { freeTier: { kind: "monthly-credit", usd: 0.1 } },
+    freestyle: { freeTier: { kind: "monthly-credit", usd: 0.1 } },
+    vercel: { freeTier: { kind: "monthly-credit", usd: 0.1 } },
+    upstash: { freeTier: { kind: "monthly-hours", hours: 0.1 } },
+    daytona: { freeTier: { kind: "one-time-credit", usd: 0.4 } },
+    e2b: { freeTier: { kind: "one-time-credit", usd: 0.3 } },
+    runloop: { freeTier: { kind: "one-time-credit", usd: 0.2 } },
+    fly: { freeTier: { kind: "monthly-credit", usd: 0.25 } },
+  };
   let tight: Promise<Simulation> | undefined;
-  const run = () => (tight ??= simulate({ days: 3, scenarios: ["tight"], config: { allowPaid: false } }));
+  const run = () => (tight ??= simulate({ days: 1, scenarios: ["tight"], config: { allowPaid: false, providers: tiny } }));
 
-  it("no strategy has a sandbox billed as paid", async () => {
-    for (const r of runs(await run())) expect(r.metrics.paidSandboxes, r.strategy).toBe(0);
+  it("no strategy has a sandbox billed as paid, though the free tiers ran out", async () => {
+    for (const r of runs(await run())) {
+      expect(r.metrics.paidSandboxes, r.strategy).toBe(0);
+      // Requests went unserved: free capacity was gone, so paid was the only way left.
+      expect(r.metrics.unserved, r.strategy).toBeGreaterThan(0);
+    }
   });
 
   // A free tier takes a request only when what is left after what live sandboxes will still spend

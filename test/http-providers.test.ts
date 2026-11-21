@@ -26,7 +26,7 @@ async function listen(handler: (req: IncomingMessage, body: Buffer, url: URL) =>
     res.writeHead(out.status ?? 200, { "content-type": out.raw ? "application/octet-stream" : "application/json" });
     res.end(out.raw ?? JSON.stringify(out.json ?? {}));
   });
-  servers.push(server.listen(0));
+  servers.push(server.listen(0, "127.0.0.1"));
   await new Promise((ok) => server.once("listening", ok));
   return `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
 }
