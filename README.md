@@ -469,7 +469,7 @@ it does next:
 | Refusal | What happens next |
 |---|---|
 | 402 or "out of credit" | The free tier is marked used up until the monthly reset. Other grants are checked again after 1 day, then 2, then 4, then weekly while they keep refusing. When a mark lapses, one request checks whether the tier is back while the others skip it; a free create that works clears the mark. |
-| 429 | The provider is cooled down for a minute. |
+| 429 | The provider is cooled down for a minute, even when the body says "quota": that is nearly always a cap on how many run at once. Only a 429 that says money ran out ("credit", "billing", "insufficient balance") counts as used-up credit. |
 | 401 or 403 | The provider is skipped for 10 minutes. |
 | Network errors and 5xx | The router moves on to the next provider. Three in a row open the provider's **circuit**: it is skipped for 2 minutes. The cooldown doubles with each further failure, up to 30. Then one request probes it. |
 
@@ -681,7 +681,9 @@ Then add it to [src/providers/index.ts](src/providers/index.ts), or call
 - If the provider keeps a sandbox alive past the requested timeout, set
   `enforcesTimeout: false` in `info`. The router then deletes it at the deadline.
 - Make `create` throw errors with an HTTP `status`, so quota (402) and rate limits (429)
-  fail over correctly.
+  fail over correctly. If the provider uses a status that means something else (a spent
+  allowance as 429 or 409, a plan limit as 403), declare it with `refusals()` in
+  `src/providers/util.ts`.
 - If the provider bills the vCPUs only while they are busy, set `billing: "active-cpu"` in
   `pricing` (and `activeCpuFloor` if it bills a minimum share), so strategies rank it by its
   expected cost.

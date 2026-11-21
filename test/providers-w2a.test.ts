@@ -449,9 +449,10 @@ describe("azure-sandboxes", () => {
     expect(m.boxes.size).toBe(0);
   });
 
-  it("classifies a quota refusal and a bad secret", async () => {
+  it("reads the subscription's sandbox quota (429) as a rate limit, and a bad secret as auth", async () => {
     const q = await azureMock({ quota: true });
-    expect(await refusal(azureSandboxesProvider.create(spec("q"), ctxOf(q.env)))).toBe("quota");
+    // A subscription's sandbox quota caps what runs at once; it clears as sandboxes end.
+    expect(await refusal(azureSandboxesProvider.create(spec("q"), ctxOf(q.env)))).toBe("rate_limit");
     const bad = await azureMock();
     expect(await refusal(azureSandboxesProvider.create(spec("x"), ctxOf({ ...bad.env, AZURE_CLIENT_SECRET: "nope" })))).toBe("auth");
   });

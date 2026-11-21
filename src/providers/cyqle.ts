@@ -53,7 +53,6 @@ const routerIdOf = (s: Session) => (s.region ? `${s.region}:${s.id}` : s.id);
 
 const refused = refusals("cyqle", [
   { status: 429, body: /DAILY_LIMIT_EXCEEDED|SUBSCRIPTION_EXPIRED/, kind: "quota", why: "the plan's allowance is used up" },
-  { status: 429, body: /FREE_TIER_SESSION_LIMIT|ALL_SLOTS_FULL/, kind: "rate_limit", why: "every desktop slot is in use" },
 ]);
 
 async function waitRunning(ctx: ProviderContext, routerId: string): Promise<void> {

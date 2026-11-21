@@ -13,7 +13,7 @@
 
 import { randomUUID } from "node:crypto";
 import { SandboxRouterError } from "../core/errors.js";
-import { defineProvider, http, httpJson, HttpError, refusals } from "./util.js";
+import { defineProvider, http, httpJson, HttpError } from "./util.js";
 import { grantCache, pollMs, sleep } from "./rest-helpers.js";
 import type { ProviderContext } from "../core/types.js";
 
@@ -22,8 +22,6 @@ const auth = (ctx: ProviderContext) => ({ authorization: `Bearer ${ctx.env["GMI_
 const box = (ctx: ProviderContext, id: string, path = "") => `${base(ctx)}/sandboxes/${encodeURIComponent(id)}${path}`;
 const gone = (err: unknown) => err instanceof HttpError && (err.status === 404 || err.status === 410);
 
-/** 429 Resource.QuotaExceeded is a live instance/vCPU quota: it clears as sandboxes end. */
-const refused = refusals("gmi", [{ status: 429, kind: "rate_limit", why: "instance or vCPU limit reached" }]);
 
 interface Access {
   sandbox_key: string;
@@ -99,23 +97,18 @@ export const gmiProvider = defineProvider({
   async create(spec, ctx) {
     const template = spec.nativeTemplate ?? String(ctx.env["GMI_SANDBOX_TEMPLATE"] ?? "");
     const key = (spec.metadata["sandboxrouting.id"] ?? randomUUID()).replace(/[^\x21-\x7e]/g, "").slice(0, 64);
-    let r: { data: Sandbox };
-    try {
-      r = await httpJson<{ data: Sandbox }>(`${base(ctx)}/sandboxes`, {
-        headers: { ...auth(ctx), "idempotency-key": key },
-        body: {
-          template_id: template,
-          timeout: Math.min(86_400, Math.max(1, Math.ceil(spec.timeoutSec))),
-          env_vars: spec.env,
-          metadata: spec.metadata,
-          ...(typeof ctx.options["product"] === "string" ? { product: ctx.options["product"] } : {}),
-          ...(spec.region ? { idc_name: spec.region } : {}),
-        },
-        timeoutMs: 180_000,
-      });
-    } catch (err) {
-      throw refused(err);
-    }
+    const r = await httpJson<{ data: Sandbox }>(`${base(ctx)}/sandboxes`, {
+      headers: { ...auth(ctx), "idempotency-key": key },
+      body: {
+        template_id: template,
+        timeout: Math.min(86_400, Math.max(1, Math.ceil(spec.timeoutSec))),
+        env_vars: spec.env,
+        metadata: spec.metadata,
+        ...(typeof ctx.options["product"] === "string" ? { product: ctx.options["product"] } : {}),
+        ...(spec.region ? { idc_name: spec.region } : {}),
+      },
+      timeoutMs: 180_000,
+    });
     const id = r.data.id;
     try {
       let cur = r.data;

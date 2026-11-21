@@ -258,13 +258,15 @@ describe("prized", () => {
     expect(seen).toContain("DELETE /api/v1/sandboxes/sbx_2");
   });
 
-  it("counts an empty balance (409 insufficient_balance) and a free-tier quota (429) as quota", async () => {
+  it("counts an empty balance (409 insufficient_balance) as quota, and a sandbox_limit 429 as a rate limit", async () => {
     const broke = await mock(() => ({ status: 409, json: { error: "insufficient_balance", message: "Top up to keep going." } }));
     const { router } = routerFor(prizedProvider, { PRIZED_API_KEY: "k", PRIZED_API_URL: broke.url });
     await expect(router.create({})).rejects.toThrow();
     expect(await quotaMarked(router, "prized")).toBe(true);
+    // sandbox_quota_exceeded names the cap in `reason`: sandbox_limit (the free tier's 10 at once),
+    // running_vcpu, running_memory... all clear as sandboxes end (prized.dev/docs/sandboxes-api.md).
     const full = await mock(() => ({ status: 429, json: { error: "sandbox_quota_exceeded", reason: "sandbox_limit", tier: "free", limit: 10 } }));
-    expect(await refusal(prizedProvider.create({ cpu: 2, memoryMiB: 4096, timeoutSec: 60, env: {}, metadata: {} }, ctx({ PRIZED_API_KEY: "k", PRIZED_API_URL: full.url })), "prized")).toBe("quota");
+    expect(await refusal(prizedProvider.create({ cpu: 2, memoryMiB: 4096, timeoutSec: 60, env: {}, metadata: {} }, ctx({ PRIZED_API_KEY: "k", PRIZED_API_URL: full.url })), "prized")).toBe("rate_limit");
   });
 });
 

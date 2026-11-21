@@ -12,7 +12,7 @@
 // kept or charged for storage once stopped. A 429 is the workspace's limits (sandbox count, CPU,
 // memory), not spent credit, so it is reported as a concurrency limit.
 
-import { defineProvider, http, httpJson, HttpError, refusals } from "./util.js";
+import { defineProvider, http, httpJson, HttpError } from "./util.js";
 import { pollMs, sbrName, sleep } from "./rest-helpers.js";
 import type { ProviderContext } from "../core/types.js";
 
@@ -57,8 +57,6 @@ async function plane(ctx: ProviderContext, name: string): Promise<string> {
   return planes.get(name)!;
 }
 
-/** The workspace's resource limits: a 429 whose body says "Quota exceeded" but means concurrency. */
-const refused = refusals("langsmith", [{ status: 429, kind: "rate_limit", why: "too many sandboxes for the workspace's limits (count, CPU or memory)" }]);
 
 export const langsmithProvider = defineProvider({
   info: {
@@ -108,7 +106,7 @@ export const langsmithProvider = defineProvider({
       });
     } catch (err) {
       if (err instanceof HttpError && err.status === 409) b = await httpJson<Box>(boxUrl(ctx, name), { headers: auth(ctx) });
-      else throw refused(err);
+      else throw err;
     }
     try {
       let status = b.status ?? "provisioning";

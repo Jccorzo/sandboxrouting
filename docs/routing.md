@@ -224,7 +224,7 @@ evaluated on read, so nothing has to clear it then.
 
 | Refusal | Mark |
 |---|---|
-| 429 | Skipped for a minute. |
+| 429 | Skipped for a minute, whatever the body says about "quota" (a cap on how many run at once); a 429 that says money ran out ("credit", "billing", "insufficient balance") is read as 402. |
 | 401 or 403 | Skipped for 10 minutes. |
 | 402 or "out of credit" | Free usage can't take requests: a monthly tier until its reset; any other tier for 1 day, then 2, then 4, then 7 days each time it refuses again. |
 

@@ -17,6 +17,18 @@ describe("classify", () => {
   });
 });
 
+describe("429", () => {
+  it("is too many at once unless it says money ran out: \"quota\" or \"limit\" alone doesn't spend a free tier", () => {
+    // What kosa8, sandbox0, langsmith, gmi, stateset and prized send when too many sandboxes run.
+    for (const body of ['{"error":"quota_exceeded"}', "Quota exceeded: sandbox count limit reached", '{"code":"Resource.QuotaExceeded"}', "plan limit of 10 running sandboxes", "usage limit exceeded, retry later"]) {
+      expect(classify(new HttpError(429, `POST /v1/sandboxes: 429 ${body}`)).kind, body).toBe("rate_limit");
+    }
+    for (const body of ["insufficient credits", '{"error":"out of credits"}', "billing: payment required", "insufficient balance"]) {
+      expect(classify(new HttpError(429, `POST /v1/sandboxes: 429 ${body}`)).kind, body).toBe("quota");
+    }
+  });
+});
+
 describe("refusals whose status misleads", () => {
   it("turns a declared status and body into the kind it means, and leaves the rest alone", () => {
     const refused = refusals("acme", [

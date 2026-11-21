@@ -74,6 +74,14 @@ function statusOf(err: unknown): number | undefined {
 }
 
 const QUOTA = /(quota|credit|insufficient (funds|balance)|payment required|billing|out of (credits|minutes|hours)|plan limit|usage limit|exceeded your|upgrade your plan|spend limit)/i;
+/**
+ * Money ran out: what makes a 429 a quota. A 429 that says only "quota" or "limit" is nearly
+ * always a cap on how many run at once (kosa8, sandbox0, langsmith, gmi, stateset, prized all
+ * send one), which clears as sandboxes end. Reading it as quota would mark a free tier spent
+ * until its period resets; reading a real quota as a rate limit only backs off and retries.
+ * Providers whose 429 means an allowance used up in other words declare it with `refusals()`.
+ */
+const SPENT = /(credit|insufficient (funds|balance)|payment required|billing|out of (credits|minutes|hours)|spend(ing)? (limit|cap))/i;
 const RATE = /(rate.?limit|too many (requests|sandboxes)|concurren|max(imum)? (number of )?(running|active) sandboxes)/i;
 const AUTH = /(unauthori[sz]ed|invalid (api )?key|api key|forbidden|authentication|not authenticated|missing token)/i;
 const NOT_FOUND = /(not found|does not exist|no such sandbox|404)/i;
@@ -84,7 +92,7 @@ export function classify(err: unknown, provider?: string): SandboxRouterError {
   const status = statusOf(err);
   let kind: ErrorKind = "transient";
   if (status === 402) kind = "quota";
-  else if (status === 429) kind = QUOTA.test(message) ? "quota" : "rate_limit";
+  else if (status === 429) kind = SPENT.test(message) ? "quota" : "rate_limit";
   else if (status === 401 || status === 403) kind = QUOTA.test(message) ? "quota" : "auth";
   else if (status === 404 || status === 410) kind = "not_found"; // 410 Gone: deleted, for good
   else if (status === 400 || status === 422) kind = QUOTA.test(message) ? "quota" : "invalid";

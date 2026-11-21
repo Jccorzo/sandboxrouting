@@ -15,7 +15,7 @@
 // resolves. 402 INSUFFICIENT_CREDITS / PAYMENT_REQUIRED, 429 concurrency limit. Stop deletes.
 
 import { randomUUID } from "node:crypto";
-import { defineProvider, http, httpJson, HttpError, refusals } from "./util.js";
+import { defineProvider, http, httpJson, HttpError } from "./util.js";
 import { pollMs, sleep } from "./rest-helpers.js";
 import type { ProviderContext } from "../core/types.js";
 
@@ -27,8 +27,6 @@ const auth = (ctx: ProviderContext) => {
 };
 const sb = (ctx: ProviderContext, id: string, path = "") => `${base(ctx)}/sandbox/${encodeURIComponent(id)}${path}`;
 const gone = (err: unknown) => err instanceof HttpError && (err.status === 404 || err.status === 410);
-// "Concurrent limit exceeded" clears when sandboxes end, whatever words the body uses.
-const refused = refusals("stateset", [{ status: 429, kind: "rate_limit", why: "concurrent sandbox limit" }]);
 
 interface Sandbox {
   sandbox_id: string;
@@ -78,31 +76,27 @@ export const statesetProvider = defineProvider({
 
   async create(spec, ctx) {
     let r: Sandbox | Queued;
-    try {
-      r = await httpJson<Sandbox | Queued>(`${base(ctx)}/sandbox/create`, {
-        headers: { ...auth(ctx), "idempotency-key": spec.metadata["sandboxrouting.id"] ?? randomUUID() },
-        body: {
-          ...statesetResources(spec.cpu, spec.memoryMiB),
-          resource_class: "dedicated",
-          timeout_seconds: Math.min(604_800, Math.max(60, Math.ceil(spec.timeoutSec))),
-          env: spec.env,
-          image: spec.nativeTemplate ? undefined : spec.image,
-          template: spec.nativeTemplate,
-        },
-        timeoutMs: 300_000,
-      });
-      // A queued create runs when a slot frees; its stored response is the sandbox.
-      for (let i = 0; i < 600 && r.status === "queued"; i++) {
-        await sleep(pollMs(ctx, 1000));
-        const q = await httpJson<{ status: string; response?: Sandbox & { error?: { message?: string } }; response_status?: number }>(
-          `${base(ctx)}/requests/${encodeURIComponent((r as Queued).request_id)}`,
-          { headers: auth(ctx) },
-        );
-        if (q.status === "completed" && q.response) r = q.response;
-        else if (q.status === "failed" || q.status === "expired") throw new HttpError(q.response_status ?? 503, `stateset queued create ${q.status}: ${q.response?.error?.message ?? ""}`);
-      }
-    } catch (err) {
-      throw refused(err);
+    r = await httpJson<Sandbox | Queued>(`${base(ctx)}/sandbox/create`, {
+      headers: { ...auth(ctx), "idempotency-key": spec.metadata["sandboxrouting.id"] ?? randomUUID() },
+      body: {
+        ...statesetResources(spec.cpu, spec.memoryMiB),
+        resource_class: "dedicated",
+        timeout_seconds: Math.min(604_800, Math.max(60, Math.ceil(spec.timeoutSec))),
+        env: spec.env,
+        image: spec.nativeTemplate ? undefined : spec.image,
+        template: spec.nativeTemplate,
+      },
+      timeoutMs: 300_000,
+    });
+    // A queued create runs when a slot frees; its stored response is the sandbox.
+    for (let i = 0; i < 600 && r.status === "queued"; i++) {
+      await sleep(pollMs(ctx, 1000));
+      const q = await httpJson<{ status: string; response?: Sandbox & { error?: { message?: string } }; response_status?: number }>(
+        `${base(ctx)}/requests/${encodeURIComponent((r as Queued).request_id)}`,
+        { headers: auth(ctx) },
+      );
+      if (q.status === "completed" && q.response) r = q.response;
+      else if (q.status === "failed" || q.status === "expired") throw new HttpError(q.response_status ?? 503, `stateset queued create ${q.status}: ${q.response?.error?.message ?? ""}`);
     }
     if (r.status === "queued") throw new HttpError(429, "stateset create still queued behind the concurrency limit");
     const made = r as Sandbox;

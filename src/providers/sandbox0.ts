@@ -12,7 +12,7 @@
 // holds for at most five minutes. Responses are `{success, data}`; errors `{success, error}`.
 // Team quotas (running sandboxes, claim rate) answer 429 `quota_exceeded`.
 
-import { defineProvider, http, httpJson, HttpError, refusals } from "./util.js";
+import { defineProvider, http, httpJson, HttpError } from "./util.js";
 import { pollMs, sleep } from "./rest-helpers.js";
 import type { ProviderContext } from "../core/types.js";
 
@@ -20,8 +20,6 @@ const base = (ctx: ProviderContext) => String(ctx.env["SANDBOX0_BASE_URL"] ?? "h
 const auth = (ctx: ProviderContext) => ({ authorization: `Bearer ${ctx.env["SANDBOX0_TOKEN"]}` });
 const sb = (ctx: ProviderContext, id: string, path = "") => `${base(ctx)}/api/v1/sandboxes/${encodeURIComponent(id)}${path}`;
 const gone = (err: unknown) => err instanceof HttpError && (err.status === 404 || err.status === 410);
-// The running-sandbox quota and the claim rate clear on their own, but the body says "quota".
-const refused = refusals("sandbox0", [{ status: 429, kind: "rate_limit", why: "team running-sandbox or claim-rate limit" }]);
 
 const EXEC_LIMIT_SEC = 300;
 
@@ -58,19 +56,14 @@ export const sandbox0Provider = defineProvider({
   async create(spec, ctx) {
     // CPU is derived from memory, so only memory is asked for.
     const memoryMiB = Math.max(128, Math.ceil(spec.memoryMiB));
-    let r: Envelope<Status>;
-    try {
-      r = await httpJson<Envelope<Status>>(`${base(ctx)}/api/v1/sandboxes`, {
-        headers: auth(ctx),
-        body: {
-          template: spec.nativeTemplate ?? "default",
-          config: { env_vars: spec.env, hard_ttl: Math.ceil(spec.timeoutSec), resources: { memory: `${memoryMiB}Mi` } },
-        },
-        timeoutMs: 300_000,
-      });
-    } catch (err) {
-      throw refused(err);
-    }
+    const r = await httpJson<Envelope<Status>>(`${base(ctx)}/api/v1/sandboxes`, {
+      headers: auth(ctx),
+      body: {
+        template: spec.nativeTemplate ?? "default",
+        config: { env_vars: spec.env, hard_ttl: Math.ceil(spec.timeoutSec), resources: { memory: `${memoryMiB}Mi` } },
+      },
+      timeoutMs: 300_000,
+    });
     const id = r.data.sandbox_id;
     if (!id) throw new Error("sandbox0 claim returned no sandbox_id");
     try {

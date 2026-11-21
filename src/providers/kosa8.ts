@@ -12,7 +12,7 @@
 // streamed (NDJSON, base64 frames), which has no such limit. Create takes no idempotency key.
 // A refusal at a plan limit is a 402 (quota); too many active sandboxes is a 429.
 
-import { defineProvider, http, httpJson, HttpError, refusals } from "./util.js";
+import { defineProvider, http, httpJson, HttpError } from "./util.js";
 import { inline, pollMs, sbrName, sleep } from "./rest-helpers.js";
 import type { ProviderContext } from "../core/types.js";
 
@@ -37,8 +37,6 @@ interface Sandbox {
 }
 const ALIVE = new Set(["creating", "running", "paused", "sleeping"]);
 
-/** A 429 `quota_exceeded` is too many sandboxes active at once (create, fork or wake), which clears as they end. */
-const refused = refusals("kosa8", [{ status: 429, body: /quota_exceeded/, kind: "rate_limit", why: "too many sandboxes active at once" }]);
 
 interface Frame {
   stream?: "stdout" | "stderr";
@@ -85,8 +83,6 @@ export const kosa8Provider = defineProvider({
         env: spec.env,
       },
       timeoutMs: 180_000,
-    }).catch((err: unknown) => {
-      throw refused(err);
     });
     const id = r.sandbox.id;
     try {
@@ -189,9 +185,7 @@ export const kosa8Provider = defineProvider({
   },
 
   async resume(id, ctx) {
-    await http(box(ctx, id, "/wake"), { method: "POST", headers: auth(ctx) }).catch((err: unknown) => {
-      throw refused(err);
-    });
+    await http(box(ctx, id, "/wake"), { method: "POST", headers: auth(ctx) });
   },
 
   async kill(id, ctx) {
