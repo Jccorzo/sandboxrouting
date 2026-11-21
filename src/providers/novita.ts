@@ -11,17 +11,16 @@
 // sandbox-quota-limit.md, sandbox-pricing.md, sandbox-faq-insufficient-balance.md.
 // SDK/CLI: npm `novita-sandbox`, `novita-sandbox-cli`.
 
-import { e2bCompatible } from "./e2b.js";
+import { e2bCompatible } from "./e2b-compatible.js";
 
 export const NOVITA_DEFAULT_DOMAIN = "us-phx-1.sandbox.novita.ai";
 
-export const novitaProvider = e2bCompatible(
-  {
+export const novitaProvider = e2bCompatible({
+  info: {
     id: "novita",
     name: "Novita Agent Sandbox",
     homepage: "https://novita.ai",
     env: ["NOVITA_API_KEY"],
-    sdkPackage: "e2b",
     capabilities: ["ports", "pause", "fileList", "extendTimeout"],
     // Isolation is left unset: Novita does not publish it, so `minIsolation` requests skip it.
     maxTimeoutSec: 3 * 3600,
@@ -37,9 +36,13 @@ export const novitaProvider = e2bCompatible(
     pricing: { vcpuSecondUsd: 0.0000098, gibSecondUsd: 0.0000032, defaultCpu: 2, defaultMemoryMiB: 4096, source: "https://docs.novita.ai/guides/sandbox-pricing.md" },
     surfaces: { rest: `https://api.${NOVITA_DEFAULT_DOMAIN}`, sdk: ["novita-sandbox (npm)", "novita-sandbox (PyPI)", "e2b (npm, with Novita's domain)"], cli: "novita-sandbox-cli" },
   },
-  (ctx) => ({
+  connection: (ctx) => ({
     apiKey: ctx.env["NOVITA_API_KEY"],
     domain: ctx.env["NOVITA_DOMAIN"] ?? NOVITA_DEFAULT_DOMAIN,
     apiUrl: ctx.env["NOVITA_API_URL"],
   }),
-);
+  ports: true,
+  setTimeout: true,
+  pause: true,
+  listAlive: true,
+});

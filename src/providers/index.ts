@@ -5,6 +5,7 @@
 import type { ProviderAdapter } from "../core/types.js";
 import { agent37Provider } from "./agent37.js";
 import { azureSessionsProvider } from "./azure-sessions.js";
+import { agentbayProvider } from "./agentbay.js";
 import { beamProvider } from "./beam.js";
 import { blaxelProvider } from "./blaxel.js";
 import { boatProvider } from "./boat.js";
@@ -59,6 +60,7 @@ import { pilldropsProvider } from "./pilldrops.js";
 import { promigenceProvider } from "./promigence.js";
 import { quaveProvider } from "./quave.js";
 import { quivvoProvider } from "./quivvo.js";
+import { railwayProvider } from "./railway.js";
 import { renderProvider } from "./render.js";
 import { runloopProvider } from "./runloop.js";
 import { runtimeProvider } from "./runtime.js";
@@ -67,12 +69,14 @@ import { solariProvider } from "./solari.js";
 import { spritesProvider } from "./sprites.js";
 import { superserveProvider } from "./superserve.js";
 import { tenkiProvider } from "./tenki.js";
+import { tencentProvider } from "./tencent.js";
 import { tensorlakeProvider } from "./tensorlake.js";
 import { thunderProvider } from "./thunder.js";
 import { togetherProvider } from "./together.js";
 import { upstashProvider } from "./upstash.js";
 import { vercelProvider } from "./vercel.js";
 import { zipboxProvider } from "./zipbox.js";
+import { volcengineProvider } from "./volcengine.js";
 import { zodeProvider } from "./zode.js";
 
 export function builtinProviders(): ProviderAdapter[] {
@@ -123,6 +127,7 @@ export function builtinProviders(): ProviderAdapter[] {
     prizedProvider,
     zipboxProvider,
     pilldropsProvider,
+    railwayProvider,
     // Paid only.
     koyebProvider,
     flyProvider,
@@ -148,6 +153,9 @@ export function builtinProviders(): ProviderAdapter[] {
     superserveProvider,
     eqvpsProvider,
     gkeAgentSandboxProvider,
+    agentbayProvider,
+    tencentProvider,
+    volcengineProvider,
     // Your own hardware.
     openciProvider,
     opensandboxProvider,
@@ -158,6 +166,7 @@ export function builtinProviders(): ProviderAdapter[] {
 export {
   agent37Provider,
   azureSessionsProvider,
+  agentbayProvider,
   beamProvider,
   blaxelProvider,
   boatProvider,
@@ -212,6 +221,7 @@ export {
   promigenceProvider,
   quaveProvider,
   quivvoProvider,
+  railwayProvider,
   renderProvider,
   runloopProvider,
   runtimeProvider,
@@ -219,6 +229,7 @@ export {
   solariProvider,
   spritesProvider,
   superserveProvider,
+  tencentProvider,
   tenkiProvider,
   tensorlakeProvider,
   thunderProvider,
@@ -226,5 +237,6 @@ export {
   upstashProvider,
   vercelProvider,
   zipboxProvider,
+  volcengineProvider,
   zodeProvider,
 };

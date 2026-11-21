@@ -86,6 +86,7 @@ the 7 added on 2026-11-21 (`groundbox`, `briq`, `kubi`, `orble`, `runtime`, `dig
 | `prized` | $30, no card | 10 at once, 2 vCPU / 4 GB, 60 min of running | $0.04/vCPU-h + $0.0125/GB-h | Firecracker |
 | `zipbox` | $25 for a $5 top-up (counted as $20; card required) | 250 box names ever¶ | $0.0137/h (2 vCPU / 4 GB) | not published§ |
 | `pilldrops` | $5 (no card) | 5 concurrent, 4 h, 2 vCPU / 2 GB | $0.13/h (2 vCPU / 2 GB) | container# |
+| `railway` | $5, expires after 30 days (no card) | 10 running, 2 vCPU / 2 GB, 5 idle minutes | $0.069/vCPU-h + $0.069/GB-h (active CPU only) | VM |
 
 ### Paid only
 
@@ -113,6 +114,9 @@ the 7 added on 2026-11-21 (`groundbox`, `briq`, `kubi`, `orble`, `runtime`, `dig
 | `superserve` | $0.166/h (2 vCPU / 4 GiB) | a free trial of unpublished size, no card | Firecracker |
 | `eqvps` | $0.132/h (2 vCPU / 4 GB) | prepaid in crypto; 20 at once, 24 h max | Firecracker |
 | `gke-agent-sandbox` | $0.109/h (2 vCPU / 4 GiB, Autopilot pod rate) | your cluster with agent-sandbox, a warm pool and the sandbox-router¶ | container (the warm pool's runtime) |
+| `agentbay` | $0.0992/h (2 vCPU / 4 GB) | free Basic plan, but compute is billed; 50 s per command | not published§ |
+| `tencent` | $0.13/h (2 vCPU / 4 GiB, 0.94 CNY)¶ | size set by a sandbox tool made in the console | microVM (Cube) |
+| `volcengine` | $0.062/h (2 vCPU / 4 GB, 0.44 CNY)¶ | size set by an E2B-compatible template; only the creating process reaches a sandbox | microVM |
 
 ### Your own hardware
 
@@ -130,13 +134,14 @@ Footnotes:
 - ‡ InstaBox's free plan is never billed, but it says its "early allowance" can end. It's
   modelled as a month of hours for one machine.
 
-- § Promigence, Novita and Zipbox don't say how their sandboxes are isolated, so a request with
+- § Promigence, Novita, Zipbox and AgentBay don't say how their sandboxes are isolated, so a request with
   `minIsolation` skips them.
 - ¶ Zipbox names are permanent and an account may ever create 250, so its adapter reuses a pool
   of names (`options.pool`, default 32). Its docs don't pair tiers with sizes; `xs` to `l` are
   taken to be Tiny to Large.
 - smol bills CPU and memory as used, plus a wall-clock base; the base is spread over the default
   2 vCPU in its pricing.
+- ¶ Tencent and Volcengine bill in yuan; their prices are converted at 7.1 CNY per USD.
 - ‖ Cathedral's rooms share one AMD SEV-SNP VM and are kept apart by a container runtime it
   doesn't name, so the adapter claims `container`, the weakest.
 - Runloop is winding down. Its docs say transition support for existing customers ended
@@ -251,6 +256,10 @@ Footnotes:
 | `pilldrops` | `PILLDROPS_API_KEY` | REST pilldrops.com/v1 |
 | `langsmith` | `LANGSMITH_API_KEY` (`LANGSMITH_ENDPOINT` for EU, `LANGSMITH_WORKSPACE_ID` for org keys) | REST api.smith.langchain.com/api/v2/sandboxes + each sandbox's data plane |
 | `miosa` | `MIOSA_API_KEY` | REST api.miosa.ai/api/v1 |
+| `railway` | `RAILWAY_TOKEN` (project token), or `RAILWAY_API_TOKEN` + `RAILWAY_ENVIRONMENT_ID` | GraphQL backboard.railway.com/graphql/v2 |
+| `agentbay` | `AGENTBAY_API_KEY` (`AGENTBAY_REGION`, `AGENTBAY_IMAGE_ID` optional) | REST (OpenAPI RPC) agentbay.&lt;region&gt;.aliyuncs.com |
+| `tencent` | `TENCENT_AGS_API_KEY`, `TENCENT_AGS_TOOL` (`TENCENT_AGS_REGION` optional) | SDK `e2b`, at &lt;region&gt;.tencentags.com |
+| `volcengine` | `VOLCENGINE_E2B_API_KEY`, `VOLCENGINE_E2B_TEMPLATE_ID` (`VOLCENGINE_E2B_REGION` optional) | SDK `e2b`, at api.vefaas-e2b.sandbox-&lt;region&gt;.volcapig.com |
 | `openci` | `OPENCI_URL`, `OPENCI_TOKEN` | REST /v1/sandboxes |
 | `opensandbox` | `OPEN_SANDBOX_DOMAIN`, optional `OPEN_SANDBOX_API_KEY` | REST /v1/sandboxes + execd in the sandbox |
 | `cloudrun` | `GOOGLE_CLOUD_PROJECT`, `CLOUD_RUN_REGION`, `CLOUD_RUN_SANDBOX_IMAGE` + `GOOGLE_OAUTH_ACCESS_TOKEN` or `GOOGLE_APPLICATION_CREDENTIALS(_JSON)` | REST run.googleapis.com/v2 (instances), plus execd (templates/cloud-run-sandbox) |
