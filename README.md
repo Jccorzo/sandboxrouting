@@ -45,6 +45,9 @@ the 7 added on 2026-11-21 (`groundbox`, `briq`, `kubi`, `orble`, `runtime`, `dig
 | `tensorlake` | one 1 vCPU / 1 GB sandbox, always free | 1 sandbox, 1 h (2 h once verified) | $0.07/vCPU-h (active, 20% minimum) + $0.015/GB-h | Firecracker |
 | `fly` | $5 / month shared with `sprites` (counted as $2.50 each¶; card required) | 3 machines | ~$0.035/h (2 shared vCPU / 4 GB) | Firecracker |
 | `sprites` | $5 / month shared with `fly` (counted as $2.50 each¶; card required) | 3 Sprites | $0.0385/CPU-h + $0.021875/GB-h (as used); idle Sprites are free | Firecracker |
+| `solari` | $3 / month | 1 sandbox, 1 h | $0.171/h (2 vCPU / 4 GB) | Cloud Hypervisor |
+| `langsmith` | 8 LSU / month ($8, ≈ 42 h) | 10 sandboxes | $0.189/h (2 vCPU / 4 GiB) | Firecracker¶ |
+| `miosa` | $1 / month | 5 sandboxes | $0.0893/h (2 vCPU / 4 GB) | Firecracker |
 
 ### One-time credit
 
@@ -80,6 +83,7 @@ the 7 added on 2026-11-21 (`groundbox`, `briq`, `kubi`, `orble`, `runtime`, `dig
 | `instavm` | $50 (card on file) | 5 active | $0.050/vCPU-h + $0.016/GB-h | microVM |
 | `prized` | $30, no card | 10 at once, 2 vCPU / 4 GB, 60 min of running | $0.04/vCPU-h + $0.0125/GB-h | Firecracker |
 | `zipbox` | $25 for a $5 top-up (counted as $20; card required) | 250 box names ever¶ | $0.0137/h (2 vCPU / 4 GB) | not published§ |
+| `pilldrops` | $5 (no card) | 5 concurrent, 4 h, 2 vCPU / 2 GB | $0.13/h (2 vCPU / 2 GB) | container# |
 
 ### Paid only
 
@@ -104,6 +108,8 @@ the 7 added on 2026-11-21 (`groundbox`, `briq`, `kubi`, `orble`, `runtime`, `dig
 | `kubi` | $0.035/h (4 vCPU / 8 GB, the only size) | private beta, accounts approved by hand; credit needs a $20/mo persistent screen first | VM |
 | `orble` | $0.015/h (2 vCPU / 4 GiB) | prepaid; 10 min per command; free while suspended | VM |
 | `digitalocean` | $0.044/vCPU-h (active only) + $0.0095/GB-h | prepaid; 4 min per command; files only under /workspace | microVM |
+| `superserve` | $0.166/h (2 vCPU / 4 GiB) | a free trial of unpublished size, no card | Firecracker |
+| `eqvps` | $0.132/h (2 vCPU / 4 GB) | prepaid in crypto; 20 at once, 24 h max | Firecracker |
 
 ### Your own hardware
 
@@ -149,6 +155,12 @@ Footnotes:
   the $5 is treated as one-time. Its free credit can be exhausted by CI minutes as well.
 - `runtime` and `digitalocean` bill CPU only while it is busy; the prices above assume it
   always is, so a mostly idle sandbox costs much less.
+- ¶ LangSmith documents Firecracker for its self-hosted sandboxes; its cloud pages say only
+  "isolated". An LSU is $1; 8 LSU at 0.0576 LSU/vCPU-h + 0.01845 LSU/GiB-h is about 42 hours.
+- \# PillDrops' pricing page says each sandbox is a dedicated microVM, but its llms.txt says "a
+  microVM (or container)", so the adapter claims `container`, the weaker.
+- Superserve gives new accounts a free trial for their first sandbox without saying how much, so
+  nothing is counted as free; set `freeTier` in config once you know your account's.
 
 ### Not built
 
@@ -221,6 +233,12 @@ Footnotes:
 | `runtime` | `RUNTIME_API_KEY` | REST api.withruntime.com/v2 |
 | `digitalocean` | `DIGITALOCEAN_TOKEN` | REST api.digitalocean.com/v2/harness-runtime |
 | `docker-cloud` | `DOCKER_ID`, `DOCKER_PAT` (with Cloud Sandboxes access) | REST connect.docker.com/sandboxes/v1 + the sandbox's endpoint |
+| `superserve` | `SUPERSERVE_API_KEY` | REST api.superserve.ai + sandbox.superserve.ai (per-sandbox access token) |
+| `eqvps` | `EQVPS_API_KEY` | REST api.eqvps.com/api/v1/eqvps |
+| `solari` | `SOLARI_API_KEY` | REST api.getsolari.com (exec and signed file URLs; no WebSocket) |
+| `pilldrops` | `PILLDROPS_API_KEY` | REST pilldrops.com/v1 |
+| `langsmith` | `LANGSMITH_API_KEY` (`LANGSMITH_ENDPOINT` for EU, `LANGSMITH_WORKSPACE_ID` for org keys) | REST api.smith.langchain.com/api/v2/sandboxes + each sandbox's data plane |
+| `miosa` | `MIOSA_API_KEY` | REST api.miosa.ai/api/v1 |
 | `openci` | `OPENCI_URL`, `OPENCI_TOKEN` | REST /v1/sandboxes |
 | `opensandbox` | `OPEN_SANDBOX_DOMAIN`, optional `OPEN_SANDBOX_API_KEY` | REST /v1/sandboxes + execd in the sandbox |
 | `docker` | none (`SBR_DOCKER=0` turns it off) | `docker` CLI |

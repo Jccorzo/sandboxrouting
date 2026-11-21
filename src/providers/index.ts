@@ -24,6 +24,7 @@ import { dockerCloudProvider } from "./docker-cloud.js";
 import { dockerProvider } from "./docker.js";
 import { doryProvider } from "./dory.js";
 import { e2bProvider } from "./e2b.js";
+import { eqvpsProvider } from "./eqvps.js";
 import { exedevProvider } from "./exedev.js";
 import { flyProvider } from "./fly.js";
 import { freestyleProvider } from "./freestyle.js";
@@ -34,8 +35,10 @@ import { isorunProvider } from "./isorun.js";
 import { koyebProvider } from "./koyeb.js";
 import { kubiProvider } from "./kubi.js";
 import { lambdaMicrovmProvider } from "./lambda-microvm.js";
+import { langsmithProvider } from "./langsmith.js";
 import { lizardProvider } from "./lizard.js";
 import { maritimeProvider } from "./maritime.js";
+import { miosaProvider } from "./miosa.js";
 import { modalProvider } from "./modal.js";
 import { morphProvider } from "./morph.js";
 import { mosaicProvider } from "./mosaic.js";
@@ -49,6 +52,7 @@ import { openciProvider } from "./openci.js";
 import { opensandboxProvider } from "./opensandbox.js";
 import { orbleProvider } from "./orble.js";
 import { prizedProvider } from "./prized.js";
+import { pilldropsProvider } from "./pilldrops.js";
 import { promigenceProvider } from "./promigence.js";
 import { quaveProvider } from "./quave.js";
 import { quivvoProvider } from "./quivvo.js";
@@ -56,7 +60,9 @@ import { renderProvider } from "./render.js";
 import { runloopProvider } from "./runloop.js";
 import { runtimeProvider } from "./runtime.js";
 import { smolProvider } from "./smol.js";
+import { solariProvider } from "./solari.js";
 import { spritesProvider } from "./sprites.js";
+import { superserveProvider } from "./superserve.js";
 import { tenkiProvider } from "./tenki.js";
 import { tensorlakeProvider } from "./tensorlake.js";
 import { thunderProvider } from "./thunder.js";
@@ -78,6 +84,9 @@ export function builtinProviders(): ProviderAdapter[] {
     cloudflareProvider,
     tensorlakeProvider,
     buddyProvider,
+    solariProvider,
+    langsmithProvider,
+    miosaProvider,
     // One-time credit.
     daytonaProvider,
     blaxelProvider,
@@ -108,6 +117,7 @@ export function builtinProviders(): ProviderAdapter[] {
     instavmProvider,
     prizedProvider,
     zipboxProvider,
+    pilldropsProvider,
     // Paid only.
     koyebProvider,
     flyProvider,
@@ -130,6 +140,8 @@ export function builtinProviders(): ProviderAdapter[] {
     kubiProvider,
     orbleProvider,
     digitaloceanProvider,
+    superserveProvider,
+    eqvpsProvider,
     // Your own hardware.
     openciProvider,
     opensandboxProvider,
@@ -159,6 +171,7 @@ export {
   dockerProvider,
   doryProvider,
   e2bProvider,
+  eqvpsProvider,
   exedevProvider,
   flyProvider,
   freestyleProvider,
@@ -169,8 +182,10 @@ export {
   koyebProvider,
   kubiProvider,
   lambdaMicrovmProvider,
+  langsmithProvider,
   lizardProvider,
   maritimeProvider,
+  miosaProvider,
   modalProvider,
   morphProvider,
   mosaicProvider,
@@ -184,6 +199,7 @@ export {
   opensandboxProvider,
   orbleProvider,
   prizedProvider,
+  pilldropsProvider,
   promigenceProvider,
   quaveProvider,
   quivvoProvider,
@@ -191,7 +207,9 @@ export {
   runloopProvider,
   runtimeProvider,
   smolProvider,
+  solariProvider,
   spritesProvider,
+  superserveProvider,
   tenkiProvider,
   tensorlakeProvider,
   thunderProvider,
