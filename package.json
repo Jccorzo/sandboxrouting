@@ -1,7 +1,7 @@
 {
   "name": "sandboxrouting",
   "version": "0.1.0",
-  "description": "One router for 75 sandbox providers (E2B, Daytona, Modal, Vercel, Cloudflare, Freestyle, Northflank, Luxor (was Tenki), InstaBox, Upstash Box, Boat, Agent37, AWS Lambda MicroVMs and more). Uses every free tier first. SDK, REST API, CLI and MCP server.",
+  "description": "One router for 82 sandbox providers (E2B, Daytona, Modal, Vercel, Cloudflare, Freestyle, Northflank, Luxor (was Tenki), InstaBox, Upstash Box, Boat, Agent37, AWS Lambda MicroVMs and more). Uses every free tier first. SDK, REST API, CLI and MCP server.",
   "type": "module",
   "license": "MIT",
   "repository": {
@@ -59,9 +59,11 @@
     "@namespacelabs/sdk": "*",
     "@northflank/js-client": "*",
     "@runloop/api-client": "*",
+    "@runta/runta-sdk": "*",
     "@tenkicloud/sandbox": "*",
     "@upstash/box": "*",
     "@vercel/sandbox": "*",
+    "@watasu/sdk": "*",
     "e2b": "*",
     "freestyle": "*",
     "modal": "*",
@@ -105,6 +107,9 @@
     "@runloop/api-client": {
       "optional": true
     },
+    "@runta/runta-sdk": {
+      "optional": true
+    },
     "@tenkicloud/sandbox": {
       "optional": true
     },
@@ -112,6 +117,9 @@
       "optional": true
     },
     "@vercel/sandbox": {
+      "optional": true
+    },
+    "@watasu/sdk": {
       "optional": true
     },
     "e2b": {
@@ -144,10 +152,12 @@
     "@namespacelabs/sdk": "^1.6.0",
     "@northflank/js-client": "^0.9.5",
     "@runloop/api-client": "^3.0.0",
+    "@runta/runta-sdk": "^0.2.0",
     "@tenkicloud/sandbox": "^1.5.1",
     "@types/node": "^20.19.0",
     "@upstash/box": "^0.7.10",
     "@vercel/sandbox": "^3.9.1",
+    "@watasu/sdk": "^0.1.77",
     "e2b": "^2.55.0",
     "eslint": "^9.39.5",
     "freestyle": "^0.2.23",

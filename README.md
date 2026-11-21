@@ -18,7 +18,7 @@ await sbx.kill();
 
 ## Providers
 
-75 providers are built in: 72 cloud providers plus your own hardware (openci, OpenSandbox,
+82 providers are built in: 79 cloud providers plus your own hardware (openci, OpenSandbox,
 local Docker). Terms were checked on 2026-11-11 or 2026-11-12 against each provider's pricing
 page, which its adapter links, and those that had changed were updated on 2026-11-21 (each
 adapter's `checked` date says which). Terms change, so you can override any of them in config.
@@ -31,8 +31,9 @@ local servers that speak it. None has been run against the real service yet. Nor
 the 26 added on 2026-11-21 (`groundbox`, `briq`, `kubi`, `orble`, `runtime`, `digitalocean`,
 `docker-cloud`, `novita`, `smol`, `isorun`, `instavm`, `prized`, `zipbox`, `superserve`,
 `eqvps`, `solari`, `pilldrops`, `langsmith`, `miosa`, `cloudrun`, `gke-agent-sandbox`,
-`azure-sandboxes`, `agentbay`, `tencent`, `volcengine`, `railway`), written the same way from
-each provider's docs, OpenAPI spec or official SDK and checked against its pages that day.
+`azure-sandboxes`, `agentbay`, `tencent`, `volcengine`, `railway`, `vers`, `oblien`, `runta`,
+`stateset`, `saas-sandbox`, `sandbox0`, `watasu`), written the same way from each provider's
+docs, OpenAPI spec or official SDK and checked against its pages that day.
 `novita`, `tencent` and `volcengine` speak E2B's API and share the `e2b` adapter's code. The
 big clouds (`cloudrun`, `gke-agent-sandbox`, `azure-sandboxes`, `agentbay`, `tencent`,
 `volcengine`, `railway`) need some console setup first, described in
@@ -94,6 +95,11 @@ big clouds (`cloudrun`, `gke-agent-sandbox`, `azure-sandboxes`, `agentbay`, `ten
 | `zipbox` | $25 for a $5 top-up (counted as $20; card required) | 250 box names ever†† | $0.0137/h (2 vCPU / 4 GB) | not published§ |
 | `pilldrops` | $5 (no card) | 5 concurrent, 4 h, 2 vCPU / 2 GB | $0.13/h (2 vCPU / 2 GB) | container# |
 | `railway` | $5, expires after 30 days (no card) | 10 running, 2 vCPU / 2 GB, 5 idle minutes | $0.069/vCPU-h + $0.069/GB-h (active CPU only) | VM |
+| `vers` | $5 ($50 more with a card)* | — | $0.04/vCPU-h + $0.01/GiB-h; asleep, only disk is billed | VM |
+| `runta` | $50, no card* | 32 vCPU / 64 GiB across runtimes on the trial | $0.0504/vCPU-h + $0.0162/GiB-h | not published§ |
+| `stateset` | $25 trial (card required) | Hobby: 10 at once, 45 min | $0.0746/h (2 vCPU / 4 GB dedicated, billed at 50% of allocation)†‡ | gVisor |
+| `saas-sandbox` (Sandbox as a Service) | $5, no card | 20 at once, 24 h, 10 min per command | $0.09/h (2 vCPU / 4 GB) | VM |
+| `sandbox0` | $5 (card required) | 20 running | $0.015/GiB-h (memory only; CPU follows memory) | gVisor |
 
 ### Paid only
 
@@ -124,6 +130,8 @@ big clouds (`cloudrun`, `gke-agent-sandbox`, `azure-sandboxes`, `agentbay`, `ten
 | `agentbay` | $0.0992/h (2 vCPU / 4 GB) | free Basic plan, but compute is billed; 50 s per command | not published§ |
 | `tencent` | $0.13/h (2 vCPU / 4 GiB, 0.94 CNY)‖‖ | size set by a sandbox tool made in the console | microVM (Cube) |
 | `volcengine` | $0.062/h (2 vCPU / 4 GB, 0.44 CNY)‖‖ | size set by an E2B-compatible template; only the creating process reaches a sandbox | microVM |
+| `oblien` | $0.03/vCPU-h (active only) + $0.008/GiB-h | prepaid wallet; files move through exec (its file API is text-only) | Firecracker |
+| `watasu` | €0.072/vCPU-h + €0.0144/GiB-h (≈ $0.22/h for 2 vCPU / 4 GiB) | prepaid balance needed to start; size from the template on the free Basic plan | not published§ |
 
 ### Your own hardware
 
@@ -140,7 +148,7 @@ Footnotes:
   `"morph": { "freeTier": { "kind": "one-time-credit", "usd": 15 } }`.
 - ‡ InstaBox's free plan is never billed, but it says its "early allowance" can end. It's
   modelled as a month of hours for one machine.
-- § Promigence, Novita, Zipbox and AgentBay don't say how their sandboxes are isolated, so a
+- § Promigence, Novita, Zipbox, AgentBay, Runta and Watasu don't say how their sandboxes are isolated, so a
   request with `minIsolation` skips them.
 - ¶ Fly's Free plan has one $5 a month for Machines and Sprites together, and the router
   meters each provider apart, so each counts $2.50: with both on, the two can't spend more
@@ -164,7 +172,17 @@ Footnotes:
   priced at GKE Autopilot's pod rate. On a cluster whose nodes you already pay for, set
   `"gke-agent-sandbox": { "pricing": { "vcpuSecondUsd": 0, "gibSecondUsd": 0 } }`.
 - ‖‖ Tencent and Volcengine bill in yuan; their prices are converted at 7.1 CNY per USD.
-- boxd and briq bill in euros. Their prices and free credit are converted at one rate,
+- †‡ StateSet bills dedicated compute ($0.128/vCPU-h + $0.0106/GB-h on Hobby and Pro) at 50% of
+  what is allocated, its estimate of average use, so the router counts half those rates. The Hobby
+  plan's monthly allowance (5 vCPU-hours, 420 GB-hours) isn't counted as free usage.
+- Runta and Watasu run commands only over a WebSocket, so their adapters load the official SDK
+  (`@runta/runta-sdk`, `@watasu/sdk`) for `exec` and use REST for everything else. Reaching a
+  Watasu sandbox's data plane resets its deadline, so the adapter passes the time it has left and
+  the router also deletes it at its deadline.
+- Vers's newer docs create computers through a v2 operation API whose exec and file routes aren't
+  documented; the adapter uses the v1 API its generated SDKs speak, which has no TTL, so the router
+  deletes a Vers VM at its deadline.
+- boxd, briq and watasu bill in euros. Their prices and free credit are converted at one rate,
   1.099 USD per euro (the ECB reference rate on 2026-11-20), kept in `src/providers/currency.ts`.
 - smol bills CPU and memory as used, plus a $0.04/h wall-clock base. Its vCPUs are priced as
   active CPU, and the base rides on its memory rate ($0.01 per GiB-hour over the default
@@ -258,6 +276,13 @@ Footnotes:
 | `eqvps` | `EQVPS_API_KEY` | REST api.eqvps.com/api/v1/eqvps |
 | `solari` | `SOLARI_API_KEY` | REST api.getsolari.com (exec and signed file URLs; no WebSocket) |
 | `pilldrops` | `PILLDROPS_API_KEY` | REST pilldrops.com/v1 |
+| `vers` | `VERS_API_KEY` | REST api.vers.sh/api/v1 |
+| `oblien` | `OBLIEN_CLIENT_ID`, `OBLIEN_CLIENT_SECRET` | REST api.oblien.com/v1 + the vm.oblien.com runtime gateway (short-lived JWT) |
+| `runta` | `RUNTA_API_KEY` | REST api.runta.com/v2, exec through SDK `@runta/runta-sdk` (WebSocket) |
+| `stateset` | `STATESET_API_KEY` | REST api.sandbox.stateset.app/api/v1 |
+| `saas-sandbox` | `AAS_API_KEY` | REST sandbox-as-a-service.com/v1 |
+| `sandbox0` | `SANDBOX0_TOKEN` | REST api.sandbox0.ai/api/v1 |
+| `watasu` | `WATASU_API_KEY` (`options.team` for a shared team) | REST api.watasu.io/v1, exec through SDK `@watasu/sdk` (WebSocket) |
 | `langsmith` | `LANGSMITH_API_KEY` (`LANGSMITH_ENDPOINT` for EU, `LANGSMITH_WORKSPACE_ID` for org keys) | REST api.smith.langchain.com/api/v2/sandboxes + each sandbox's data plane |
 | `miosa` | `MIOSA_API_KEY` | REST api.miosa.ai/api/v1 |
 | `railway` | `RAILWAY_TOKEN` (project token), or `RAILWAY_API_TOKEN` + `RAILWAY_ENVIRONMENT_ID` | GraphQL backboard.railway.com/graphql/v2 |
