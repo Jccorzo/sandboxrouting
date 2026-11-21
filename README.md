@@ -74,6 +74,12 @@ the 7 added on 2026-11-21 (`groundbox`, `briq`, `kubi`, `orble`, `runtime`, `dig
 | `briq` | €10 (counted as $11.60; no card) | 5 at once, up to medium (2 vCPU / 4 GB) | €0.03/h (2 shared vCPU / 4 GB); free asleep | Firecracker |
 | `runtime` | $5 in a 7-day Pro trial (card required) | 100 vCPUs at once | $0.03/vCPU-h (active only) + $0.008/GB-h; $25/mo plan | Firecracker |
 | `docker-cloud` | $250 promotional credit (card required) | 10 concurrent, 24 h | $0.07/vCPU-h, memory included | microVM |
+| `novita` | $100 after a short survey, no card | 5 concurrent, 1 h, 2 vCPU / 4 GiB | $0.035/vCPU-h + $0.0115/GiB-h | not published§ |
+| `smol` | $100, no card | 4 running, 4 vCPU each | $0.04/h base + $0.05/vCPU-h used + $0.0162/GB-h | microVM |
+| `isorun` | $50, no card | — | $0.025/vCPU-h + $0.015/GiB-h | microVM |
+| `instavm` | $50 (card on file) | 5 active | $0.050/vCPU-h + $0.016/GB-h | microVM |
+| `prized` | $30, no card | 10 at once, 2 vCPU / 4 GB, 60 min of running | $0.04/vCPU-h + $0.0125/GB-h | Firecracker |
+| `zipbox` | $25 for a $5 top-up (counted as $20; card required) | 250 box names ever¶ | $0.0137/h (2 vCPU / 4 GB) | not published§ |
 
 ### Paid only
 
@@ -115,7 +121,13 @@ Footnotes:
 - ‡ InstaBox's free plan is never billed, but it says its "early allowance" can end. It's
   modelled as a month of hours for one machine.
 
-- § Promigence doesn't say how its sandboxes are isolated, so a request with `minIsolation` skips it.
+- § Promigence, Novita and Zipbox don't say how their sandboxes are isolated, so a request with
+  `minIsolation` skips them.
+- ¶ Zipbox names are permanent and an account may ever create 250, so its adapter reuses a pool
+  of names (`options.pool`, default 32). Its docs don't pair tiers with sizes; `xs` to `l` are
+  taken to be Tiny to Large.
+- smol bills CPU and memory as used, plus a wall-clock base; the base is spread over the default
+  2 vCPU in its pricing.
 - ‖ Cathedral's rooms share one AMD SEV-SNP VM and are kept apart by a container runtime it
   doesn't name, so the adapter claims `container`, the weakest.
 - Runloop is winding down. Its docs say transition support for existing customers ended
@@ -144,6 +156,7 @@ Footnotes:
 |---|---|
 | AWS Nitro Sandboxes | It has no sandbox API. It's an EC2 feature: Firecracker on a Nitro Enclaves parent instance, or `ISOLATED_SANDBOX` tasks in ECS/EKS. The ECS path (`RunTask` plus ECS Exec) could become an adapter, but AWS doesn't say whether ECS Exec works in sandboxed tasks. |
 | Cube | It never had an API (Mac app, web and SSH only), and it is shutting down: new machines blocked since 2026-11-06, all machines deleted 2026-12-20. |
+| microsandbox cloud | The cloud is a private beta (access on request). Its REST API creates, starts, stops and deletes sandboxes but has no exec or file route: commands ride an undocumented "sandbox command channel" that only the SDK speaks, and the npm SDK is a native binding. Checked 2026-11-21. |
 
 ### Keys and access surfaces
 
@@ -177,6 +190,12 @@ Footnotes:
 | `boxcompute` | `BOXCOMPUTE_API_KEY` | REST api.boxcompute.ai/api/v2 |
 | `lizard` | `LIZARD_API_KEY`, `LIZARD_PROJECT_ID` | REST lizard.build/api |
 | `munito` | `MUNITO_API_KEY` | REST api.munito.ai/sandboxes/v1 |
+| `novita` | `NOVITA_API_KEY` (`NOVITA_DOMAIN` for another region) | SDK `e2b`, pointed at us-phx-1.sandbox.novita.ai |
+| `smol` | `SMOL_CLOUD_TOKEN` | REST api.smolmachines.com/v1 |
+| `isorun` | `ISORUN_API_KEY` | REST run-<region>.isorun.ai/v1 (region from the key) |
+| `instavm` | `INSTAVM_API_KEY` | REST api.instavm.io |
+| `prized` | `PRIZED_API_KEY` | REST api.prized.dev/api/v1 + the sandbox's edge |
+| `zipbox` | `ZIPBOX_API_KEY` | REST api.tribes.xyz + the box's own API |
 | `koyeb` | `KOYEB_API_TOKEN` | SDK `@koyeb/sandbox-sdk` |
 | `fly` | `FLY_API_TOKEN`, `FLY_APP` | REST api.machines.dev/v1 |
 | `sprites` | `SPRITES_TOKEN` | REST api.sprites.dev/v1 (the SDK needs Node 24) |

@@ -29,6 +29,8 @@ import { flyProvider } from "./fly.js";
 import { freestyleProvider } from "./freestyle.js";
 import { groundboxProvider } from "./groundbox.js";
 import { instaboxProvider } from "./instabox.js";
+import { instavmProvider } from "./instavm.js";
+import { isorunProvider } from "./isorun.js";
 import { koyebProvider } from "./koyeb.js";
 import { kubiProvider } from "./kubi.js";
 import { lambdaMicrovmProvider } from "./lambda-microvm.js";
@@ -42,15 +44,18 @@ import { namespaceProvider } from "./namespace.js";
 import { naniteProvider } from "./nanite.js";
 import { nodusProvider } from "./nodus.js";
 import { northflankProvider } from "./northflank.js";
+import { novitaProvider } from "./novita.js";
 import { openciProvider } from "./openci.js";
 import { opensandboxProvider } from "./opensandbox.js";
 import { orbleProvider } from "./orble.js";
+import { prizedProvider } from "./prized.js";
 import { promigenceProvider } from "./promigence.js";
 import { quaveProvider } from "./quave.js";
 import { quivvoProvider } from "./quivvo.js";
 import { renderProvider } from "./render.js";
 import { runloopProvider } from "./runloop.js";
 import { runtimeProvider } from "./runtime.js";
+import { smolProvider } from "./smol.js";
 import { spritesProvider } from "./sprites.js";
 import { tenkiProvider } from "./tenki.js";
 import { tensorlakeProvider } from "./tensorlake.js";
@@ -58,6 +63,7 @@ import { thunderProvider } from "./thunder.js";
 import { togetherProvider } from "./together.js";
 import { upstashProvider } from "./upstash.js";
 import { vercelProvider } from "./vercel.js";
+import { zipboxProvider } from "./zipbox.js";
 import { zodeProvider } from "./zode.js";
 
 export function builtinProviders(): ProviderAdapter[] {
@@ -96,6 +102,12 @@ export function builtinProviders(): ProviderAdapter[] {
     briqProvider,
     runtimeProvider,
     dockerCloudProvider,
+    novitaProvider,
+    smolProvider,
+    isorunProvider,
+    instavmProvider,
+    prizedProvider,
+    zipboxProvider,
     // Paid only.
     koyebProvider,
     flyProvider,
@@ -152,6 +164,8 @@ export {
   freestyleProvider,
   groundboxProvider,
   instaboxProvider,
+  instavmProvider,
+  isorunProvider,
   koyebProvider,
   kubiProvider,
   lambdaMicrovmProvider,
@@ -165,15 +179,18 @@ export {
   naniteProvider,
   nodusProvider,
   northflankProvider,
+  novitaProvider,
   openciProvider,
   opensandboxProvider,
   orbleProvider,
+  prizedProvider,
   promigenceProvider,
   quaveProvider,
   quivvoProvider,
   renderProvider,
   runloopProvider,
   runtimeProvider,
+  smolProvider,
   spritesProvider,
   tenkiProvider,
   tensorlakeProvider,
@@ -181,5 +198,6 @@ export {
   togetherProvider,
   upstashProvider,
   vercelProvider,
+  zipboxProvider,
   zodeProvider,
 };
