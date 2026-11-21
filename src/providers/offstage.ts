@@ -70,9 +70,9 @@ export const offstageProvider = defineProvider({
       source: "https://api.offstage.cloud/llms.txt",
       checked: "2026-11-21",
     },
-    // Priced per sandbox, not per size (sandboxSecondUsd wins). The slot's cores and memory
+    // Priced per sandbox, not per size: sandboxSecondUsd only. The slot's cores and memory
     // aren't published; 4 vCPU / 8 GiB is a placeholder.
-    pricing: { vcpuSecondUsd: 1.1 / 4 / 3600, gibSecondUsd: 0, sandboxSecondUsd: 1.1 / 3600, defaultCpu: 4, defaultMemoryMiB: 8192, source: "https://api.offstage.cloud/v1/pricing" },
+    pricing: { vcpuSecondUsd: 0, gibSecondUsd: 0, sandboxSecondUsd: 1.1 / 3600, defaultCpu: 4, defaultMemoryMiB: 8192, source: "https://api.offstage.cloud/v1/pricing" },
     surfaces: { rest: "https://api.offstage.cloud/v1", sdk: ["offstage-cloud (npm tarball from api.offstage.cloud/sdk)"], cli: "offstage" },
   },
 

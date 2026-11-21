@@ -80,7 +80,7 @@ export const kubiProvider = defineProvider({
       checked: "2026-11-21",
     },
     // One size, flat: $0.035 an hour for 4 vCPU / 8 GB.
-    pricing: { vcpuSecondUsd: 0.035 / 4 / 3600, gibSecondUsd: 0, sandboxSecondUsd: 0.035 / 3600, defaultCpu: SIZE.cpu, defaultMemoryMiB: SIZE.memoryMiB, source: "https://trykubi.com/pricing" },
+    pricing: { vcpuSecondUsd: 0, gibSecondUsd: 0, sandboxSecondUsd: 0.035 / 3600, defaultCpu: SIZE.cpu, defaultMemoryMiB: SIZE.memoryMiB, source: "https://trykubi.com/pricing" },
     surfaces: { rest: "https://api.trykubi.com/v1", sdk: ["@trykubi/sdk (npm)"], mcp: "https://mcp.trykubi.com" },
   },
 

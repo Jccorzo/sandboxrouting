@@ -21,7 +21,9 @@ describe("built-in providers", () => {
       // Cloud providers must say where their free-tier terms come from, and cost something after.
       expect(p.info.freeTier.source).toMatch(/^https:\/\//);
       expect(p.info.freeTier.checked).toMatch(/^\d{4}-\d{2}-\d{2}$/);
-      expect(p.info.pricing.vcpuSecondUsd + p.info.pricing.gibSecondUsd).toBeGreaterThan(0);
+      // A flat per-sandbox rate replaces the per-vCPU and per-GiB ones.
+      const { vcpuSecondUsd, gibSecondUsd, sandboxSecondUsd } = p.info.pricing;
+      expect(sandboxSecondUsd ?? vcpuSecondUsd + gibSecondUsd).toBeGreaterThan(0);
       expect(p.info.env.length).toBeGreaterThan(0);
     }
     // A capability claim needs the call that backs it.
