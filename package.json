@@ -1,7 +1,7 @@
 {
   "name": "sandboxrouting",
   "version": "0.1.0",
-  "description": "One router for 75 sandbox providers (E2B, Daytona, Modal, Vercel, Cloudflare, Freestyle, Northflank, Luxor (was Tenki), InstaBox, Upstash Box, Boat, Agent37, AWS Lambda MicroVMs and more). Uses every free tier first. SDK, REST API, CLI and MCP server.",
+  "description": "One router for 82 sandbox providers (E2B, Daytona, Modal, Vercel, Cloudflare, Freestyle, Northflank, Luxor (was Tenki), InstaBox, Upstash Box, Boat, Agent37, AWS Lambda MicroVMs and more). Uses every free tier first. SDK, REST API, CLI and MCP server.",
   "type": "module",
   "license": "MIT",
   "repository": {
@@ -62,6 +62,7 @@
     "@tenkicloud/sandbox": "*",
     "@upstash/box": "*",
     "@vercel/sandbox": "*",
+    "disk": "*",
     "e2b": "*",
     "freestyle": "*",
     "modal": "*",
@@ -112,6 +113,9 @@
       "optional": true
     },
     "@vercel/sandbox": {
+      "optional": true
+    },
+    "disk": {
       "optional": true
     },
     "e2b": {
