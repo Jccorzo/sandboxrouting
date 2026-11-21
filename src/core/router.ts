@@ -4,7 +4,7 @@
 // back to the provider that owns it. Jobs (router.jobs) build on it to move work between boxes.
 
 import { join } from "node:path";
-import { ISOLATION_STRENGTH, type CreatedSandbox, type ProviderAdapter, type ProviderContext, type ProviderUsage, type ResolvedSpec, type SandboxSpec } from "./types.js";
+import { ISOLATION_STRENGTH, SANDBOX_OS, type CreatedSandbox, type ProviderAdapter, type ProviderContext, type ProviderUsage, type ResolvedSpec, type SandboxSpec } from "./types.js";
 import { parseConfig, strategyNameFor, type RouterConfig } from "./config.js";
 import { defaultHome, FileLedger, MemoryLedger, newSandboxId, type HealthSample, type Ledger, type LedgerData, type MarkKind } from "./ledger.js";
 import { classify, NoProviderAvailableError, SandboxRouterError, type RouteAttempt } from "./errors.js";
@@ -146,6 +146,9 @@ export class SandboxRouter {
     if (spec.minIsolation !== undefined && !Object.hasOwn(ISOLATION_STRENGTH, spec.minIsolation)) {
       // Unknown, it would compare as weaker than nothing and match every provider.
       throw new SandboxRouterError("invalid", `minIsolation "${spec.minIsolation}" is not one of ${Object.keys(ISOLATION_STRENGTH).join(", ")}`);
+    }
+    if (spec.os !== undefined && !SANDBOX_OS.includes(spec.os)) {
+      throw new SandboxRouterError("invalid", `os "${spec.os}" is not one of ${SANDBOX_OS.join(", ")}`);
     }
     const d = this.config.defaults;
     return {

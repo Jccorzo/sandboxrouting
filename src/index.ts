@@ -28,7 +28,7 @@ export { FileCheckpointStore, MemoryCheckpointStore } from "./core/jobs/checkpoi
 export { moveSandbox } from "./core/jobs/move.js";
 export type * from "./core/jobs/types.js";
 export type * from "./core/types.js";
-export { ISOLATION_STRENGTH } from "./core/types.js";
+export { ISOLATION_STRENGTH, SANDBOX_OS } from "./core/types.js";
 export { defineProvider } from "./providers/util.js";
 export * from "./providers/index.js";
 export { createServer } from "./server/http.js";
