@@ -18,7 +18,7 @@ await sbx.kill();
 
 ## Providers
 
-75 providers are built in: 72 cloud providers plus your own hardware (openci, OpenSandbox,
+82 providers are built in: 79 cloud providers plus your own hardware (openci, OpenSandbox,
 local Docker). Terms were checked on 2026-11-11 or 2026-11-12 against each provider's pricing
 page, which its adapter links, and those that had changed were updated on 2026-11-21 (each
 adapter's `checked` date says which). Terms change, so you can override any of them in config.
@@ -31,8 +31,11 @@ local servers that speak it. None has been run against the real service yet. Nor
 the 26 added on 2026-11-21 (`groundbox`, `briq`, `kubi`, `orble`, `runtime`, `digitalocean`,
 `docker-cloud`, `novita`, `smol`, `isorun`, `instavm`, `prized`, `zipbox`, `superserve`,
 `eqvps`, `solari`, `pilldrops`, `langsmith`, `miosa`, `cloudrun`, `gke-agent-sandbox`,
-`azure-sandboxes`, `agentbay`, `tencent`, `volcengine`, `railway`), written the same way from
-each provider's docs, OpenAPI spec or official SDK and checked against its pages that day.
+`azure-sandboxes`, `agentbay`, `tencent`, `volcengine`, `railway`), nor the 7 added later that day
+(`openreward`, `baseten`, `chalk`, `voidrun`, `kosa8`, `primeintellect`, `sandboxer`), written the
+same way from each provider's docs, OpenAPI spec or official SDK and checked against its pages
+that day. `chalk`, and `primeintellect`'s commands, speak the Connect protocol's JSON form to
+services whose SDKs speak gRPC; `openreward` speaks a session API known only from its SDK.
 `novita`, `tencent` and `volcengine` speak E2B's API and share the `e2b` adapter's code. The
 big clouds (`cloudrun`, `gke-agent-sandbox`, `azure-sandboxes`, `agentbay`, `tencent`,
 `volcengine`, `railway`) need some console setup first, described in
@@ -94,6 +97,7 @@ big clouds (`cloudrun`, `gke-agent-sandbox`, `azure-sandboxes`, `agentbay`, `ten
 | `zipbox` | $25 for a $5 top-up (counted as $20; card required) | 250 box names ever†† | $0.0137/h (2 vCPU / 4 GB) | not published§ |
 | `pilldrops` | $5 (no card) | 5 concurrent, 4 h, 2 vCPU / 2 GB | $0.13/h (2 vCPU / 2 GB) | container# |
 | `railway` | $5, expires after 30 days (no card) | 10 running, 2 vCPU / 2 GB, 5 idle minutes | $0.069/vCPU-h + $0.069/GB-h (active CPU only) | VM |
+| `voidrun` | ₹4,600 (counted as $49.64; no card)* | 300 s per command; sleeps after 60 idle seconds | ₹3.71/vCPU-h (active only) + ₹1.19/GB-h (≈ $0.040 + $0.0129) | microVM |
 
 ### Paid only
 
@@ -124,6 +128,12 @@ big clouds (`cloudrun`, `gke-agent-sandbox`, `azure-sandboxes`, `agentbay`, `ten
 | `agentbay` | $0.0992/h (2 vCPU / 4 GB) | free Basic plan, but compute is billed; 50 s per command | not published§ |
 | `tencent` | $0.13/h (2 vCPU / 4 GiB, 0.94 CNY)‖‖ | size set by a sandbox tool made in the console | microVM (Cube) |
 | `volcengine` | $0.062/h (2 vCPU / 4 GB, 0.44 CNY)‖‖ | size set by an E2B-compatible template; only the creating process reaches a sandbox | microVM |
+| `openreward` | $0.0504/vCPU-h + $0.0162/GiB-h ($0.1656/h for 2 vCPU / 4 GiB) | runs in an environment workspace made on openreward.ai; an idle session is reaped after about 15 min | container |
+| `baseten` | $0.0655/vCPU-h + $0.0211/GiB-h ($0.2154/h for 2 vCPU / 4 GiB) | 10 at once; idle sandboxes go on standby (storage only) | not published§ |
+| `chalk` | $0.0249/vCPU-h + $0.008/GiB-h preemptible ($0.082/h for 2 vCPU / 4 GiB) | preemptible by default; runs on the K8S compute class¶¶ | container¶¶ |
+| `kosa8` | $0.15/h (2 vCPU / 4 GB), counted by vCPU | a plan first (from $29/mo with 100 sandbox-hours); hours past it in $15 packs | microVM |
+| `primeintellect` | $0.02/vCPU-h + $0.0125/GiB-h ($0.09/h for 2 vCPU / 4 GiB; launch rates until 2026-12-22) | prepaid; first use of an image converts it to a VM image | microVM |
+| `sandboxer` | $0.018/h (2 vCPU / 4 GB) | a plan first (from $20/mo, its dollars come back as machine time); 600 s per command | Cloud Hypervisor |
 
 ### Your own hardware
 
@@ -140,7 +150,7 @@ Footnotes:
   `"morph": { "freeTier": { "kind": "one-time-credit", "usd": 15 } }`.
 - ‡ InstaBox's free plan is never billed, but it says its "early allowance" can end. It's
   modelled as a month of hours for one machine.
-- § Promigence, Novita, Zipbox and AgentBay don't say how their sandboxes are isolated, so a
+- § Promigence, Novita, Zipbox, AgentBay and Baseten don't say how their sandboxes are isolated, so a
   request with `minIsolation` skips them.
 - ¶ Fly's Free plan has one $5 a month for Machines and Sprites together, and the router
   meters each provider apart, so each counts $2.50: with both on, the two can't spend more
@@ -164,6 +174,13 @@ Footnotes:
   priced at GKE Autopilot's pod rate. On a cluster whose nodes you already pay for, set
   `"gke-agent-sandbox": { "pricing": { "vcpuSecondUsd": 0, "gibSecondUsd": 0 } }`.
 - ‖‖ Tencent and Volcengine bill in yuan; their prices are converted at 7.1 CNY per USD.
+- ¶¶ Chalk's SDK runs a command on its default host compute class only over a bidirectional
+  stream, which fetch can't open, and on the K8S class through one unary call, so the adapter
+  creates K8S-class sandboxes; one docs page says those don't support exec, which only a live
+  run will settle. Chalk documents gVisor for its sandboxes but not for that class, so the
+  adapter claims `container`. Non-preemptible work costs $0.0747/vCPU-h + $0.024/GiB-h.
+- VoidRun bills in rupees, converted at the ECB rates of 2026-11-20 (≈ 92.67 INR per USD),
+  kept in `src/providers/currency.ts`.
 - boxd and briq bill in euros. Their prices and free credit are converted at one rate,
   1.099 USD per euro (the ECB reference rate on 2026-11-20), kept in `src/providers/currency.ts`.
 - smol bills CPU and memory as used, plus a $0.04/h wall-clock base. Its vCPUs are priced as
@@ -264,6 +281,13 @@ Footnotes:
 | `agentbay` | `AGENTBAY_API_KEY` (`AGENTBAY_REGION`, `AGENTBAY_IMAGE_ID` optional) | REST (OpenAPI RPC) agentbay.&lt;region&gt;.aliyuncs.com |
 | `tencent` | `TENCENT_AGS_API_KEY`, `TENCENT_AGS_TOOL` (`TENCENT_AGS_REGION` optional) | SDK `e2b`, at &lt;region&gt;.tencentags.com |
 | `volcengine` | `VOLCENGINE_E2B_API_KEY`, `VOLCENGINE_E2B_TEMPLATE_ID` (`VOLCENGINE_E2B_REGION` optional) | SDK `e2b`, at api.vefaas-e2b.sandbox-&lt;region&gt;.volcapig.com |
+| `openreward` | `OPENREWARD_API_KEY`, `OPENREWARD_ENVIRONMENT` (an environment you made, `user/env`) | session API at sessions.openreward.ai (server-sent events), as the `openreward` SDK speaks it |
+| `baseten` | `BASETEN_API_KEY` (`BASETEN_TEAM_ID` optional) | REST api.baseten.co/v1/sandboxes with a 2 h sandbox token from /v1/token, + each sandbox's runtime API |
+| `chalk` | `CHALK_CLIENT_ID`, `CHALK_CLIENT_SECRET` (`CHALK_ENVIRONMENT`, `CHALK_API_SERVER` optional) | Connect (JSON) chalk.sandbox.v2 services at api.chalk.ai, token from /v1/oauth/token |
+| `voidrun` | `VOIDRUN_API_KEY` | REST api.void-run.com/api |
+| `kosa8` | `KOSA8_API_KEY` | REST api.kosa8.com/v1 |
+| `primeintellect` | `PRIME_API_KEY` (with the `sandbox` scope; `PRIME_TEAM_ID` optional) | REST api.primeintellect.ai/api/v1/sandbox + the sandbox gateway (Connect stream for commands) |
+| `sandboxer` | `SANDBOXER_API_KEY` | REST sandboxer.com/api/v1 |
 | `openci` | `OPENCI_URL`, `OPENCI_TOKEN` | REST /v1/sandboxes |
 | `opensandbox` | `OPEN_SANDBOX_DOMAIN`, optional `OPEN_SANDBOX_API_KEY` | REST /v1/sandboxes + execd in the sandbox |
 | `cloudrun` | `GOOGLE_CLOUD_PROJECT`, `CLOUD_RUN_REGION`, `CLOUD_RUN_SANDBOX_IMAGE` + `GOOGLE_OAUTH_ACCESS_TOKEN` or `GOOGLE_APPLICATION_CREDENTIALS(_JSON)` | REST run.googleapis.com/v2 (instances), plus execd (templates/cloud-run-sandbox) |

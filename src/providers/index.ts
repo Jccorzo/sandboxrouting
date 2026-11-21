@@ -78,6 +78,13 @@ import { vercelProvider } from "./vercel.js";
 import { zipboxProvider } from "./zipbox.js";
 import { volcengineProvider } from "./volcengine.js";
 import { zodeProvider } from "./zode.js";
+import { basetenProvider } from "./baseten.js";
+import { chalkProvider } from "./chalk.js";
+import { kosa8Provider } from "./kosa8.js";
+import { openrewardProvider } from "./openreward.js";
+import { primeintellectProvider } from "./primeintellect.js";
+import { sandboxerProvider } from "./sandboxer.js";
+import { voidrunProvider } from "./voidrun.js";
 
 export function builtinProviders(): ProviderAdapter[] {
   return [
@@ -128,6 +135,7 @@ export function builtinProviders(): ProviderAdapter[] {
     zipboxProvider,
     pilldropsProvider,
     railwayProvider,
+    voidrunProvider,
     // Paid only.
     koyebProvider,
     flyProvider,
@@ -156,6 +164,12 @@ export function builtinProviders(): ProviderAdapter[] {
     agentbayProvider,
     tencentProvider,
     volcengineProvider,
+    openrewardProvider,
+    basetenProvider,
+    chalkProvider,
+    kosa8Provider,
+    primeintellectProvider,
+    sandboxerProvider,
     // Your own hardware.
     openciProvider,
     opensandboxProvider,
@@ -239,4 +253,11 @@ export {
   zipboxProvider,
   volcengineProvider,
   zodeProvider,
+  basetenProvider,
+  chalkProvider,
+  kosa8Provider,
+  openrewardProvider,
+  primeintellectProvider,
+  sandboxerProvider,
+  voidrunProvider,
 };

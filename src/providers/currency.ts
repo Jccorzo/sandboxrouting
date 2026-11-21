@@ -11,3 +11,10 @@ export const USD_PER_EUR = 1.099;
 
 /** Chinese yuan per US dollar, approximate as of 2026-11-21. Used by `tencent` and `volcengine`. */
 export const CNY_PER_USD = 7.1;
+
+/**
+ * Indian rupees per US dollar, from the ECB euro reference rates of 2026-11-20 (INR 101.85 and
+ * USD 1.0990 per euro, https://www.ecb.europa.eu/stats/eurofxref/eurofxref-daily.xml): ≈ 92.67.
+ * Used by `voidrun`.
+ */
+export const INR_PER_USD = 101.85 / USD_PER_EUR;
