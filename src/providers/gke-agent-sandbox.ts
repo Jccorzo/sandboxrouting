@@ -23,6 +23,7 @@ import { SandboxRouterError } from "../core/errors.js";
 import { defineProvider, http, HttpError, httpJson, toBuffer } from "./util.js";
 import { ENV_FILE, envFileBody, inline, insideRoots, pollMs, sbrName, shq, sleep, withEnvFile } from "./rest-helpers.js";
 import { googleAccessToken, hasGoogleCredentials } from "./google-auth.js";
+import { decode, get, grpcWebCall, parseGrpcWeb, pb } from "./grpc-web.js";
 import type { ProviderContext } from "../core/types.js";
 
 const ID = "gke-agent-sandbox";
@@ -60,91 +61,21 @@ interface Claim {
   status?: { conditions?: { type: string; status: string; reason?: string; message?: string }[]; sandbox?: { name?: string } };
 }
 
-// ---- protobuf and gRPC-Web, only what ExecuteWithLimits needs ----
-
-const varint = (n: number | bigint): number[] => {
-  let v = BigInt.asUintN(64, BigInt(n));
-  const out: number[] = [];
-  do {
-    let b = Number(v & 0x7fn);
-    v >>= 7n;
-    if (v) b |= 0x80;
-    out.push(b);
-  } while (v);
-  return out;
-};
-const field = (no: number, bytes: Uint8Array): number[] => [...varint((no << 3) | 2), ...varint(bytes.length), ...bytes];
-const str = (s: string) => new TextEncoder().encode(s);
+// ---- ExecuteWithLimits, over the shared protobuf and gRPC-Web helpers ----
 
 /** ExecuteWithLimitsRequest{config: ProcessConfig{command: argv}, time_limit: Duration{seconds}}. */
 export function encodeExecuteRequest(argv: string[], timeLimitSec?: number): Uint8Array {
-  const config = new Uint8Array(argv.flatMap((a) => field(1, str(a))));
-  const out = field(1, config);
-  if (timeLimitSec && timeLimitSec > 0) out.push(...field(4, new Uint8Array([...varint(1 << 3), ...varint(Math.ceil(timeLimitSec))])));
-  return new Uint8Array(out);
+  const fields = pb.msg(1, pb.strs(1, argv));
+  if (timeLimitSec && timeLimitSec > 0) fields.push(...pb.msg(4, pb.uint(1, Math.ceil(timeLimitSec))));
+  return new Uint8Array(fields);
 }
 
-/** A protobuf message's top-level fields in order: varints as bigint, length-delimited as bytes. */
+/** A protobuf message's top-level fields, as [number, value] pairs (repeats in order). */
 export function protoFields(buf: Uint8Array): [number, bigint | Uint8Array][] {
-  const out: [number, bigint | Uint8Array][] = [];
-  let i = 0;
-  const readVarint = () => {
-    let v = 0n;
-    let shift = 0n;
-    for (;;) {
-      const b = buf[i++];
-      if (b === undefined) throw new Error("truncated protobuf");
-      v |= BigInt(b & 0x7f) << shift;
-      if (!(b & 0x80)) return v;
-      shift += 7n;
-    }
-  };
-  while (i < buf.length) {
-    const key = Number(readVarint());
-    const no = key >> 3;
-    const wire = key & 7;
-    if (wire === 0) out.push([no, readVarint()]);
-    else if (wire === 2) {
-      const len = Number(readVarint());
-      out.push([no, buf.subarray(i, i + len)]);
-      i += len;
-    } else if (wire === 1) i += 8;
-    else if (wire === 5) i += 4;
-    else throw new Error(`unsupported protobuf wire type ${wire}`);
-  }
-  return out;
+  return [...decode(buf)].flatMap(([no, values]) => values.map((v): [number, bigint | Uint8Array] => [no, v]));
 }
 
-/** gRPC status codes, as the HTTP status the router's error classifier understands. */
-const GRPC_HTTP: Record<number, number> = { 3: 400, 5: 404, 7: 403, 8: 429, 14: 503, 16: 401 };
-
-/** Splits a gRPC-Web body into its message and its trailers (`grpc-status`, `grpc-message`). */
-export function parseGrpcWeb(body: Uint8Array, headers: Headers): { message?: Uint8Array; status: number; detail: string } {
-  let message: Uint8Array | undefined;
-  const trailers = new Map<string, string>();
-  for (const [k, v] of headers) trailers.set(k.toLowerCase(), v);
-  let i = 0;
-  while (i + 5 <= body.length) {
-    const flag = body[i]!;
-    const len = ((body[i + 1]! << 24) | (body[i + 2]! << 16) | (body[i + 3]! << 8) | body[i + 4]!) >>> 0;
-    const frame = body.subarray(i + 5, i + 5 + len);
-    i += 5 + len;
-    if (flag & 0x80) {
-      for (const line of new TextDecoder().decode(frame).split("\r\n")) {
-        const at = line.indexOf(":");
-        if (at > 0) trailers.set(line.slice(0, at).trim().toLowerCase(), line.slice(at + 1).trim());
-      }
-    } else message = frame;
-  }
-  const raw = trailers.get("grpc-message") ?? "";
-  let detail = raw;
-  try {
-    detail = decodeURIComponent(raw);
-  } catch {
-    // Not percent-encoded after all: keep it as sent.
-  }
-  return { message, status: Number(trailers.get("grpc-status") ?? (message ? 0 : 2)), detail };
-}
+export { parseGrpcWeb };
 
 // ---- data plane through the router ----
 
@@ -173,26 +104,16 @@ async function sandboxOf(ctx: ProviderContext, id: string): Promise<string> {
 
 async function grpcExec(ctx: ProviderContext, id: string, argv: string[], timeoutSec?: number): Promise<{ stdout: string; stderr: string; exitCode: number }> {
   const sandbox = await sandboxOf(ctx, id);
-  const body = encodeExecuteRequest(argv, timeoutSec);
-  const framed = new Uint8Array(5 + body.length);
-  framed.set([0, (body.length >>> 24) & 255, (body.length >>> 16) & 255, (body.length >>> 8) & 255, body.length & 255]);
-  framed.set(body, 5);
-  const res = await http(`${router(ctx)}/process.v1.ProcessService/ExecuteWithLimits`, {
-    method: "POST",
-    headers: { ...(await routed(ctx, sandbox, 9090)), "content-type": "application/grpc-web+proto", "x-grpc-web": "1", accept: "application/grpc-web+proto" },
-    raw: framed,
-    timeoutMs: ((timeoutSec ?? 3600) + 30) * 1000,
-  });
-  const out = parseGrpcWeb(new Uint8Array(await res.arrayBuffer()), res.headers);
-  if (out.status !== 0 || !out.message) {
-    throw Object.assign(new Error(`${ID} exec: grpc-status ${out.status} ${out.detail}`.trim()), GRPC_HTTP[out.status] ? { status: GRPC_HTTP[out.status] } : {});
-  }
-  const f = new Map(protoFields(out.message));
-  const bytes = (n: number) => new TextDecoder().decode((f.get(n) as Uint8Array | undefined) ?? new Uint8Array());
-  let exitCode = Number(BigInt.asIntN(32, (f.get(1) as bigint | undefined) ?? 0n));
+  const f = await grpcWebCall(
+    `${router(ctx)}/process.v1.ProcessService/ExecuteWithLimits`,
+    await routed(ctx, sandbox, 9090),
+    [...encodeExecuteRequest(argv, timeoutSec)],
+    ((timeoutSec ?? 3600) + 30) * 1000,
+  );
+  let exitCode = get.int(f, 1);
   // TIME_LIMIT_EXCEEDED with a clean status still means the command was cut off.
-  if (f.get(4) === 2n && exitCode === 0) exitCode = 124;
-  return { stdout: bytes(2), stderr: bytes(3), exitCode: exitCode < 0 ? 137 : exitCode };
+  if (get.int(f, 4) === 2 && exitCode === 0) exitCode = 124;
+  return { stdout: get.str(f, 2), stderr: get.str(f, 3), exitCode: exitCode < 0 ? 137 : exitCode };
 }
 
 async function waitHealthy(ctx: ProviderContext, id: string, deadline: number): Promise<void> {

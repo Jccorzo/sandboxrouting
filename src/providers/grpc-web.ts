@@ -1,5 +1,6 @@
-// Just enough protobuf and gRPC-Web for adapters whose API is gRPC-Web only (tama), with no
-// protobuf dependency: messages are built from numbered fields and read back as numbered fields.
+// Just enough protobuf and gRPC-Web for adapters that speak gRPC-Web (tama, and the sandboxd
+// exec of gke-agent-sandbox), with no protobuf dependency: messages are built from numbered
+// fields and read back as numbered fields.
 // Wire format: https://protobuf.dev/programming-guides/encoding/ and
 // https://github.com/grpc/grpc/blob/master/doc/PROTOCOL-WEB.md (5-byte frames; a trailer frame
 // with flag 0x80 carries `grpc-status` and `grpc-message`).
@@ -141,5 +142,7 @@ export async function grpcWebCall(url: string, headers: Record<string, string>, 
   if (out.status !== 0) {
     throw new HttpError(GRPC_HTTP[out.status] ?? 500, `POST ${new URL(url).pathname}: grpc-status ${out.status} ${out.detail}`.trim());
   }
-  return decode(out.message ?? new Uint8Array());
+  // A unary OK reply always carries a message frame, if only an empty one.
+  if (!out.message) throw new HttpError(502, `POST ${new URL(url).pathname}: OK with no message`);
+  return decode(out.message);
 }
