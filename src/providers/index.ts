@@ -4,6 +4,7 @@
 
 import type { ProviderAdapter } from "../core/types.js";
 import { agent37Provider } from "./agent37.js";
+import { azureSessionsProvider } from "./azure-sessions.js";
 import { beamProvider } from "./beam.js";
 import { blaxelProvider } from "./blaxel.js";
 import { boatProvider } from "./boat.js";
@@ -15,6 +16,7 @@ import { buddyProvider } from "./buddy.js";
 import { cathedralProvider } from "./cathedral.js";
 import { celestoProvider } from "./celesto.js";
 import { cloudflareProvider } from "./cloudflare.js";
+import { cloudrunProvider } from "./cloudrun.js";
 import { createosProvider } from "./createos.js";
 import { daytonaProvider } from "./daytona.js";
 import { dedalusProvider } from "./dedalus.js";
@@ -29,6 +31,7 @@ import { exedevProvider } from "./exedev.js";
 import { flyProvider } from "./fly.js";
 import { freestyleProvider } from "./freestyle.js";
 import { groundboxProvider } from "./groundbox.js";
+import { gkeAgentSandboxProvider } from "./gke-agent-sandbox.js";
 import { instaboxProvider } from "./instabox.js";
 import { instavmProvider } from "./instavm.js";
 import { isorunProvider } from "./isorun.js";
@@ -87,6 +90,8 @@ export function builtinProviders(): ProviderAdapter[] {
     solariProvider,
     langsmithProvider,
     miosaProvider,
+    cloudrunProvider,
+    azureSessionsProvider,
     // One-time credit.
     daytonaProvider,
     blaxelProvider,
@@ -142,6 +147,7 @@ export function builtinProviders(): ProviderAdapter[] {
     digitaloceanProvider,
     superserveProvider,
     eqvpsProvider,
+    gkeAgentSandboxProvider,
     // Your own hardware.
     openciProvider,
     opensandboxProvider,
@@ -151,6 +157,7 @@ export function builtinProviders(): ProviderAdapter[] {
 
 export {
   agent37Provider,
+  azureSessionsProvider,
   beamProvider,
   blaxelProvider,
   boatProvider,
@@ -162,6 +169,7 @@ export {
   cathedralProvider,
   celestoProvider,
   cloudflareProvider,
+  cloudrunProvider,
   createosProvider,
   daytonaProvider,
   dedalusProvider,
@@ -176,6 +184,7 @@ export {
   flyProvider,
   freestyleProvider,
   groundboxProvider,
+  gkeAgentSandboxProvider,
   instaboxProvider,
   instavmProvider,
   isorunProvider,
