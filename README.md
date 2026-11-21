@@ -18,7 +18,7 @@ await sbx.kill();
 
 ## Providers
 
-49 providers are built in: 46 cloud providers plus your own hardware (openci, OpenSandbox,
+53 providers are built in: 50 cloud providers plus your own hardware (openci, OpenSandbox,
 local Docker). Terms were checked on 2026-11-11 or 2026-11-12 against each provider's pricing
 page, which its adapter links. Terms change, so you can override any of them in config.
 
@@ -26,7 +26,10 @@ The 17 added on 2026-11-12 (`tensorlake`, `buddy`, `boxd`, `maritime`, `promigen
 `boxcompute`, `lizard`, `munito`, `nanite`, `render`, `quave`, `beam`, `mosaic`, `nodus`,
 `cathedral`, `dory`) are written from each provider's published API and tested against
 local servers that speak it. None has been run against the real service yet. Nor has
-`opensandbox` (added 2026-11-14), written from OpenSandbox's OpenAPI specs and its JS SDK.
+`opensandbox` (added 2026-11-14), written from OpenSandbox's OpenAPI specs and its JS SDK, nor
+`agentbay`, `railway`, `tencent` and `volcengine` (added 2026-11-21): AgentBay and Railway are
+written from the requests their official SDKs send, and Tencent and Volcengine speak E2B's API
+through the `e2b` SDK. Their IAM and region setup is in [docs/providers-iam.md](docs/providers-iam.md).
 
 ### Free every month
 
@@ -65,6 +68,7 @@ local servers that speak it. None has been run against the real service yet. Nor
 | `boxcompute` | $5, expires after 14 days | 2 running | $0.05/h (0.5 vCPU / 1 GiB) | VM |
 | `lizard` | $5, 7-day trial (card required) | 1 Small running, 1 h | $0.0162/h (2 vCPU / 4 GB) | Firecracker |
 | `munito` | $0.90, 7-day trial (card required) | 2 concurrent, 2 h | $0.018/h (2 vCPU / 4 GiB) | microVM |
+| `railway` | $5, expires after 30 days (no card) | 10 running, 2 vCPU / 2 GB, 5 idle minutes | $0.069/vCPU-h + $0.069/GB-h (active CPU only) | VM |
 
 ### Paid only
 
@@ -88,6 +92,9 @@ local servers that speak it. None has been run against the real service yet. Nor
 | `nodus` | $0.0357/h (2 vCPU / 4 GiB) | prepaid; no outbound network unless asked | gVisor-style |
 | `cathedral` | $0.035/h (2 vCPU / 4 GiB) | prepaid; 24 h max; files under /work | confidential VM, shared‖ |
 | `dory` | $0.0288/h (2 shared vCPU / 4 GB) | prepaid; 10 min per command | VM |
+| `agentbay` | $0.0992/h (2 vCPU / 4 GB) | free Basic plan, but compute is billed; 50 s per command | not published§ |
+| `tencent` | $0.13/h (2 vCPU / 4 GiB, 0.94 CNY)¶ | size set by a sandbox tool made in the console | microVM (Cube) |
+| `volcengine` | $0.062/h (2 vCPU / 4 GB, 0.44 CNY)¶ | size set by an E2B-compatible template; only the creating process reaches a sandbox | microVM |
 
 ### Your own hardware
 
@@ -105,7 +112,9 @@ Footnotes:
 - ‡ InstaBox's free plan is never billed, but it says its "early allowance" can end. It's
   modelled as a month of hours for one machine.
 
-- § Promigence doesn't say how its sandboxes are isolated, so a request with `minIsolation` skips it.
+- § Promigence and AgentBay don't say how their sandboxes are isolated, so a request with
+  `minIsolation` skips them.
+- ¶ Tencent and Volcengine bill in yuan; their prices are converted at 7.1 CNY per USD.
 - ‖ Cathedral's rooms share one AMD SEV-SNP VM and are kept apart by a container runtime it
   doesn't name, so the adapter claims `container`, the weakest.
 - Runloop is winding down: its docs say transition support ends 2026-11-13. The adapter is
@@ -172,6 +181,10 @@ Footnotes:
 | `nodus` | `NODUS_API_KEY`, `NODUS_PROJECT` | REST api.nodus-compute.ai/apis/nodus.dev/v1 |
 | `cathedral` | `CATHEDRAL_API_KEY` | REST cathedral.computer/v1 |
 | `dory` | `DORY_API_KEY` | REST api.dory.run/v1 + data.dory.run |
+| `railway` | `RAILWAY_TOKEN` (project token), or `RAILWAY_API_TOKEN` + `RAILWAY_ENVIRONMENT_ID` | GraphQL backboard.railway.com/graphql/v2 |
+| `agentbay` | `AGENTBAY_API_KEY` (`AGENTBAY_REGION`, `AGENTBAY_IMAGE_ID` optional) | REST (OpenAPI RPC) agentbay.&lt;region&gt;.aliyuncs.com |
+| `tencent` | `TENCENT_AGS_API_KEY`, `TENCENT_AGS_TOOL` (`TENCENT_AGS_REGION` optional) | SDK `e2b`, at &lt;region&gt;.tencentags.com |
+| `volcengine` | `VOLCENGINE_E2B_API_KEY`, `VOLCENGINE_E2B_TEMPLATE_ID` (`VOLCENGINE_E2B_REGION` optional) | SDK `e2b`, at api.vefaas-e2b.sandbox-&lt;region&gt;.volcapig.com |
 | `openci` | `OPENCI_URL`, `OPENCI_TOKEN` | REST /v1/sandboxes |
 | `opensandbox` | `OPEN_SANDBOX_DOMAIN`, optional `OPEN_SANDBOX_API_KEY` | REST /v1/sandboxes + execd in the sandbox |
 | `docker` | none (`SBR_DOCKER=0` turns it off) | `docker` CLI |

@@ -4,6 +4,7 @@
 
 import type { ProviderAdapter } from "../core/types.js";
 import { agent37Provider } from "./agent37.js";
+import { agentbayProvider } from "./agentbay.js";
 import { beamProvider } from "./beam.js";
 import { blaxelProvider } from "./blaxel.js";
 import { boatProvider } from "./boat.js";
@@ -42,15 +43,18 @@ import { opensandboxProvider } from "./opensandbox.js";
 import { promigenceProvider } from "./promigence.js";
 import { quaveProvider } from "./quave.js";
 import { quivvoProvider } from "./quivvo.js";
+import { railwayProvider } from "./railway.js";
 import { renderProvider } from "./render.js";
 import { runloopProvider } from "./runloop.js";
 import { spritesProvider } from "./sprites.js";
 import { tenkiProvider } from "./tenki.js";
+import { tencentProvider } from "./tencent.js";
 import { tensorlakeProvider } from "./tensorlake.js";
 import { thunderProvider } from "./thunder.js";
 import { togetherProvider } from "./together.js";
 import { upstashProvider } from "./upstash.js";
 import { vercelProvider } from "./vercel.js";
+import { volcengineProvider } from "./volcengine.js";
 import { zodeProvider } from "./zode.js";
 
 export function builtinProviders(): ProviderAdapter[] {
@@ -85,6 +89,7 @@ export function builtinProviders(): ProviderAdapter[] {
     boxcomputeProvider,
     lizardProvider,
     munitoProvider,
+    railwayProvider,
     // Paid only.
     koyebProvider,
     flyProvider,
@@ -104,6 +109,9 @@ export function builtinProviders(): ProviderAdapter[] {
     nodusProvider,
     cathedralProvider,
     doryProvider,
+    agentbayProvider,
+    tencentProvider,
+    volcengineProvider,
     // Your own hardware.
     openciProvider,
     opensandboxProvider,
@@ -113,6 +121,7 @@ export function builtinProviders(): ProviderAdapter[] {
 
 export {
   agent37Provider,
+  agentbayProvider,
   beamProvider,
   blaxelProvider,
   boatProvider,
@@ -151,14 +160,17 @@ export {
   promigenceProvider,
   quaveProvider,
   quivvoProvider,
+  railwayProvider,
   renderProvider,
   runloopProvider,
   spritesProvider,
+  tencentProvider,
   tenkiProvider,
   tensorlakeProvider,
   thunderProvider,
   togetherProvider,
   upstashProvider,
   vercelProvider,
+  volcengineProvider,
   zodeProvider,
 };
