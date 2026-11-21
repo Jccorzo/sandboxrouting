@@ -54,7 +54,7 @@ export const platinumProvider = defineProvider({
       checked: "2026-11-21",
     },
     pricing: { vcpuSecondUsd: 0.0324 / 3600, gibSecondUsd: 0.0108 / 3600, defaultCpu: 2, defaultMemoryMiB: 4096, source: "https://www.platinum.dev/docs/billing" },
-    surfaces: { rest: "https://api.platinum.dev/v1", sdk: ["@platinum-dev/sdk (npm)", "platinum (PyPI)", "Daytona SDK (compatible)"], cli: "pt", mcp: "docs only" },
+    surfaces: { rest: "https://api.platinum.dev/v1", sdk: ["@platinum-dev/sdk (npm)", "platinum (PyPI)", "Daytona SDK (compatible)"], cli: "pt", mcp: "MCP server (www.platinum.dev/docs/agents)" },
   },
 
   async create(spec, ctx) {
