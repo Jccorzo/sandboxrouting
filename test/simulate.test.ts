@@ -81,9 +81,10 @@ describe("allowPaid false", () => {
 
 describe("outage", () => {
   it("every strategy keeps serving, and failed creates on the down provider stay bounded", async () => {
-    // Enough traffic and no bursts, so few failures can't just mean few requests (and light
-    // enough to stay well inside the default timeout on a busy machine).
-    const sim = await simulate({ days: 1, scenarios: ["outage"], trace: true, workload: { perDay: 400, burstsPerDay: 0 } });
+    // Enough traffic and no bursts, so few failures can't just mean few requests: at 300 a day
+    // about 115 requests fall in the outage against at most 15 failed creates (2026-11-21). The
+    // simulation's cost grows faster than its traffic, so this stays well below 400 a day.
+    const sim = await simulate({ days: 1, scenarios: ["outage"], trace: true, workload: { perDay: 300, burstsPerDay: 0 } });
     const breaker = parseConfig({}).routing.circuitBreaker;
     for (const r of runs(sim)) {
       const down = r.outage!;
@@ -104,7 +105,9 @@ describe("outage", () => {
 
 describe("external usage", () => {
   it("after a 402 the provider is skipped until its quota mark ends, instead of failing every request", async () => {
-    const sim = await simulate({ days: 3, scenarios: ["external-usage"], trace: true });
+    // Two days hold the refusal (fastest meets it on the first); whatever of the next day the run
+    // still covers must be quiet.
+    const sim = await simulate({ days: 2, scenarios: ["external-usage"], trace: true });
     let refusals = 0;
     for (const r of runs(sim)) {
       const attempts = r.attempts!.filter((a) => a.provider === EXTERNAL);
