@@ -18,7 +18,7 @@ await sbx.kill();
 
 ## Providers
 
-49 providers are built in: 46 cloud providers plus your own hardware (openci, OpenSandbox,
+55 providers are built in: 52 cloud providers plus your own hardware (openci, OpenSandbox,
 local Docker). Terms were checked on 2026-11-11 or 2026-11-12 against each provider's pricing
 page, which its adapter links. Terms change, so you can override any of them in config.
 
@@ -26,7 +26,9 @@ The 17 added on 2026-11-12 (`tensorlake`, `buddy`, `boxd`, `maritime`, `promigen
 `boxcompute`, `lizard`, `munito`, `nanite`, `render`, `quave`, `beam`, `mosaic`, `nodus`,
 `cathedral`, `dory`) are written from each provider's published API and tested against
 local servers that speak it. None has been run against the real service yet. Nor has
-`opensandbox` (added 2026-11-14), written from OpenSandbox's OpenAPI specs and its JS SDK.
+`opensandbox` (added 2026-11-14), written from OpenSandbox's OpenAPI specs and its JS SDK, nor
+the 6 added on 2026-11-21 (`superserve`, `eqvps`, `solari`, `pilldrops`, `langsmith`, `miosa`),
+written from each provider's published API the same way.
 
 ### Free every month
 
@@ -41,6 +43,9 @@ local servers that speak it. None has been run against the real service yet. Nor
 | `cloudflare` | 375 vCPU-min + 25 GiB-h (≈ $0.68) with Workers Paid ($5/mo) | — | $0.072/vCPU-h (active only) | container |
 | `tensorlake` | one 1 vCPU / 1 GB sandbox, always free | 1 sandbox, 1 h (2 h once verified) | $0.07/vCPU-h + $0.015/GB-h | Firecracker |
 | `buddy` | $1 / month | — | $0.0144/vCPU-h + $0.0144/GB-h | VM |
+| `solari` | $3 / month | 1 sandbox, 1 h | $0.171/h (2 vCPU / 4 GB) | Cloud Hypervisor |
+| `langsmith` | 8 LSU / month ($8, ≈ 42 h) | 10 sandboxes | $0.189/h (2 vCPU / 4 GiB) | Firecracker¶ |
+| `miosa` | $1 / month | 5 sandboxes | $0.0893/h (2 vCPU / 4 GB) | Firecracker |
 
 ### One-time credit
 
@@ -65,6 +70,7 @@ local servers that speak it. None has been run against the real service yet. Nor
 | `boxcompute` | $5, expires after 14 days | 2 running | $0.05/h (0.5 vCPU / 1 GiB) | VM |
 | `lizard` | $5, 7-day trial (card required) | 1 Small running, 1 h | $0.0162/h (2 vCPU / 4 GB) | Firecracker |
 | `munito` | $0.90, 7-day trial (card required) | 2 concurrent, 2 h | $0.018/h (2 vCPU / 4 GiB) | microVM |
+| `pilldrops` | $5 (no card) | 5 concurrent, 4 h, 2 vCPU / 2 GB | $0.13/h (2 vCPU / 2 GB) | container# |
 
 ### Paid only
 
@@ -88,6 +94,8 @@ local servers that speak it. None has been run against the real service yet. Nor
 | `nodus` | $0.0357/h (2 vCPU / 4 GiB) | prepaid; no outbound network unless asked | gVisor-style |
 | `cathedral` | $0.035/h (2 vCPU / 4 GiB) | prepaid; 24 h max; files under /work | confidential VM, shared‖ |
 | `dory` | $0.0288/h (2 shared vCPU / 4 GB) | prepaid; 10 min per command | VM |
+| `superserve` | $0.166/h (2 vCPU / 4 GiB) | a free trial of unpublished size, no card | Firecracker |
+| `eqvps` | $0.132/h (2 vCPU / 4 GB) | prepaid in crypto; 20 at once, 24 h max | Firecracker |
 
 ### Your own hardware
 
@@ -108,6 +116,12 @@ Footnotes:
 - § Promigence doesn't say how its sandboxes are isolated, so a request with `minIsolation` skips it.
 - ‖ Cathedral's rooms share one AMD SEV-SNP VM and are kept apart by a container runtime it
   doesn't name, so the adapter claims `container`, the weakest.
+- ¶ LangSmith documents Firecracker for its self-hosted sandboxes; its cloud pages say only
+  "isolated". An LSU is $1; 8 LSU at 0.0576 LSU/vCPU-h + 0.01845 LSU/GiB-h is about 42 hours.
+- \# PillDrops' pricing page says each sandbox is a dedicated microVM, but its llms.txt says "a
+  microVM (or container)", so the adapter claims `container`, the weaker.
+- Superserve gives new accounts a free trial for their first sandbox without saying how much, so
+  nothing is counted as free; set `freeTier` in config once you know your account's.
 - Runloop is winding down: its docs say transition support ends 2026-11-13. The adapter is
   still here; set `"runloop": { "enabled": false }` once your account stops working.
 - boxd bills in euros; its prices are converted at about 1.10 USD per euro.
@@ -172,6 +186,12 @@ Footnotes:
 | `nodus` | `NODUS_API_KEY`, `NODUS_PROJECT` | REST api.nodus-compute.ai/apis/nodus.dev/v1 |
 | `cathedral` | `CATHEDRAL_API_KEY` | REST cathedral.computer/v1 |
 | `dory` | `DORY_API_KEY` | REST api.dory.run/v1 + data.dory.run |
+| `superserve` | `SUPERSERVE_API_KEY` | REST api.superserve.ai + sandbox.superserve.ai (per-sandbox access token) |
+| `eqvps` | `EQVPS_API_KEY` | REST api.eqvps.com/api/v1/eqvps |
+| `solari` | `SOLARI_API_KEY` | REST api.getsolari.com (exec and signed file URLs; no WebSocket) |
+| `pilldrops` | `PILLDROPS_API_KEY` | REST pilldrops.com/v1 |
+| `langsmith` | `LANGSMITH_API_KEY` (`LANGSMITH_ENDPOINT` for EU, `LANGSMITH_WORKSPACE_ID` for org keys) | REST api.smith.langchain.com/api/v2/sandboxes + each sandbox's data plane |
+| `miosa` | `MIOSA_API_KEY` | REST api.miosa.ai/api/v1 |
 | `openci` | `OPENCI_URL`, `OPENCI_TOKEN` | REST /v1/sandboxes |
 | `opensandbox` | `OPEN_SANDBOX_DOMAIN`, optional `OPEN_SANDBOX_API_KEY` | REST /v1/sandboxes + execd in the sandbox |
 | `docker` | none (`SBR_DOCKER=0` turns it off) | `docker` CLI |
