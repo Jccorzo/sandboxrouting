@@ -109,7 +109,7 @@ export const scenarios: Record<string, (o: ScenarioOptions) => Scenario> = {
 
   tight: (o) => ({
     name: "tight",
-    description: "Small free tiers that run out within days; allowPaid with a $25 monthly budget, enough if spent on the cheapest providers. No Docker.",
+    description: "Small free tiers (Fly's $2.50 a month among them) that run out in one to two weeks at 200 requests a day; allowPaid with a $25 monthly budget, enough if spent on the cheapest providers. No Docker.",
     providers: baseProviders({ ...o, docker: false }),
     config: {
       allowPaid: true,
