@@ -18,7 +18,7 @@ await sbx.kill();
 
 ## Providers
 
-49 providers are built in: 46 cloud providers plus your own hardware (openci, OpenSandbox,
+56 providers are built in: 53 cloud providers plus your own hardware (openci, OpenSandbox,
 local Docker). Terms were checked on 2026-11-11 or 2026-11-12 against each provider's pricing
 page, which its adapter links. Terms change, so you can override any of them in config.
 
@@ -26,7 +26,9 @@ The 17 added on 2026-11-12 (`tensorlake`, `buddy`, `boxd`, `maritime`, `promigen
 `boxcompute`, `lizard`, `munito`, `nanite`, `render`, `quave`, `beam`, `mosaic`, `nodus`,
 `cathedral`, `dory`) are written from each provider's published API and tested against
 local servers that speak it. None has been run against the real service yet. Nor has
-`opensandbox` (added 2026-11-14), written from OpenSandbox's OpenAPI specs and its JS SDK.
+`opensandbox` (added 2026-11-14), written from OpenSandbox's OpenAPI specs and its JS SDK, nor
+the 7 added on 2026-11-21 (`groundbox`, `briq`, `kubi`, `orble`, `runtime`, `digitalocean`,
+`docker-cloud`), written the same way and checked against each provider's pages that day.
 
 ### Free every month
 
@@ -65,6 +67,10 @@ local servers that speak it. None has been run against the real service yet. Nor
 | `boxcompute` | $5, expires after 14 days | 2 running | $0.05/h (0.5 vCPU / 1 GiB) | VM |
 | `lizard` | $5, 7-day trial (card required) | 1 Small running, 1 h | $0.0162/h (2 vCPU / 4 GB) | Firecracker |
 | `munito` | $0.90, 7-day trial (card required) | 2 concurrent, 2 h | $0.018/h (2 vCPU / 4 GiB) | microVM |
+| `groundbox` | $5 (no card; 3,000 CI min a month too)* | 2 concurrent, 2 vCPU / 4 GB, 1 h until a card | $0.04/vCPU-h, memory included | Firecracker |
+| `briq` | €10 (counted as $11.60; no card) | 5 at once, up to medium (2 vCPU / 4 GB) | €0.03/h (2 shared vCPU / 4 GB); free asleep | Firecracker |
+| `runtime` | $5 in a 7-day Pro trial (card required) | 100 vCPUs at once | $0.03/vCPU-h (active only) + $0.008/GB-h; $25/mo plan | Firecracker |
+| `docker-cloud` | $250 promotional credit (card required) | 10 concurrent, 24 h | $0.07/vCPU-h, memory included | microVM |
 
 ### Paid only
 
@@ -88,6 +94,9 @@ local servers that speak it. None has been run against the real service yet. Nor
 | `nodus` | $0.0357/h (2 vCPU / 4 GiB) | prepaid; no outbound network unless asked | gVisor-style |
 | `cathedral` | $0.035/h (2 vCPU / 4 GiB) | prepaid; 24 h max; files under /work | confidential VM, shared‖ |
 | `dory` | $0.0288/h (2 shared vCPU / 4 GB) | prepaid; 10 min per command | VM |
+| `kubi` | $0.035/h (4 vCPU / 8 GB, the only size) | private beta, accounts approved by hand; credit needs a $20/mo persistent screen first | VM |
+| `orble` | $0.015/h (2 vCPU / 4 GiB) | prepaid; 10 min per command; free while suspended | VM |
+| `digitalocean` | $0.044/vCPU-h (active only) + $0.0095/GB-h | prepaid; 4 min per command; files only under /workspace | microVM |
 
 ### Your own hardware
 
@@ -110,7 +119,12 @@ Footnotes:
   doesn't name, so the adapter claims `container`, the weakest.
 - Runloop is winding down: its docs say transition support ends 2026-11-13. The adapter is
   still here; set `"runloop": { "enabled": false }` once your account stops working.
-- boxd bills in euros; its prices are converted at about 1.10 USD per euro.
+- boxd bills in euros; its prices are converted at about 1.10 USD per euro. briq bills in
+  euros too, converted at 1.16 (its own dollar display on 2026-11-20).
+- Groundbox's pricing page says its CI minutes reset each month but not that the $5 does, so
+  the $5 is treated as one-time. Its free credit can be exhausted by CI minutes as well.
+- `runtime` and `digitalocean` bill CPU only while it is busy; the prices above assume it
+  always is, so a mostly idle sandbox costs much less.
 - Zode's docs ($0.0175/h) and homepage ($0.0225/h) disagree on price, and on the free tier
   ($10 once after a card check, vs 50 free hours a month). The higher price and the docs'
   free tier are used.
@@ -172,6 +186,13 @@ Footnotes:
 | `nodus` | `NODUS_API_KEY`, `NODUS_PROJECT` | REST api.nodus-compute.ai/apis/nodus.dev/v1 |
 | `cathedral` | `CATHEDRAL_API_KEY` | REST cathedral.computer/v1 |
 | `dory` | `DORY_API_KEY` | REST api.dory.run/v1 + data.dory.run |
+| `groundbox` | `GROUNDBOX_API_KEY` | REST api.groundbox.dev/v1 |
+| `briq` | `BRIQ_API_KEY` | REST api.briq.cloud/v1 |
+| `kubi` | `KUBI_API_KEY` | REST api.trykubi.com/v1 |
+| `orble` | `ORBLE_API_KEY` | REST orble.tech/v1 |
+| `runtime` | `RUNTIME_API_KEY` | REST api.withruntime.com/v2 |
+| `digitalocean` | `DIGITALOCEAN_TOKEN` | REST api.digitalocean.com/v2/harness-runtime |
+| `docker-cloud` | `DOCKER_ID`, `DOCKER_PAT` (with Cloud Sandboxes access) | REST connect.docker.com/sandboxes/v1 + the sandbox's endpoint |
 | `openci` | `OPENCI_URL`, `OPENCI_TOKEN` | REST /v1/sandboxes |
 | `opensandbox` | `OPEN_SANDBOX_DOMAIN`, optional `OPEN_SANDBOX_API_KEY` | REST /v1/sandboxes + execd in the sandbox |
 | `docker` | none (`SBR_DOCKER=0` turns it off) | `docker` CLI |
