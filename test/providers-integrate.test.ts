@@ -2,6 +2,8 @@
 // written before the field existed, smol's wall-clock base, and one euro rate.
 
 import { describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
+import { builtinProviders } from "../src/providers/index.js";
 import { expectedRatePerSecond, ratePerSecond } from "../src/core/metering.js";
 import { USD_PER_EUR } from "../src/providers/currency.js";
 import { boxdProvider } from "../src/providers/boxd.js";
@@ -41,5 +43,16 @@ describe("one euro rate", () => {
     expect(perHour(ratePerSecond(boxdProvider.info.pricing, 1, 1024))).toBeCloseTo((0.039 + 0.012) * USD_PER_EUR, 9);
     expect(briqProvider.info.freeTier.tier).toEqual({ kind: "one-time-credit", usd: 10 * USD_PER_EUR });
     expect(perHour(ratePerSecond(briqProvider.info.pricing, 2, 4096))).toBeCloseTo(0.03 * USD_PER_EUR, 9);
+  });
+});
+
+describe("the provider count", () => {
+  it("README and package.json say how many are built in", () => {
+    const all = builtinProviders();
+    const own = all.filter((p) => p.info.selfHosted).length;
+    const readme = readFileSync(new URL("../README.md", import.meta.url), "utf8");
+    const pkg = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8")) as { description: string };
+    expect(readme).toContain(`${all.length} providers are built in: ${all.length - own} cloud providers plus your own hardware`);
+    expect(pkg.description).toContain(`One router for ${all.length} sandbox providers`);
   });
 });
