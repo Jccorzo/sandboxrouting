@@ -78,6 +78,12 @@ import { vercelProvider } from "./vercel.js";
 import { zipboxProvider } from "./zipbox.js";
 import { volcengineProvider } from "./volcengine.js";
 import { zodeProvider } from "./zode.js";
+import { agentalProvider } from "./agental.js";
+import { nirvanaProvider } from "./nirvana.js";
+import { rayrunProvider } from "./rayrun.js";
+import { tamaProvider } from "./tama.js";
+import { tangleProvider } from "./tangle.js";
+import { workpaperProvider } from "./workpaper.js";
 
 export function builtinProviders(): ProviderAdapter[] {
   return [
@@ -96,6 +102,7 @@ export function builtinProviders(): ProviderAdapter[] {
     miosaProvider,
     cloudrunProvider,
     azureSandboxesProvider,
+    agentalProvider,
     // One-time credit.
     daytonaProvider,
     blaxelProvider,
@@ -128,6 +135,8 @@ export function builtinProviders(): ProviderAdapter[] {
     zipboxProvider,
     pilldropsProvider,
     railwayProvider,
+    workpaperProvider,
+    rayrunProvider,
     // Paid only.
     koyebProvider,
     flyProvider,
@@ -156,6 +165,9 @@ export function builtinProviders(): ProviderAdapter[] {
     agentbayProvider,
     tencentProvider,
     volcengineProvider,
+    tamaProvider,
+    tangleProvider,
+    nirvanaProvider,
     // Your own hardware.
     openciProvider,
     opensandboxProvider,
@@ -239,4 +251,10 @@ export {
   zipboxProvider,
   volcengineProvider,
   zodeProvider,
+  agentalProvider,
+  nirvanaProvider,
+  rayrunProvider,
+  tamaProvider,
+  tangleProvider,
+  workpaperProvider,
 };

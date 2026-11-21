@@ -18,7 +18,7 @@ await sbx.kill();
 
 ## Providers
 
-75 providers are built in: 72 cloud providers plus your own hardware (openci, OpenSandbox,
+81 providers are built in: 78 cloud providers plus your own hardware (openci, OpenSandbox,
 local Docker). Terms were checked on 2026-11-11 or 2026-11-12 against each provider's pricing
 page, which its adapter links, and those that had changed were updated on 2026-11-21 (each
 adapter's `checked` date says which). Terms change, so you can override any of them in config.
@@ -28,12 +28,14 @@ The 17 added on 2026-11-12 (`tensorlake`, `buddy`, `boxd`, `maritime`, `promigen
 `cathedral`, `dory`) are written from each provider's published API and tested against
 local servers that speak it. None has been run against the real service yet. Nor has
 `opensandbox` (added 2026-11-14), written from OpenSandbox's OpenAPI specs and its JS SDK, nor
-the 26 added on 2026-11-21 (`groundbox`, `briq`, `kubi`, `orble`, `runtime`, `digitalocean`,
+the 32 added on 2026-11-21 (`groundbox`, `briq`, `kubi`, `orble`, `runtime`, `digitalocean`,
 `docker-cloud`, `novita`, `smol`, `isorun`, `instavm`, `prized`, `zipbox`, `superserve`,
 `eqvps`, `solari`, `pilldrops`, `langsmith`, `miosa`, `cloudrun`, `gke-agent-sandbox`,
-`azure-sandboxes`, `agentbay`, `tencent`, `volcengine`, `railway`), written the same way from
-each provider's docs, OpenAPI spec or official SDK and checked against its pages that day.
-`novita`, `tencent` and `volcengine` speak E2B's API and share the `e2b` adapter's code. The
+`azure-sandboxes`, `agentbay`, `tencent`, `volcengine`, `railway`, `workpaper`, `rayrun`,
+`tama`, `tangle`, `nirvana`, `agental`), written the same way from each provider's docs,
+OpenAPI spec or official SDK and checked against its pages that day.
+`novita`, `tencent` and `volcengine` speak E2B's API and share the `e2b` adapter's code;
+`nirvana` serves OpenSandbox's API and shares the `opensandbox` adapter's code. The
 big clouds (`cloudrun`, `gke-agent-sandbox`, `azure-sandboxes`, `agentbay`, `tencent`,
 `volcengine`, `railway`) need some console setup first, described in
 [docs/providers-iam.md](docs/providers-iam.md).
@@ -57,6 +59,7 @@ big clouds (`cloudrun`, `gke-agent-sandbox`, `azure-sandboxes`, `agentbay`, `ten
 | `miosa` | $1 / month | 5 sandboxes | $0.0893/h (2 vCPU / 4 GB) | Firecracker |
 | `cloudrun` | 240k vCPU-s + 450k GiB-s (≈ $5.22; billing account) | Preview; needs the execd image | $0.158/h (2 vCPU / 4 GiB) | gVisor§§ |
 | `azure-sandboxes` | 180k vCPU-s + 360k GiB-s (≈ $5.40)§§ | 2 vCPU / 4 GiB is tier L | $0.216/h (2 vCPU / 4 GiB) | microVM |
+| `agental` | $5 / month (card required) | 2 small at once until the first top-up; tiny and small only | $0.027/h (2 vCPU / 4 GiB) | VM |
 
 ### One-time credit
 
@@ -94,6 +97,8 @@ big clouds (`cloudrun`, `gke-agent-sandbox`, `azure-sandboxes`, `agentbay`, `ten
 | `zipbox` | $25 for a $5 top-up (counted as $20; card required) | 250 box names ever†† | $0.0137/h (2 vCPU / 4 GB) | not published§ |
 | `pilldrops` | $5 (no card) | 5 concurrent, 4 h, 2 vCPU / 2 GB | $0.13/h (2 vCPU / 2 GB) | container# |
 | `railway` | $5, expires after 30 days (no card) | 10 running, 2 vCPU / 2 GB, 5 idle minutes | $0.069/vCPU-h + $0.069/GB-h (active CPU only) | VM |
+| `workpaper` | one free hour (counted as $0.01, no card) | 4 running; India only; no incoming ports | $0.010/h (2 vCPU / 4 GB) on Pro ($15/mo, all credit); $0.033/h pay as you go | VM |
+| `rayrun` | ¥50 (≈ $7.04)‖‖ | — | $0.014/h (2 vCPU / 4 GiB, ¥0.10)‖‖ | microVM |
 
 ### Paid only
 
@@ -124,6 +129,9 @@ big clouds (`cloudrun`, `gke-agent-sandbox`, `azure-sandboxes`, `agentbay`, `ten
 | `agentbay` | $0.0992/h (2 vCPU / 4 GB) | free Basic plan, but compute is billed; 50 s per command | not published§ |
 | `tencent` | $0.13/h (2 vCPU / 4 GiB, 0.94 CNY)‖‖ | size set by a sandbox tool made in the console | microVM (Cube) |
 | `volcengine` | $0.062/h (2 vCPU / 4 GB, 0.44 CNY)‖‖ | size set by an E2B-compatible template; only the creating process reaches a sandbox | microVM |
+| `tama` | $0.0454/h (2 vCPU / 4 GB) | prepaid credit; GPU machines too; gRPC-Web API | VM |
+| `tangle` | $0.049/h (2 vCPU / 4 GB), never below $0.04/h | prepaid credit; size set by the template | container (Docker or Firecracker, its choice) |
+| `nirvana` | $0.048/h (2 vCPU / 4 GB) | you pay for the sandbox cluster's nodes, idle or not; needs a cluster made first | container (on per-customer VM nodes) |
 
 ### Your own hardware
 
@@ -163,7 +171,7 @@ Footnotes:
   after it stops, paused ones included. `gke-agent-sandbox` runs in your own cluster: it's
   priced at GKE Autopilot's pod rate. On a cluster whose nodes you already pay for, set
   `"gke-agent-sandbox": { "pricing": { "vcpuSecondUsd": 0, "gibSecondUsd": 0 } }`.
-- ‖‖ Tencent and Volcengine bill in yuan; their prices are converted at 7.1 CNY per USD.
+- ‖‖ Tencent, Volcengine and Rayrun bill in yuan; their prices are converted at 7.1 CNY per USD.
 - boxd and briq bill in euros. Their prices and free credit are converted at one rate,
   1.099 USD per euro (the ECB reference rate on 2026-11-20), kept in `src/providers/currency.ts`.
 - smol bills CPU and memory as used, plus a $0.04/h wall-clock base. Its vCPUs are priced as
@@ -189,6 +197,7 @@ Footnotes:
 | AWS Nitro Sandboxes | It has no sandbox API. It's an EC2 feature: Firecracker on a Nitro Enclaves parent instance, or `ISOLATED_SANDBOX` tasks in ECS/EKS. The ECS path (`RunTask` plus ECS Exec) could become an adapter, but AWS doesn't say whether ECS Exec works in sandboxed tasks. |
 | OpenAI hosted containers | Checked 2026-11-21. The Containers API creates, lists and deletes containers and moves files, but has no call that runs a command: commands run only when a model issues a shell or code-interpreter call through the Responses API. |
 | Cube | It never had an API (Mac app, web and SSH only), and it is shutting down: new machines blocked since 2026-11-06, all machines deleted 2026-12-20. |
+| Jilebi | Checked 2026-11-21. Machines are made in its web console and reached over SSH and routed subdomains; it publishes no API to create a machine or run a command (its blog lists "programmability" as future work). $0.009/vCPU-h + $0.009/GB-h. |
 | microsandbox cloud | The cloud is a private beta (access on request). Its REST API creates, starts, stops and deletes sandboxes but has no exec or file route: commands ride an undocumented "sandbox command channel" that only the SDK speaks, and the npm SDK is a native binding. Checked 2026-11-21. |
 
 ### Keys and access surfaces
@@ -263,6 +272,12 @@ Footnotes:
 | `railway` | `RAILWAY_TOKEN` (project token), or `RAILWAY_API_TOKEN` + `RAILWAY_ENVIRONMENT_ID` | GraphQL backboard.railway.com/graphql/v2 |
 | `agentbay` | `AGENTBAY_API_KEY` (`AGENTBAY_REGION`, `AGENTBAY_IMAGE_ID` optional) | REST (OpenAPI RPC) agentbay.&lt;region&gt;.aliyuncs.com |
 | `tencent` | `TENCENT_AGS_API_KEY`, `TENCENT_AGS_TOOL` (`TENCENT_AGS_REGION` optional) | SDK `e2b`, at &lt;region&gt;.tencentags.com |
+| `workpaper` | `WORKPAPER_API_KEY` (from `workpaper keys create`) | REST api.workpaper.co/v1/computers |
+| `rayrun` | `RAYRUN_TOKEN` (console API token) | REST api.rayrunos.com/v1 |
+| `tama` | `TAMA_TOKEN` | gRPC-Web gateway.tama.computer (api.v1.ApiService), hand-encoded protobuf |
+| `tangle` | `TANGLE_API_KEY` | REST sandbox.tangle.tools/e2b (its plain-HTTP routes) |
+| `nirvana` | `NIRVANA_API_KEY` (`sandbox` edit permission), `NIRVANA_SANDBOX_CLUSTER_ID` (a `ready` cluster) | REST api.nirvanalabs.io/v1/sandboxes (OpenSandbox) + execd through the cluster's gateway |
+| `agental` | `AGENTAL_API_KEY` | REST agental.io/v1 |
 | `volcengine` | `VOLCENGINE_E2B_API_KEY`, `VOLCENGINE_E2B_TEMPLATE_ID` (`VOLCENGINE_E2B_REGION` optional) | SDK `e2b`, at api.vefaas-e2b.sandbox-&lt;region&gt;.volcapig.com |
 | `openci` | `OPENCI_URL`, `OPENCI_TOKEN` | REST /v1/sandboxes |
 | `opensandbox` | `OPEN_SANDBOX_DOMAIN`, optional `OPEN_SANDBOX_API_KEY` | REST /v1/sandboxes + execd in the sandbox |
@@ -602,6 +617,15 @@ Then add it to [src/providers/index.ts](src/providers/index.ts), or call
   (`--template together=<alias>`) skips that step.
 - **Fly Machines** needs an app you own (`FLY_APP`).
 - **Northflank** needs a project (`NORTHFLANK_PROJECT`).
+- **Nirvana Labs** runs sandboxes on a sandbox cluster you create first (dashboard, or
+  `POST /v1/sandbox_clusters` with an instance type, node count and region). Its nodes are
+  billed by the hour from then on, sandboxes or not. Set `NIRVANA_SANDBOX_CLUSTER_ID` once
+  its status is `ready`.
+- **Workpaper, Rayrun and tama** keep a stopped or idle machine instead of deleting
+  it (Workpaper pauses after an idle hour, Rayrun cold-stops at `max_lifetime_seconds`, tama
+  stops at its idle `ttl`), so they declare `enforcesTimeout: false` too. A new Rayrun sandbox
+  has no network by default: the adapter opens egress, and `options.egress: "closed"` keeps
+  it shut. Its default image is `ubuntu@1` (`options.agent` or a template names another).
 
 ## Checking providers live
 
