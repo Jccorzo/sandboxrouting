@@ -8,7 +8,9 @@ import {
   committed,
   committedSeconds,
   effectiveFreeTier,
+  activeCpuShare,
   effectivePricing,
+  expectedRatePerSecond,
   freeStatus,
   liveCount,
   monthWindow,
@@ -145,12 +147,15 @@ function assess(input: PolicyInput, adapter: ProviderAdapter, budget: Budget | u
 
   const free = freeStatus(info, cfg, data, now, input.reported?.[id]);
   const pricing = effectivePricing(info, cfg);
-  const ratePerSecondUsd = ratePerSecond(pricing, spec.cpu, spec.memoryMiB);
+  // Strategies rank by the expected rate (an active-CPU provider at its expected CPU share);
+  // reservations below hold the most the box can cost, every vCPU busy (docs/routing.md).
+  const ratePerSecondUsd = expectedRatePerSecond(pricing, spec.cpu, spec.memoryMiB, config.routing.activeCpuShare);
+  const maxRatePerSecondUsd = ratePerSecond(pricing, spec.cpu, spec.memoryMiB);
   // What the box will really cost: the provider's own default size where the request left it unset.
   const asked = input.requested;
   const costRate = asked
     ? ratePerSecond(pricing, asked.cpu || pricing.defaultCpu, asked.memoryMiB || pricing.defaultMemoryMiB)
-    : ratePerSecondUsd;
+    : maxRatePerSecondUsd;
   const live = liveCount(data, id, now, isLive);
   const cap = cfg?.concurrency ?? info.freeTier.concurrency;
   const quota = quotaState(data, id, now);
@@ -176,6 +181,9 @@ function assess(input: PolicyInput, adapter: ProviderAdapter, budget: Budget | u
     freeBlocked: freeNo?.reason,
     budgetBlocked: budgetNo?.reason,
     ratePerSecondUsd,
+    maxRatePerSecondUsd,
+    activeCpuShare:
+      pricing.billing === "active-cpu" && pricing.sandboxSecondUsd === undefined ? activeCpuShare(pricing, config.routing.activeCpuShare) : undefined,
     freeCoverage: freeNo === undefined ? headroom(free, committed(info, cfg, data, now).free, costRate, spec.timeoutSec) : 0,
     live,
     cap,

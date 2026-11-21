@@ -30,8 +30,8 @@ export const cloudflareProvider = defineProvider({
       source: "https://developers.cloudflare.com/containers/pricing/",
       checked: "2026-11-11",
     },
-    // CPU is billed only while active; metering wall clock is conservative.
-    pricing: { vcpuSecondUsd: 0.00002, gibSecondUsd: 0.0000025, defaultCpu: 1, defaultMemoryMiB: 4096, source: "https://developers.cloudflare.com/containers/pricing/" },
+    // CPU is billed only while active (ranked at the expected share); memory while it runs.
+    pricing: { vcpuSecondUsd: 0.00002, gibSecondUsd: 0.0000025, defaultCpu: 1, defaultMemoryMiB: 4096, billing: "active-cpu", source: "https://developers.cloudflare.com/containers/pricing/" },
     surfaces: { rest: "your bridge Worker (templates/cloudflare-worker)", sdk: ["@cloudflare/sandbox (npm, inside a Worker)"], cli: "wrangler" },
   },
 

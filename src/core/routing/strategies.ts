@@ -48,7 +48,7 @@ export const cheapest: RoutingStrategy = {
         const billing = billed(c);
         // Every free tier shares one lane so price alone orders them (the old `policy: "cheapest"` lanes).
         const lane: Lane = billing === "self-hosted" ? "self-hosted" : billing === "free" ? "free-one-time" : "paid";
-        return row(c, lane, [-c.ratePerSecondUsd], [lane, perHour(c.ratePerSecondUsd)]);
+        return row(c, lane, [-c.ratePerSecondUsd], [lane, priceText(c)]);
       }),
     );
   },
@@ -77,7 +77,7 @@ export const balanced: RoutingStrategy = {
         const parts = Object.entries(s).map(([k, v]) => `${k} ${v.toFixed(2)}`);
         const why = [lane, `score ${score.toFixed(2)} (${parts.join(", ")})`];
         // Paid: the cheapest first, then the score among equal prices.
-        return lane === "paid" ? row(c, lane, [-c.ratePerSecondUsd, score], [lane, perHour(c.ratePerSecondUsd), why[1]!]) : row(c, lane, [score], why);
+        return lane === "paid" ? row(c, lane, [-c.ratePerSecondUsd, score], [lane, priceText(c), why[1]!]) : row(c, lane, [score], why);
       }),
     );
   },
@@ -118,7 +118,7 @@ export const spread: RoutingStrategy = {
         const lane = lanes[i]!;
         const live = c.cap === undefined ? `${c.live} live` : `${c.live}/${c.cap} live`;
         const keys = [-loadShare(c), -c.recentCreates, values[i]!];
-        if (lane === "paid") return row(c, lane, [-c.ratePerSecondUsd, ...keys], [lane, perHour(c.ratePerSecondUsd), live]);
+        if (lane === "paid") return row(c, lane, [-c.ratePerSecondUsd, ...keys], [lane, priceText(c), live]);
         return row(c, lane, keys, [lane, `${live}, ${c.recentCreates} created in the last hour`]);
       }),
     );
@@ -200,6 +200,7 @@ function toResult(rows: Row[]): StrategyResult {
       billing: lane === "paid" ? "paid" : billed(c),
       free: c.free,
       ratePerSecondUsd: c.ratePerSecondUsd,
+      maxRatePerSecondUsd: c.maxRatePerSecondUsd,
       score: keys[0] ?? 0,
       why: [...why, ...(c.avoided ? ["avoided"] : []), ...(c.preferred ? ["preferred"] : [])],
     })),
@@ -236,8 +237,14 @@ function compareKeys(a: number[], b: number[]): number {
 const pct = (x: number) => `${Math.round(x * 100)}%`;
 const perHour = (rate: number) => `$${(rate * 3600).toFixed(4)}/h`;
 
+/** The price a strategy ranked by: an active-CPU provider's expected one, with the most it can cost. */
+function priceText(c: Candidate): string {
+  if (c.activeCpuShare === undefined) return perHour(c.ratePerSecondUsd);
+  return `~${perHour(c.ratePerSecondUsd)} at ${pct(c.activeCpuShare)} CPU (up to ${perHour(c.maxRatePerSecondUsd)})`;
+}
+
 function usageText(c: Candidate, lane: Lane, now: number): string {
-  if (lane === "paid") return perHour(c.ratePerSecondUsd);
+  if (lane === "paid") return priceText(c);
   if (c.free.state !== "available") return "your hardware";
   const left = `${pct(c.free.fraction)} left`;
   return c.free.resetsAt === undefined ? left : `${left}, resets in ${((c.free.resetsAt - now) / DAY).toFixed(1)} d`;

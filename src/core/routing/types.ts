@@ -51,8 +51,15 @@ export interface Candidate {
   freeBlocked?: string;
   /** Why the month's paid budget can't take it, when paid usage is on but the budget is short. */
   budgetBlocked?: string;
-  /** Price per second at the requested size. */
+  /**
+   * Expected price per second at the requested size, which strategies rank by: for a provider
+   * that bills only active CPU, the vCPU part at `activeCpuShare`; otherwise `maxRatePerSecondUsd`.
+   */
   ratePerSecondUsd: number;
+  /** The most a second can cost at the requested size (every vCPU busy). Reservations hold this. */
+  maxRatePerSecondUsd: number;
+  /** The CPU share `ratePerSecondUsd` assumes, for a provider that bills only active CPU. */
+  activeCpuShare?: number;
   /**
    * Free headroom, 0..1. A free candidate always covers this whole request; this says how many
    * more like it the free usage left could take, out of 10 (1 for unlimited, 0 when not free).
@@ -80,7 +87,10 @@ export interface PlanEntry {
   lane: Lane;
   billing: Billing;
   free: FreeStatus;
+  /** Expected price per second (see Candidate.ratePerSecondUsd). */
   ratePerSecondUsd: number;
+  /** The most a second can cost (every vCPU busy). */
+  maxRatePerSecondUsd: number;
   /** The strategy's within-lane score (higher first). Only comparable inside one plan. */
   score: number;
   /** Why it sits where it does, for `sbr route`, e.g. ["free-recurring", "82% left, resets in 6.0 d"]. */

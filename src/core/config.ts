@@ -31,6 +31,10 @@ const providerConfigSchema = z
         vcpuSecondUsd: z.number().nonnegative().optional(),
         gibSecondUsd: z.number().nonnegative().optional(),
         sandboxSecondUsd: z.number().nonnegative().optional(),
+        /** `active-cpu` when the provider bills only the CPU time used (memory still by wall clock). */
+        billing: z.enum(["wall", "active-cpu"]).optional(),
+        /** Expected busy share of the vCPUs for `active-cpu` billing, 0..1 (default routing.activeCpuShare). */
+        activeCpuShare: z.number().min(0).max(1).optional(),
       })
       .optional(),
     /** Adapter-specific options (e.g. openci `url`, Fly `app`). */
@@ -45,6 +49,11 @@ const routingSchema = z
   .object({
     /** Strategy name: free-first, cheapest, balanced, fastest, spread, or one you registered. */
     strategy: z.string().optional(),
+    /**
+     * Expected busy share of the vCPUs, 0..1, used to rank providers that bill only active CPU
+     * (`pricing.billing: "active-cpu"`). Default 0.3. Reservations still hold wall clock.
+     */
+    activeCpuShare: z.number().min(0).max(1).optional(),
     /** Weights of the `balanced` strategy's within-lane score. */
     weights: z
       .object({

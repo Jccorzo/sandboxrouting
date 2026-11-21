@@ -263,9 +263,16 @@ provider's prices or yours.
 
 Usage outside the router (the provider's console, another tool) isn't seen. For a one-time
 credit you have already spent part of, set `usedBeforeUsd`. If a provider refuses for quota
-anyway, the mark above catches it. Vercel bills CPU only while it is active, so metering it
-by wall clock is conservative: the router stops using Vercel's free tier before Vercel
-would.
+anyway, the mark above catches it.
+
+Some providers bill the vCPUs only while they are busy (`pricing.billing: "active-cpu"`:
+Vercel, Cloudflare, Render, Upstash Box, Fly Sprites, boxd, SuperHQ Nanite, Tensorlake).
+Strategies rank these by the expected cost, with the vCPUs busy `activeCpuShare` of the time
+(default 0.3; set `routing.activeCpuShare` for your workload, or
+`providers.<id>.pricing.activeCpuShare` for one provider), so `cheapest` compares them fairly.
+Reservations and metering still count every vCPU busy, since the router can't see CPU time: a
+busy box can't overrun a free tier or a budget, and the router stops using such a free tier a
+little before the provider would. Details in [docs/routing.md](docs/routing.md#active-cpu-billing).
 
 ## Jobs: work that moves between boxes
 
@@ -392,7 +399,11 @@ Every field is optional. See [sandboxrouting.example.json](sandboxrouting.exampl
 }
 ```
 
-`routing` also takes `weights` for `balanced` and `circuitBreaker` settings. `jobs` takes
+`routing` also takes `weights` for `balanced`, `circuitBreaker` settings, and
+`activeCpuShare`, the expected busy share of the vCPUs used to rank providers that bill only
+active CPU (default 0.3). A provider's `pricing` override takes `vcpuSecondUsd`,
+`gibSecondUsd`, `sandboxSecondUsd`, `billing` (`"wall"` or `"active-cpu"`) and
+`activeCpuShare`. `jobs` takes
 the checkpoint mode, limits and timeouts. Both are documented in
 [docs/routing.md](docs/routing.md#4-configuration-reference). `policy` still works as the
 old name for `routing.strategy`.
@@ -445,6 +456,9 @@ Then add it to [src/providers/index.ts](src/providers/index.ts), or call
   `enforcesTimeout: false` in `info`. The router then deletes it at the deadline.
 - Make `create` throw errors with an HTTP `status`, so quota (402) and rate limits (429)
   fail over correctly.
+- If the provider bills the vCPUs only while they are busy, set `billing: "active-cpu"` in
+  `pricing` (and `activeCpuFloor` if it bills a minimum share), so strategies rank it by its
+  expected cost.
 - Run the tests: `test/providers.test.ts` checks that every built-in declares its
   free-tier source and backs each capability it claims.
 

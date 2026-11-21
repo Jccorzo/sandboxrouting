@@ -63,7 +63,8 @@ export const spritesProvider = defineProvider({
       source: "https://fly.io/docs/about/pricing/",
       checked: "2026-11-11",
     },
-    pricing: { vcpuSecondUsd: 0.0385 / 3600, gibSecondUsd: 0.021875 / 3600, defaultCpu: 1, defaultMemoryMiB: 1024, source: "https://fly.io/docs/about/pricing/" },
+    // CPU time billed as used; idle Sprites cost nothing.
+    pricing: { vcpuSecondUsd: 0.0385 / 3600, gibSecondUsd: 0.021875 / 3600, defaultCpu: 1, defaultMemoryMiB: 1024, billing: "active-cpu", source: "https://fly.io/docs/about/pricing/" },
     surfaces: { rest: "https://api.sprites.dev/v1", sdk: ["@fly/sprites (npm, Node 24+)", "sprites-py"], cli: "sprite" },
   },
 

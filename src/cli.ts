@@ -221,7 +221,9 @@ async function main(router: SandboxRouter): Promise<number> {
       if (values.json) return out(p), 0;
       out(`strategy: ${p.strategy}`);
       p.ordered.forEach((e, i) => {
-        out(`${i + 1}. ${e.provider}  [${e.lane}]  ${freeText(e.free)}  ~$${(e.ratePerSecondUsd * 3600).toFixed(4)}/h`);
+        // An active-CPU provider's expected price, and the most it can cost when every vCPU is busy.
+        const most = e.maxRatePerSecondUsd > e.ratePerSecondUsd ? ` (up to $${(e.maxRatePerSecondUsd * 3600).toFixed(4)}/h)` : "";
+        out(`${i + 1}. ${e.provider}  [${e.lane}]  ${freeText(e.free)}  ~$${(e.ratePerSecondUsd * 3600).toFixed(4)}/h${most}`);
         // The lane is already in brackets; the rest is the strategy's own reasoning.
         const why = (e.why ?? []).filter((w) => w !== e.lane);
         if (why.length) out(`   ${why.join(" · ")}`);

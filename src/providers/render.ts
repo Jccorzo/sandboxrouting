@@ -53,7 +53,7 @@ export const renderProvider = defineProvider({
       checked: "2026-11-12",
     },
     // $0.12 per active CPU-hour plus $0.019 per provisioned GB-hour.
-    pricing: { vcpuSecondUsd: 0.12 / 3600, gibSecondUsd: 0.019 / 3600, defaultCpu: 1, defaultMemoryMiB: 2048, source: "https://render.com/pricing" },
+    pricing: { vcpuSecondUsd: 0.12 / 3600, gibSecondUsd: 0.019 / 3600, defaultCpu: 1, defaultMemoryMiB: 2048, billing: "active-cpu", source: "https://render.com/pricing" },
     surfaces: { rest: "https://api.render.com/v1", sdk: ["@renderinc/sdk (npm)", "render (PyPI)"], cli: "render sandboxes" },
   },
 

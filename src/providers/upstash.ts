@@ -45,7 +45,7 @@ export const upstashProvider = defineProvider({
       checked: "2026-11-11",
     },
     // $0.10 per active CPU-hour for a Small box (2 vCPU / 4 GB); memory is free.
-    pricing: { vcpuSecondUsd: 0.05 / 3600, gibSecondUsd: 0, defaultCpu: 2, defaultMemoryMiB: 4096, source: "https://upstash.com/docs/box/overall/pricing" },
+    pricing: { vcpuSecondUsd: 0.05 / 3600, gibSecondUsd: 0, defaultCpu: 2, defaultMemoryMiB: 4096, billing: "active-cpu", source: "https://upstash.com/docs/box/overall/pricing" },
     surfaces: { rest: "https://us-east-1.box.upstash.com", sdk: ["@upstash/box (npm)", "upstash-box (PyPI)"], cli: "@upstash/box-cli" },
   },
 

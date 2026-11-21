@@ -55,6 +55,7 @@ export const vercelProvider = defineProvider({
       gibSecondUsd: 0.0212 / 3600,
       defaultCpu: 2,
       defaultMemoryMiB: 4096, // 2 GB per vCPU
+      billing: "active-cpu", // Active CPU only; provisioned memory for every second
       source: "https://vercel.com/docs/sandbox/pricing",
     },
     surfaces: { rest: "https://api.vercel.com (/v2/sandboxes)", sdk: ["@vercel/sandbox (npm)", "vercel (PyPI)"], cli: "sandbox" },

@@ -43,7 +43,16 @@ export const tensorlakeProvider = defineProvider({
       source: "https://www.tensorlake.ai/pricing",
       checked: "2026-11-12",
     },
-    pricing: { vcpuSecondUsd: 0.07 / 3600, gibSecondUsd: 0.015 / 3600, defaultCpu: 1, defaultMemoryMiB: 1024, source: "https://docs.tensorlake.ai/platform/billing.md" },
+    // "CPU is billed on active execution, with a minimum of 20% of allocated vCPU" (pricing page).
+    pricing: {
+      vcpuSecondUsd: 0.07 / 3600,
+      gibSecondUsd: 0.015 / 3600,
+      defaultCpu: 1,
+      defaultMemoryMiB: 1024,
+      billing: "active-cpu",
+      activeCpuFloor: 0.2,
+      source: "https://docs.tensorlake.ai/platform/billing.md",
+    },
     surfaces: { rest: "https://api.tensorlake.ai", sdk: ["@tensorlakeai/tensorlake (npm)", "tensorlake (PyPI)"], cli: "tl sbx" },
   },
 

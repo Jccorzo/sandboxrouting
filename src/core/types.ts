@@ -116,6 +116,22 @@ export interface Pricing {
   /** Size used when the spec leaves cpu/memory unset. */
   defaultCpu: number;
   defaultMemoryMiB: number;
+  /**
+   * How the vCPU price is billed. `wall` (the default): every second the sandbox runs.
+   * `active-cpu`: only the CPU time the sandbox actually uses (Vercel, Cloudflare, Render, ...),
+   * while memory is still billed for every second it runs. Strategies rank an `active-cpu`
+   * provider by its expected cost at `activeCpuShare`; free-tier reservations, the paid budget
+   * and the ledger's metering still count wall clock, since the router can't see CPU time.
+   * Ignored with `sandboxSecondUsd`. See docs/routing.md "Active-CPU billing".
+   */
+  billing?: "wall" | "active-cpu";
+  /**
+   * Expected share of the vCPUs' time a sandbox keeps busy, 0..1, for `active-cpu` billing.
+   * Default `routing.activeCpuShare`, else DEFAULT_ACTIVE_CPU_SHARE (0.3).
+   */
+  activeCpuShare?: number;
+  /** Share of the vCPUs an `active-cpu` provider bills however idle the box is (Tensorlake: 0.2). */
+  activeCpuFloor?: number;
   source?: string;
 }
 

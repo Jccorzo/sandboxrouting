@@ -31,8 +31,9 @@ export const naniteProvider = defineProvider({
       source: "https://nanite.run/docs/billing.md",
       checked: "2026-11-12",
     },
-    // Billed on CPU time and memory in use, so this is the ceiling for a busy 4 vCPU / 8 GiB box.
-    pricing: { vcpuSecondUsd: 0.072 / 3600, gibSecondUsd: 0.0432 / 3600, defaultCpu: 4, defaultMemoryMiB: 8192, source: "https://nanite.run/docs/billing.md" },
+    // Billed on CPU time and memory in use: ranked at the expected CPU share; memory, the
+    // reservation and metering at the ceiling for a busy 4 vCPU / 8 GiB box.
+    pricing: { vcpuSecondUsd: 0.072 / 3600, gibSecondUsd: 0.0432 / 3600, defaultCpu: 4, defaultMemoryMiB: 8192, billing: "active-cpu", source: "https://nanite.run/docs/billing.md" },
     surfaces: { rest: "https://api.nanite.run/v1" },
   },
 

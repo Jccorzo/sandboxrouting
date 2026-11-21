@@ -53,8 +53,9 @@ export const boxdProvider = defineProvider({
       source: "https://boxd.sh/pricing",
       checked: "2026-11-12",
     },
-    // The ceiling for a machine that is busy with all its memory in use.
-    pricing: { vcpuSecondUsd: (0.039 * EUR_USD) / 3600, gibSecondUsd: (0.012 * EUR_USD) / 3600, defaultCpu: 1, defaultMemoryMiB: 4096, source: "https://boxd.sh/pricing" },
+    // Billed while in use: ranked at the expected CPU share; memory, the reservation and
+    // metering at the ceiling for a machine that is busy with all its memory in use.
+    pricing: { vcpuSecondUsd: (0.039 * EUR_USD) / 3600, gibSecondUsd: (0.012 * EUR_USD) / 3600, defaultCpu: 1, defaultMemoryMiB: 4096, billing: "active-cpu", source: "https://boxd.sh/pricing" },
     surfaces: { rest: "gRPC boxd.sh:9443 (no REST)", sdk: ["@boxd-sh/sdk (npm)", "boxd (PyPI)"], cli: "boxd" },
   },
 

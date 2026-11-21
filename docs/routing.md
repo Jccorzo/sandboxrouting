@@ -64,6 +64,39 @@ When a reservation is re-checked under the ledger lock, the billing must still b
 as planned. A request planned as free never silently becomes paid because a parallel request
 took the last free slot or the last of the credit. It moves to the next candidate instead.
 
+### Active-CPU billing
+
+Some providers bill the vCPUs only while they are busy and memory for every second the box
+runs (Vercel, Cloudflare, Render, Upstash Box, Fly Sprites, boxd, SuperHQ Nanite; Tensorlake
+with a 20% floor). Their adapters set `pricing.billing: "active-cpu"`. Priced by wall clock,
+they would look up to three times dearer than they are, and `cheapest` would never pick them.
+
+The router can't see a sandbox's CPU time, so it keeps two rates:
+
+- **Ranking** uses the *expected* rate: the vCPU part times `activeCpuShare`, plus memory for
+  every second. This is `ratePerSecondUsd` on candidates and plan entries, the price `cheapest`
+  orders by, and the price in every paid lane. `sbr route` shows it as
+  `~$0.1616/h at 30% CPU (up to $0.3408/h)`.
+- **Reservations and metering** use the *most* a second can cost, every vCPU busy
+  (`maxRatePerSecondUsd`): what a free credit or the paid budget holds for a live box, what
+  `freeStatus` counts as spent, and `costUsd`. A busy box can't overrun a free tier or a
+  budget, because the hold already assumed it would be busy.
+
+The price of that choice: a free credit on an active-CPU provider is counted as spent faster
+than the provider counts it, so the router stops a little early and leaves some of it unused.
+Metering by the expected share instead would let a CPU-bound workload run past the tier and be
+billed, which breaks the guarantee above. Where the adapter reads the provider's own usage,
+that number still caps what the ledger says is left.
+
+`activeCpuShare` defaults to 0.3. Vercel's own Sandbox cost examples assume 10% (an agent
+waiting on model calls); builds and test runs keep CPUs busier, and Tensorlake bills at least
+20% however idle the box is. 0.3 sits above both. Set it for your workload: `routing.activeCpuShare`
+for every active-CPU provider, `providers.<id>.pricing.activeCpuShare` for one, and
+`providers.<id>.pricing.billing` to turn the billing on or off for one. A provider that bills
+a minimum share however idle the box is sets `pricing.activeCpuFloor` (Tensorlake: 0.2), and
+the expected share never goes under it. A flat per-size rate (`sandboxSecondUsd`) is never
+scaled.
+
 ### Signals strategies rank by
 
 Every surviving provider becomes a `Candidate` carrying these facts, computed once:
@@ -73,7 +106,8 @@ Every surviving provider becomes a `Candidate` carrying these facts, computed on
 | `free` | Free status: remaining credit or hours, share left, reset time |
 | `freeUsable`, `paidAllowed` | Whether free usage, or paid usage, can take this whole request after what live sandboxes hold |
 | `freeCoverage` | Free headroom: how many more requests like this one the free usage left could take, out of 10 (0..1) |
-| `ratePerSecondUsd` | Price at the requested size |
+| `ratePerSecondUsd` | Expected price at the requested size; an active-CPU provider's vCPUs at `activeCpuShare` (see Active-CPU billing) |
+| `maxRatePerSecondUsd` | The most it can cost at that size, every vCPU busy; what reservations hold |
 | `health.successRate` | Time-decayed share of recent creates that worked (prior 0.9 with no data) |
 | `health.createP50Ms` | Median create latency, from history |
 | `live`, `cap` | Live sandboxes and the free concurrency cap |
@@ -154,6 +188,7 @@ design, so `balanced` keeps the free-first lanes.
 {
   "routing": {
     "strategy": "balanced",
+    "activeCpuShare": 0.3,
     "weights": { "freeValue": 1, "health": 1, "speed": 0.5, "coverage": 0.5, "load": 0.25 },
     "circuitBreaker": { "failures": 3, "cooldownSec": 120, "maxCooldownSec": 1800 }
   }
@@ -355,7 +390,8 @@ the defaults a step's memory doubles at most twice.
     "strategy": "free-first",        // free-first | cheapest | balanced | fastest | spread | yours
     "weights": { "freeValue": 1, "health": 1, "speed": 0.5, "coverage": 0.5, "load": 0.25 },
     "circuitBreaker": { "failures": 3, "cooldownSec": 120, "maxCooldownSec": 1800 },
-    "healthSamples": 50
+    "healthSamples": 50,
+    "activeCpuShare": 0.3            // expected busy share of vCPUs, for active-CPU billing
   },
   "jobs": {
     "checkpoint": "every-step",      // or "on-migrate"
@@ -370,6 +406,9 @@ the defaults a step's memory doubles at most twice.
     "maxMemoryMiB": 16384,
     "maxCheckpointBytes": 268435456
   },
-  "providers": { "docker": { "isolation": "gvisor" } }   // e.g. when Docker runs runsc
+  "providers": {
+    "docker": { "isolation": "gvisor" },                  // e.g. when Docker runs runsc
+    "vercel": { "pricing": { "activeCpuShare": 0.1 } }   // or "billing": "wall" to rank by wall clock
+  }
 }
 ```

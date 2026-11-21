@@ -41,9 +41,41 @@ export function billableSeconds(rec: SandboxRecord, window: Window, now: number)
   return total;
 }
 
+/**
+ * The most a second of a sandbox can cost: every vCPU busy the whole time. This is what the
+ * ledger meters, free tiers and the paid budget reserve, and `costUsd` reports, whatever the
+ * provider's billing: the router can't see CPU time, so it never counts less than the most.
+ */
 export function ratePerSecond(pricing: Pricing, cpu: number, memoryMiB: number): number {
   if (pricing.sandboxSecondUsd !== undefined) return pricing.sandboxSecondUsd;
   return cpu * pricing.vcpuSecondUsd + (memoryMiB / 1024) * pricing.gibSecondUsd;
+}
+
+/**
+ * Share of the vCPUs' time a sandbox is expected to keep busy, when nothing says otherwise.
+ * Vercel's own Sandbox cost examples assume 10% (an agent waiting on model calls); builds and
+ * test runs keep CPUs busier, and Tensorlake bills at least 20% however idle a box is. 0.3 sits
+ * above both, so an active-CPU provider isn't ranked as cheap as an idle agent box would make it
+ * for a job that compiles. Set `routing.activeCpuShare` for your workload.
+ */
+export const DEFAULT_ACTIVE_CPU_SHARE = 0.3;
+
+/**
+ * The CPU share an `active-cpu` provider is ranked at: its pricing's own, else the routing
+ * default, but never under the share the provider bills however idle the box is.
+ */
+export function activeCpuShare(pricing: Pricing, routingDefault = DEFAULT_ACTIVE_CPU_SHARE): number {
+  return Math.min(1, Math.max(pricing.activeCpuFloor ?? 0, pricing.activeCpuShare ?? routingDefault));
+}
+
+/**
+ * What a second is expected to cost, which strategies rank by. For an `active-cpu` provider the
+ * vCPU part is scaled by the expected CPU share and memory is still billed for every second; for
+ * the rest, and for a flat per-size rate, it is `ratePerSecond`.
+ */
+export function expectedRatePerSecond(pricing: Pricing, cpu: number, memoryMiB: number, routingDefault = DEFAULT_ACTIVE_CPU_SHARE): number {
+  if (pricing.sandboxSecondUsd !== undefined || pricing.billing !== "active-cpu") return ratePerSecond(pricing, cpu, memoryMiB);
+  return cpu * pricing.vcpuSecondUsd * activeCpuShare(pricing, routingDefault) + (memoryMiB / 1024) * pricing.gibSecondUsd;
 }
 
 export function effectivePricing(info: ProviderInfo, cfg?: ProviderConfig): Pricing {
