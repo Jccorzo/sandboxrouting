@@ -113,6 +113,8 @@ function assess(input: PolicyInput, adapter: ProviderAdapter, budget: Budget | u
   if (!isConfigured(adapter, input.ctxFor(adapter))) return { reason: `not configured (set ${info.env.join(", ")})` };
   const missing = (spec.needs ?? []).filter((c) => !info.capabilities.includes(c));
   if (missing.length) return { reason: `lacks ${missing.join(", ")}` };
+  const os = info.os ?? "linux";
+  if ((spec.os ?? "linux") !== os) return { reason: `runs ${os}, not ${spec.os ?? "linux"}` };
   if (spec.image && !spec.template?.[id] && !info.capabilities.includes("customImage")) {
     return { reason: "cannot run an arbitrary image (give a template for it instead)" };
   }

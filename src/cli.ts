@@ -11,7 +11,7 @@ import type { JobManagerApi, JobRunOptions, JobSpec, JobView, RunnerEvent, StepS
 import type { FreeStatus } from "./core/metering.js";
 import type { Plan } from "./core/policy.js";
 import type { ProviderHealth } from "./core/routing/types.js";
-import type { Capability, Isolation, SandboxSpec } from "./core/types.js";
+import type { Capability, Isolation, SandboxOS, SandboxSpec } from "./core/types.js";
 
 const HELP = `sbr: one router for every sandbox provider, free tiers first
 
@@ -58,6 +58,7 @@ Spec flags:
   --strategy <name> how to rank providers (see sbr strategies)
   --min-isolation <level>  container|gvisor|microvm|vm; weaker or unknown is skipped
   --exec-timeout <sec>     longest single command; providers that cut off sooner are skipped
+  --os <os>                linux (default) or macos; providers running another OS are skipped
   --json            machine-readable output (job run: the final job, with step output on stderr)
 
 Job flags (spec flags choose the job's boxes):
@@ -93,6 +94,7 @@ const { values, positionals } = parseArgs({
     strategy: { type: "string" },
     "min-isolation": { type: "string" },
     "exec-timeout": { type: "string" },
+    os: { type: "string" },
     compare: { type: "boolean" },
     workdir: { type: "string" },
     step: { type: "string", multiple: true },
@@ -136,6 +138,8 @@ function spec(): SandboxSpec {
     // The router refuses a level it doesn't know.
     minIsolation: values["min-isolation"] as Isolation | undefined,
     execTimeoutSec: values["exec-timeout"] ? Number(values["exec-timeout"]) : undefined,
+    // The router refuses an OS it doesn't know.
+    os: values.os as SandboxOS | undefined,
   };
 }
 

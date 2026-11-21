@@ -105,6 +105,12 @@ import { rayrunProvider } from "./rayrun.js";
 import { tamaProvider } from "./tama.js";
 import { tangleProvider } from "./tangle.js";
 import { workpaperProvider } from "./workpaper.js";
+import { cyqleProvider } from "./cyqle.js";
+import { hyperbrowserProvider } from "./hyperbrowser.js";
+import { isloProvider } from "./islo.js";
+import { lightconeProvider } from "./lightcone.js";
+import { machine0Provider } from "./machine0.js";
+import { offstageProvider } from "./offstage.js";
 
 export function builtinProviders(): ProviderAdapter[] {
   return [
@@ -125,6 +131,8 @@ export function builtinProviders(): ProviderAdapter[] {
     azureSandboxesProvider,
     archilProvider,
     agentalProvider,
+    cyqleProvider,
+    isloProvider,
     // One-time credit.
     daytonaProvider,
     blaxelProvider,
@@ -165,6 +173,8 @@ export function builtinProviders(): ProviderAdapter[] {
     voidrunProvider,
     workpaperProvider,
     rayrunProvider,
+    hyperbrowserProvider,
+    offstageProvider,
     // Paid only.
     koyebProvider,
     flyProvider,
@@ -210,6 +220,8 @@ export function builtinProviders(): ProviderAdapter[] {
     tamaProvider,
     tangleProvider,
     nirvanaProvider,
+    machine0Provider,
+    lightconeProvider,
     // Your own hardware.
     openciProvider,
     opensandboxProvider,
@@ -320,4 +332,10 @@ export {
   tamaProvider,
   tangleProvider,
   workpaperProvider,
+  cyqleProvider,
+  hyperbrowserProvider,
+  isloProvider,
+  lightconeProvider,
+  machine0Provider,
+  offstageProvider,
 };

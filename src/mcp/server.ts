@@ -44,6 +44,7 @@ const sandboxSpec = {
   prefer: z.array(z.string()).optional().describe("Provider ids to rank first within their lane"),
   avoid: z.array(z.string()).optional().describe("Provider ids to rank last within their lane"),
   execTimeoutSec: z.number().positive().optional().describe("Longest single command, in seconds; providers that cut commands off sooner are skipped"),
+  os: z.enum(["linux", "macos"]).optional().describe("Operating system (default linux); providers running another OS are skipped"),
 };
 
 // Only the shape here: the rules (non-empty commands, positive timeouts…) are checkJobSpec's, run by the job manager.

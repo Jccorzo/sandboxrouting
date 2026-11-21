@@ -40,7 +40,16 @@ export interface SandboxSpec {
    * (`info.maxExecSec`, e.g. exe.dev's 30 s) are skipped.
    */
   execTimeoutSec?: number;
+  /**
+   * Operating system the sandbox must run. Default `linux`: only providers whose `info.os`
+   * matches are eligible, so a request that doesn't ask for macOS never lands on a Mac.
+   */
+  os?: SandboxOS;
 }
+
+/** Operating systems a provider can run. Providers are `linux` unless their info says otherwise. */
+export type SandboxOS = "linux" | "macos";
+export const SANDBOX_OS: readonly SandboxOS[] = ["linux", "macos"];
 
 /**
  * How sandboxes are isolated from each other and from the host, weakest first:
@@ -161,6 +170,8 @@ export interface ProviderInfo {
   isolation?: Isolation;
   /** Longest a single exec call may run before the provider cuts it off, in seconds. */
   maxExecSec?: number;
+  /** The operating system its sandboxes run. Default `linux`. */
+  os?: SandboxOS;
 }
 
 /** Usage the provider itself reports, when it has an API for it. */

@@ -29,7 +29,7 @@ A provider that fails any of these is skipped, with the reason recorded in `plan
 | 2 | Not in the request's `providers`, or in `exclude` | request |
 | 3 | Self-hosted when `selfHosted: "never"` | config |
 | 4 | Keys missing | `info.env`, `isConfigured` |
-| 5 | Lacks a capability in `needs` | `info.capabilities` |
+| 5 | Lacks a capability in `needs`, or runs another OS than `os` (default `linux`) | `info.capabilities`, `info.os` |
 | 6 | Can't run the `image` (no `customImage`, no native template) | request + info |
 | 7 | `timeoutSec` over the provider's maximum | `info.maxTimeoutSec` |
 | 8 | Longest command (`execTimeoutSec`) over the provider's per-command cap | `info.maxExecSec` (exe.dev: 30 s) |
