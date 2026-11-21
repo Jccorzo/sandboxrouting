@@ -18,7 +18,7 @@ await sbx.kill();
 
 ## Providers
 
-49 providers are built in: 46 cloud providers plus your own hardware (openci, OpenSandbox,
+52 providers are built in: 49 cloud providers plus your own hardware (openci, OpenSandbox,
 local Docker). Terms were checked on 2026-11-11 or 2026-11-12 against each provider's pricing
 page, which its adapter links. Terms change, so you can override any of them in config.
 
@@ -26,7 +26,11 @@ The 17 added on 2026-11-12 (`tensorlake`, `buddy`, `boxd`, `maritime`, `promigen
 `boxcompute`, `lizard`, `munito`, `nanite`, `render`, `quave`, `beam`, `mosaic`, `nodus`,
 `cathedral`, `dory`) are written from each provider's published API and tested against
 local servers that speak it. None has been run against the real service yet. Nor has
-`opensandbox` (added 2026-11-14), written from OpenSandbox's OpenAPI specs and its JS SDK.
+`opensandbox` (added 2026-11-14), written from OpenSandbox's OpenAPI specs and its JS SDK, nor
+`cloudrun`, `gke-agent-sandbox` and `azure-sessions` (added 2026-11-21), written from Google's
+Cloud Run Admin API discovery document and sandbox CLI reference, agent-sandbox's specs and
+TypeScript client, and the ACA Sandboxes REST spec and `@azure/containerapps-sandbox`. Their
+IAM setup is in [docs/providers-iam.md](docs/providers-iam.md).
 
 ### Free every month
 
@@ -41,6 +45,8 @@ local servers that speak it. None has been run against the real service yet. Nor
 | `cloudflare` | 375 vCPU-min + 25 GiB-h (≈ $0.68) with Workers Paid ($5/mo) | — | $0.072/vCPU-h (active only) | container |
 | `tensorlake` | one 1 vCPU / 1 GB sandbox, always free | 1 sandbox, 1 h (2 h once verified) | $0.07/vCPU-h + $0.015/GB-h | Firecracker |
 | `buddy` | $1 / month | — | $0.0144/vCPU-h + $0.0144/GB-h | VM |
+| `cloudrun` | 240k vCPU-s + 450k GiB-s (≈ $5.22; billing account) | Preview; needs the execd image | $0.158/h (2 vCPU / 4 GiB) | gVisor¶ |
+| `azure-sessions` | 180k vCPU-s + 360k GiB-s (≈ $5.40)¶ | 2 vCPU / 4 GiB is tier L | $0.216/h (2 vCPU / 4 GiB) | microVM |
 
 ### One-time credit
 
@@ -88,6 +94,7 @@ local servers that speak it. None has been run against the real service yet. Nor
 | `nodus` | $0.0357/h (2 vCPU / 4 GiB) | prepaid; no outbound network unless asked | gVisor-style |
 | `cathedral` | $0.035/h (2 vCPU / 4 GiB) | prepaid; 24 h max; files under /work | confidential VM, shared‖ |
 | `dory` | $0.0288/h (2 shared vCPU / 4 GB) | prepaid; 10 min per command | VM |
+| `gke-agent-sandbox` | $0.109/h (2 vCPU / 4 GiB, Autopilot pod rate) | your cluster with agent-sandbox, a warm pool and the sandbox-router¶ | container (the warm pool's runtime) |
 
 ### Your own hardware
 
@@ -111,6 +118,14 @@ Footnotes:
 - Runloop is winding down: its docs say transition support ends 2026-11-13. The adapter is
   still here; set `"runloop": { "enabled": false }` once your account stops working.
 - boxd bills in euros; its prices are converted at about 1.10 USD per euro.
+- ¶ Cloud Run sandboxes start only from inside a Cloud Run container, so each router sandbox is
+  one Cloud Run instance (Preview) running [templates/cloud-run-sandbox](templates/cloud-run-sandbox),
+  which runs commands in a sandbox with `sandbox exec`. Cloud Run claims gVisor, the weaker of
+  its two generations. Azure says Container Apps Sandboxes bill like the Consumption plan but lists no
+  sandbox meter, so its Consumption rates and free grant are used; Azure deletes a sandbox a day
+  after it stops, paused ones included. `gke-agent-sandbox` runs in your own cluster: it's
+  priced at GKE Autopilot's pod rate. On a cluster whose nodes you already pay for, set
+  `"gke-agent-sandbox": { "pricing": { "vcpuSecondUsd": 0, "gibSecondUsd": 0 } }`.
 - Zode's docs ($0.0175/h) and homepage ($0.0225/h) disagree on price, and on the free tier
   ($10 once after a card check, vs 50 free hours a month). The higher price and the docs'
   free tier are used.
@@ -120,6 +135,7 @@ Footnotes:
 | Provider | Why |
 |---|---|
 | AWS Nitro Sandboxes | It has no sandbox API. It's an EC2 feature: Firecracker on a Nitro Enclaves parent instance, or `ISOLATED_SANDBOX` tasks in ECS/EKS. The ECS path (`RunTask` plus ECS Exec) could become an adapter, but AWS doesn't say whether ECS Exec works in sandboxed tasks. |
+| OpenAI hosted containers | Checked 2026-11-21. The Containers API creates, lists and deletes containers and moves files, but has no call that runs a command: commands run only when a model issues a shell or code-interpreter call through the Responses API. |
 | Cube | It never had an API (Mac app, web and SSH only), and it is shutting down: new machines blocked since 2026-11-06, all machines deleted 2026-12-20. |
 
 ### Keys and access surfaces
@@ -174,6 +190,9 @@ Footnotes:
 | `dory` | `DORY_API_KEY` | REST api.dory.run/v1 + data.dory.run |
 | `openci` | `OPENCI_URL`, `OPENCI_TOKEN` | REST /v1/sandboxes |
 | `opensandbox` | `OPEN_SANDBOX_DOMAIN`, optional `OPEN_SANDBOX_API_KEY` | REST /v1/sandboxes + execd in the sandbox |
+| `cloudrun` | `GOOGLE_CLOUD_PROJECT`, `CLOUD_RUN_REGION`, `CLOUD_RUN_SANDBOX_IMAGE` + `GOOGLE_OAUTH_ACCESS_TOKEN` or `GOOGLE_APPLICATION_CREDENTIALS(_JSON)` | REST run.googleapis.com/v2 (instances), plus execd (templates/cloud-run-sandbox) |
+| `gke-agent-sandbox` | `AGENT_SANDBOX_K8S_API`, `AGENT_SANDBOX_ROUTER_URL`, `AGENT_SANDBOX_WARM_POOL` + `AGENT_SANDBOX_K8S_TOKEN` or Google credentials | Kubernetes API (SandboxClaim) + sandbox-router (gRPC-Web, REST) |
+| `azure-sessions` | `AZURE_SUBSCRIPTION_ID`, `AZURE_RESOURCE_GROUP`, `AZURE_SANDBOX_GROUP`, `AZURE_REGION` + `AZURE_ACCESS_TOKEN` or `AZURE_TENANT_ID`/`AZURE_CLIENT_ID`/`AZURE_CLIENT_SECRET` | REST management.{region}.azuredevcompute.io |
 | `docker` | none (`SBR_DOCKER=0` turns it off) | `docker` CLI |
 
 Provider SDKs are optional peer dependencies, loaded only when that provider is used:
@@ -470,6 +489,16 @@ Then add it to [src/providers/index.ts](src/providers/index.ts), or call
   [templates/aws-lambda-microvm](templates/aws-lambda-microvm): its dependency-free
   `execd.mjs` runs commands and moves files behind the VM's endpoint. Then set
   `LAMBDA_MICROVM_IMAGE` to the image ARN.
+- **Google Cloud Run sandboxes** have no API of their own. Build the image in
+  [templates/cloud-run-sandbox](templates/cloud-run-sandbox) and set `CLOUD_RUN_SANDBOX_IMAGE`;
+  the region must offer Cloud Run instances (not `us-central1`, `us-east1` or `europe-west1`).
+- **GKE Agent Sandbox** needs [agent-sandbox](https://github.com/kubernetes-sigs/agent-sandbox)
+  installed with its extensions, a `SandboxWarmPool` whose pods run sandboxd, and the
+  sandbox-router exposed outside the cluster. A cluster CA that Node doesn't trust goes in
+  `NODE_EXTRA_CA_CERTS`.
+- **Azure Container Apps Sandboxes** need a sandbox group (`Microsoft.App/sandboxGroups`).
+  The default image is the public `ubuntu` disk image; `options.image` names another public
+  one, and a template (`--template azure-sessions=<disk image id>`) uses your own.
 - **Thunder Compute** runs commands over SSH only. The adapter generates a throwaway key,
   gets a certificate from the API, and uses the system `ssh` and `ssh-keygen`. Sandbox
   access is enabled through Thunder's sales team.

@@ -4,6 +4,7 @@
 
 import type { ProviderAdapter } from "../core/types.js";
 import { agent37Provider } from "./agent37.js";
+import { azureSessionsProvider } from "./azure-sessions.js";
 import { beamProvider } from "./beam.js";
 import { blaxelProvider } from "./blaxel.js";
 import { boatProvider } from "./boat.js";
@@ -14,6 +15,7 @@ import { buddyProvider } from "./buddy.js";
 import { cathedralProvider } from "./cathedral.js";
 import { celestoProvider } from "./celesto.js";
 import { cloudflareProvider } from "./cloudflare.js";
+import { cloudrunProvider } from "./cloudrun.js";
 import { createosProvider } from "./createos.js";
 import { daytonaProvider } from "./daytona.js";
 import { dedalusProvider } from "./dedalus.js";
@@ -24,6 +26,7 @@ import { e2bProvider } from "./e2b.js";
 import { exedevProvider } from "./exedev.js";
 import { flyProvider } from "./fly.js";
 import { freestyleProvider } from "./freestyle.js";
+import { gkeAgentSandboxProvider } from "./gke-agent-sandbox.js";
 import { instaboxProvider } from "./instabox.js";
 import { koyebProvider } from "./koyeb.js";
 import { lambdaMicrovmProvider } from "./lambda-microvm.js";
@@ -65,6 +68,8 @@ export function builtinProviders(): ProviderAdapter[] {
     cloudflareProvider,
     tensorlakeProvider,
     buddyProvider,
+    cloudrunProvider,
+    azureSessionsProvider,
     // One-time credit.
     daytonaProvider,
     blaxelProvider,
@@ -104,6 +109,7 @@ export function builtinProviders(): ProviderAdapter[] {
     nodusProvider,
     cathedralProvider,
     doryProvider,
+    gkeAgentSandboxProvider,
     // Your own hardware.
     openciProvider,
     opensandboxProvider,
@@ -113,6 +119,7 @@ export function builtinProviders(): ProviderAdapter[] {
 
 export {
   agent37Provider,
+  azureSessionsProvider,
   beamProvider,
   blaxelProvider,
   boatProvider,
@@ -123,6 +130,7 @@ export {
   cathedralProvider,
   celestoProvider,
   cloudflareProvider,
+  cloudrunProvider,
   createosProvider,
   daytonaProvider,
   dedalusProvider,
@@ -133,6 +141,7 @@ export {
   exedevProvider,
   flyProvider,
   freestyleProvider,
+  gkeAgentSandboxProvider,
   instaboxProvider,
   koyebProvider,
   lambdaMicrovmProvider,
