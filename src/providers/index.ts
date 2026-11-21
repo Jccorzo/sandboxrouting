@@ -99,6 +99,12 @@ import { openrewardProvider } from "./openreward.js";
 import { primeintellectProvider } from "./primeintellect.js";
 import { sandboxerProvider } from "./sandboxer.js";
 import { voidrunProvider } from "./voidrun.js";
+import { agentalProvider } from "./agental.js";
+import { nirvanaProvider } from "./nirvana.js";
+import { rayrunProvider } from "./rayrun.js";
+import { tamaProvider } from "./tama.js";
+import { tangleProvider } from "./tangle.js";
+import { workpaperProvider } from "./workpaper.js";
 
 export function builtinProviders(): ProviderAdapter[] {
   return [
@@ -118,6 +124,7 @@ export function builtinProviders(): ProviderAdapter[] {
     cloudrunProvider,
     azureSandboxesProvider,
     archilProvider,
+    agentalProvider,
     // One-time credit.
     daytonaProvider,
     blaxelProvider,
@@ -156,6 +163,8 @@ export function builtinProviders(): ProviderAdapter[] {
     saasSandboxProvider,
     sandbox0Provider,
     voidrunProvider,
+    workpaperProvider,
+    rayrunProvider,
     // Paid only.
     koyebProvider,
     flyProvider,
@@ -198,6 +207,9 @@ export function builtinProviders(): ProviderAdapter[] {
     kosa8Provider,
     primeintellectProvider,
     sandboxerProvider,
+    tamaProvider,
+    tangleProvider,
+    nirvanaProvider,
     // Your own hardware.
     openciProvider,
     opensandboxProvider,
@@ -302,4 +314,10 @@ export {
   primeintellectProvider,
   sandboxerProvider,
   voidrunProvider,
+  agentalProvider,
+  nirvanaProvider,
+  rayrunProvider,
+  tamaProvider,
+  tangleProvider,
+  workpaperProvider,
 };
