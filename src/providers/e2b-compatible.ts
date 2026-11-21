@@ -39,7 +39,9 @@ export function e2bCompatible(o: E2bCompatibleOptions): ProviderAdapter {
   const id = o.info.id;
   const cache = new Map<string, E2BSandbox>();
   const sdk = () => loadSdk<E2B>("e2b", id);
-  const opts = (ctx: ProviderContext) => o.connection(ctx);
+  // Unset fields are left out so the SDK's own defaults (and its E2B_* variables) apply.
+  const opts = (ctx: ProviderContext) =>
+    Object.fromEntries(Object.entries(o.connection(ctx)).filter(([, v]) => v !== undefined && v !== "")) as E2bConnection;
   const reconnect = o.reconnect ?? true;
 
   async function get(sandboxId: string, ctx: ProviderContext): Promise<E2BSandbox> {
