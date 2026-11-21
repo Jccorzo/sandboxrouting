@@ -5,7 +5,7 @@
 /**
  * US dollars per euro: the ECB euro reference rate for USD, 1.0990 on 2026-11-20
  * (https://www.ecb.europa.eu/stats/policy_and_exchange_rates/euro_reference_exchange_rates/html/eurofxref-graph-usd.en.html).
- * Used by `boxd` and `briq`.
+ * Used by `boxd`, `briq` and `watasu`.
  */
 export const USD_PER_EUR = 1.099;
 
