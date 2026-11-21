@@ -50,7 +50,7 @@ describe("the simulator", () => {
 describe("allowPaid false", () => {
   // Free tiers a tenth of tight's (whose own, with Fly's free $2.50 since 2026-11-21, last the
   // run out) run dry within a day, which is where paid usage could slip in. With allowPaid on,
-  // every strategy then bills 27 to 38 of these ~200 sandboxes as paid; one day keeps this fast.
+  // every strategy then bills 32 to 47 of these ~200 sandboxes as paid; one day keeps this fast.
   const tiny = {
     modal: { freeTier: { kind: "monthly-credit", usd: 0.3 } },
     northflank: { freeTier: { kind: "monthly-credit", usd: 0.1 } },
@@ -59,7 +59,6 @@ describe("allowPaid false", () => {
     upstash: { freeTier: { kind: "monthly-hours", hours: 0.1 } },
     daytona: { freeTier: { kind: "one-time-credit", usd: 0.4 } },
     e2b: { freeTier: { kind: "one-time-credit", usd: 0.3 } },
-    runloop: { freeTier: { kind: "one-time-credit", usd: 0.2 } },
     fly: { freeTier: { kind: "monthly-credit", usd: 0.25 } },
   };
   let tight: Promise<Simulation> | undefined;
@@ -124,13 +123,15 @@ describe("external usage", () => {
 
 describe("flaky", () => {
   it("balanced and fastest don't fail over more than free-first", async () => {
-    // Summed over seeds: in 2 days the gap between free-first and balanced is small and one seed is
-    // noisy (2 days, not 3, keeps the file inside the default timeout on a CI runner). Over 30 days balanced is only ~4% better at 200 requests a day, and ~3% worse at 150.
+    // Summed over seeds, since one seed is noisy. Over one day, seeds 1-4 give free-first 85
+    // failovers, balanced 36 and fastest 6 (2026-11-21, with Runloop off by default); a second day
+    // only doubles them, so one day keeps the file well inside the default timeout. Over 30 days
+    // the gap is smaller: balanced was only ~4% better at 200 requests a day, and ~3% worse at 150.
     // No order within the lane does much better at 200: every monthly tier is spent by the reset,
     // modal's credit included, and its failovers are the creates that takes (docs/routing.md).
     const total: Record<string, number> = { "free-first": 0, balanced: 0, fastest: 0 };
     for (const seed of [1, 2, 3, 4]) {
-      const sim = await simulate({ days: 2, seed, scenarios: ["flaky"], only: Object.keys(total) });
+      const sim = await simulate({ days: 1, seed, scenarios: ["flaky"], only: Object.keys(total) });
       for (const r of runs(sim)) total[r.strategy]! += r.metrics.failovers;
     }
     expect(total["fastest"]).toBeLessThanOrEqual(total["free-first"]!);
