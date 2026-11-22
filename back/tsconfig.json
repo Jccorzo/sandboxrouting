@@ -1,0 +1,19 @@
+{
+  // back imports the router's own definitions from ../src (one file: src/router.ts), so this
+  // program typechecks those router files too. esbuild bundles them (build.mjs); nothing emits here.
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "lib": ["ES2023", "DOM"],
+    "types": ["node"],
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "noEmit": true
+  },
+  "include": ["src", "test", "build.mjs", "vitest.config.ts"]
+}
