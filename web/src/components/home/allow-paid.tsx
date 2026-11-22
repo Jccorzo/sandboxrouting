@@ -3,61 +3,93 @@
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 
+type Ranked = { id: string; name: string; free: boolean };
+
 /**
- * The one switch the whole product turns on, at poster size. Operating it changes the field,
- * one word of the heading, and the count of providers the router would rank: both counts are the
- * router's own plans for the default request (generated), not estimates.
+ * The one switch the whole product turns on. Operating it changes the field, one word of the
+ * heading, the count, and which names in the ranking are live. The ranking is the router's own plan
+ * for the default request with paid usage on (generated), free providers first; with the switch off
+ * the paid ones are struck out, because the router would not rank them.
  */
-export function AllowPaidField({ free, paid, total }: { free: number; paid: number; total: number }) {
+export function AllowPaidField({ free, paid, total, order }: { free: number; paid: number; total: number; order: Ranked[] }) {
   const [on, setOn] = useState(false);
   return (
     <section
       className={cn(
-        "relative mt-[var(--section)] min-h-[86svh] overflow-hidden transition-colors duration-500 sm:min-h-[92svh]",
+        "mt-[var(--section)] py-[clamp(64px,9vw,144px)] transition-colors duration-500",
         on ? "bg-ink text-ground" : "bg-green text-ink",
       )}
       aria-label="Paid usage"
     >
-      <div className="wrap relative z-10 pt-16 sm:pt-20">
-        <h2 className="text-[clamp(1.75rem,2.6vw,2.5rem)] tracking-[-0.03em]">{on ? "Paid when you say" : "Free until you say"}</h2>
-        <p className="mt-4 max-w-[46ch] text-[17px] leading-relaxed">
-          {on ? (
-            <>
-              With <code className="text-[15px]">allowPaid: true</code>, {paid} of {total} providers can take a default request. The free ones still
-              go first; paid ones follow, cheapest first, and <code className="text-[15px]">maxPaidUsdPerMonth</code> makes the month&rsquo;s spend a
-              hard cap.
-            </>
-          ) : (
-            <>
-              With <code className="text-[15px]">allowPaid: false</code>, the default, {free} of {total} providers can take a default request and
-              none of them bills you. A request no free tier can take fails, with every provider&rsquo;s reason.
-            </>
-          )}
-        </p>
-      </div>
-      <div className="absolute bottom-[-3vh] left-[var(--gutter)] text-[40vw] sm:bottom-[7vh] sm:left-auto sm:right-[-2.5vw] sm:text-[clamp(110px,14.5vw,230px)]">
-        <div data-ui style={{ fontSize: "inherit" }} className="flex flex-col items-start gap-[0.12em]">
-          <span className={cn("text-[0.32em] font-medium tracking-[-0.02em]", on ? "text-ground/80" : "text-ink/80")}>
-            allowPaid: <span className="tabular">{on ? "true" : "false"}</span>
-          </span>
-          <button
-            type="button"
-            role="switch"
-            aria-checked={on}
-            aria-label="Allow paid usage"
-            onClick={() => setOn((v) => !v)}
-            className={cn(
-              "relative h-[1em] w-[1.9em] rounded-full transition-[background-color,transform] duration-500 active:scale-[0.99]",
-              on ? "bg-ground" : "bg-ink",
+      <div className="wrap grid gap-x-[clamp(32px,5vw,96px)] gap-y-12 lg:grid-cols-12">
+        <div className="lg:sticky lg:top-24 lg:col-span-5 lg:self-start">
+          <h2 data-reveal className="text-[clamp(2.25rem,4vw,3.75rem)] leading-[1] tracking-[-0.035em]">
+            {on ? "Paid when you say" : "Free until you say"}
+          </h2>
+          <p data-reveal className="mt-6 max-w-[44ch] text-[17px] leading-relaxed">
+            {on ? (
+              <>
+                With <code className="text-[15px]">allowPaid: true</code>, paid providers join the ranking after every free one, cheapest first, and{" "}
+                <code className="text-[15px]">maxPaidUsdPerMonth</code> makes the month&rsquo;s spend a hard cap.
+              </>
+            ) : (
+              <>
+                <code className="text-[15px]">allowPaid: false</code> is the default: only providers that won&rsquo;t bill you are ranked. A request no
+                free tier can take fails, with every provider&rsquo;s reason.
+              </>
             )}
-          >
-            <span
+          </p>
+          <div data-reveal className="mt-10 flex items-center gap-5">
+            <button
+              type="button"
+              role="switch"
+              aria-checked={on}
+              aria-label="Allow paid usage"
+              onClick={() => setOn((v) => !v)}
               className={cn(
-                "absolute left-[0.09em] top-[0.09em] block size-[0.82em] rounded-full transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)]",
-                on ? "translate-x-[0.9em] bg-ink" : "translate-x-0 bg-green",
+                "relative h-14 w-[104px] shrink-0 rounded-full transition-[background-color,transform] duration-500 active:scale-[0.97]",
+                "focus-visible:outline-2 focus-visible:outline-offset-4",
+                on ? "bg-ground focus-visible:outline-ground" : "bg-ink focus-visible:outline-ink",
               )}
-            />
-          </button>
+            >
+              <span
+                className={cn(
+                  "absolute left-[6px] top-[6px] block size-11 rounded-full transition-transform duration-500 ease-[var(--ease-out)]",
+                  on ? "translate-x-[48px] bg-green" : "translate-x-0 bg-green",
+                )}
+              />
+            </button>
+            <code className="text-[clamp(1.25rem,1.6vw,1.5rem)] font-medium">
+              allowPaid: <span className="tabular">{on ? "true" : "false"}</span>
+            </code>
+          </div>
+        </div>
+
+        <div className="lg:col-span-7">
+          <p data-reveal className="flex flex-wrap items-baseline gap-x-5" aria-live="polite">
+            <span className="tabular text-[clamp(5rem,11vw,10rem)] font-medium leading-[0.85] tracking-[-0.05em]">{on ? paid : free}</span>
+            <span className="max-w-[18ch] text-[clamp(1.25rem,1.6vw,1.5rem)] leading-snug">
+              of {total} providers take the default request
+            </span>
+          </p>
+          <ol data-reveal className="mt-10 flex flex-wrap gap-x-4 gap-y-1.5 text-[15px] leading-snug" aria-label="The router's ranking for the default request">
+            {order.map((p) => (
+              <li
+                key={p.id}
+                className={cn(
+                  "transition-[color,opacity] duration-500",
+                  p.free ? "" : on ? "text-green" : "line-through decoration-1 opacity-40",
+                )}
+              >
+                {p.name}
+                {!p.free && !on ? <span className="sr-only"> (not ranked: paid)</span> : null}
+              </li>
+            ))}
+          </ol>
+          <p data-reveal className={cn("mt-8 max-w-[60ch] text-[15px] leading-relaxed", on ? "text-ground/75" : "text-ink/75")}>
+            The router&rsquo;s own ranking for the example ledger at the top of the page, generated at build time. Providers it skips for other
+            reasons (an open circuit, a refused key, a rate limit, macOS only) are left out of both counts.
+          </p>
         </div>
       </div>
     </section>

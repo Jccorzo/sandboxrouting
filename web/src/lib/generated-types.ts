@@ -204,8 +204,9 @@ export interface SiteData {
     ledger: string[];
     defaultKey: string;
     controls: { strategies: string[]; needs: string[]; isolation: string[] };
-    /** How many providers the default request ranks, with paid usage off and on. */
-    ranked: { free: number; paid: number };
+    /** How many providers the default request ranks, with paid usage off and on, and the order
+     * with it on; `free` marks the providers also ranked with it off. */
+    ranked: { free: number; paid: number; order: { id: string; name: string; free: boolean }[] };
   };
   /** The MCP server's tools, read from the real server. */
   mcpTools: { name: string; description: string }[];

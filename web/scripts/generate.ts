@@ -361,6 +361,22 @@ const NEEDS = ["ports", "gpu", "customImage", "pause"] as const;
 const ISOLATION = ["", "gvisor", "microvm"] as const;
 
 /** The default request's plan, with paid usage on or off. */
+/** The default request's ranking with paid usage on, each provider marked by whether it is also
+ * ranked with paid usage off: what the allowPaid switch on the home page adds. */
+function rankedOrder(grid: PlanGridEntry[], providers: ProviderDoc[]): SiteData["hero"]["ranked"] {
+  const off = cell(grid, { allowPaid: false }).ordered.map((o) => o.provider);
+  const on = cell(grid, { allowPaid: true }).ordered.map((o) => o.provider);
+  const freeSet = new Set(off);
+  const missing = off.filter((id) => !on.includes(id));
+  if (missing.length) throw new Error(`ranked with paid usage off but not on: ${missing.join(", ")}`);
+  const name = new Map(providers.map((p) => [p.id, p.name]));
+  return {
+    free: off.length,
+    paid: on.length,
+    order: on.map((id) => ({ id, name: name.get(id) ?? id, free: freeSet.has(id) })),
+  };
+}
+
 function cell(grid: PlanGridEntry[], c: { allowPaid: boolean }): PlanDoc {
   const key = planKey({ strategy: strategyNameFor(DEFAULTS), allowPaid: c.allowPaid, needs: [], minIsolation: "" });
   const hit = grid.find((g) => g.key === key);
@@ -683,10 +699,7 @@ async function main(): Promise<void> {
       ledger: hero.story,
       defaultKey: hero.defaultKey,
       controls: { strategies: STRATEGIES, needs: [...NEEDS], isolation: [...ISOLATION] },
-      ranked: {
-        free: cell(hero.grid, { allowPaid: false }).ordered.length,
-        paid: cell(hero.grid, { allowPaid: true }).ordered.length,
-      },
+      ranked: rankedOrder(hero.grid, providers),
     },
     mcpTools: await mcpTools(),
     failover: await failover(),

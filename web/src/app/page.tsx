@@ -25,7 +25,7 @@ export default function Home() {
       <JsonLd data={faqLd(FAQ)} />
       <Hero />
       <Calls />
-      <AllowPaidField free={site.hero.ranked.free} paid={site.hero.ranked.paid} total={site.counts.total} />
+      <AllowPaidField {...site.hero.ranked} total={site.counts.total} />
       <Tiers />
       <AdapterPanel />
       <Faq />
