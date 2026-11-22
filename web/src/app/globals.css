@@ -163,7 +163,7 @@
 .prose-doc th, .prose-doc td { padding: 10px 14px 10px 0; vertical-align: top; border-bottom: 1px solid var(--tone-2); }
 .prose-doc th:first-child, .prose-doc td:first-child { padding-left: 12px; }
 .prose-doc table code { white-space: nowrap; }
-.prose-doc blockquote { padding-left: 1em; color: var(--muted); border-left: 3px solid var(--tone-2); }
+.prose-doc blockquote { padding: 12px 18px; background: var(--tone-1); }
 .prose-doc hr { border: 0; height: 32px; }
 .prose-doc section.footnotes { font-size: 0.9rem; color: var(--ink); margin-top: 3em; background: var(--tone-1); padding: 20px 24px; }
 .prose-doc section.footnotes h2 { font-size: 1.1rem; margin-top: 0; }
