@@ -3,6 +3,7 @@
 // server for every provider, with free tiers used first. Jobs (run_job) carry their workdir
 // to another box when one dies or runs out.
 
+import { packageVersion } from "../version.js";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import type { SandboxRouter } from "../core/router.js";
@@ -130,7 +131,7 @@ async function follow(jobs: JobManagerApi, go: (opts: JobRunOptions) => Promise<
   return text({ ...jobSummary(now), note: `Still running after ${wait} s; it goes on in the background. Poll job_status with id ${id}.` });
 }
 
-export function createMcpServer(router: SandboxRouter, version = "0.1.0"): McpServer {
+export function createMcpServer(router: SandboxRouter, version = packageVersion()): McpServer {
   const server = new McpServer({ name: "sandboxrouting", version });
   const jobs: JobManagerApi = router.jobs;
 

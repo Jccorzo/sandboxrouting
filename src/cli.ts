@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // sbr: the router from a terminal. Same operations as the SDK, REST API and MCP server.
 
+import { packageVersion } from "./version.js";
 import { parseArgs } from "node:util";
 import { readFile, rename, rm, writeFile } from "node:fs/promises";
 import { createRouter, type SandboxRouter } from "./core/router.js";
@@ -47,6 +48,7 @@ Usage:
   sbr reset <provider>               clear quota/rate-limit/auth marks on a provider
   sbr serve [--port 8787]            REST API; every 5 minutes it also resumes orphaned jobs
   sbr mcp                            MCP server over stdio
+  sbr --version                      the installed version
 
 Spec flags:
   --provider <id>   (repeatable) only these    --exclude <id>  (repeatable)
@@ -76,7 +78,17 @@ const dash = argv.indexOf("--");
 const before = dash >= 0 ? argv.slice(0, dash) : argv;
 const after = dash >= 0 ? argv.slice(dash + 1) : [];
 
-const { values, positionals } = parseArgs({
+/** An unknown or malformed option is the user's typo, not a crash: say so without a stack trace. */
+function parseOrExit<T>(parse: () => T): T {
+  try {
+    return parse();
+  } catch (err) {
+    console.error(`sbr: ${err instanceof Error ? err.message.split(". ")[0] : String(err)}; see sbr --help`);
+    process.exit(2);
+  }
+}
+
+const { values, positionals } = parseOrExit(() => parseArgs({
   args: before,
   allowPositionals: true,
   options: {
@@ -108,8 +120,9 @@ const { values, positionals } = parseArgs({
     in: { type: "string" },
     port: { type: "string" },
     help: { type: "boolean", short: "h" },
+    version: { type: "boolean", short: "v" },
   },
-});
+}));
 
 const out = (v: unknown) => console.log(typeof v === "string" ? v : JSON.stringify(v, null, 2));
 
@@ -585,6 +598,8 @@ async function readStdin(): Promise<Buffer> {
 
 if (values.help) {
   out(HELP);
+} else if (values.version) {
+  out(packageVersion());
 } else {
   createRouter()
     .then(main)
