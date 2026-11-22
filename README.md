@@ -646,6 +646,77 @@ old name for `routing.strategy`.
 `sbr reset <provider>` clears a provider's quota, rate-limit and auth marks, and its health
 history, after you top up or fix a key.
 
+## Usage dashboard
+
+A router can report what its ledger records to a dashboard that shows how your workloads
+spread across providers: sandbox count, sandbox-hours and memory GiB-hours per day and
+provider, spend against the free usage each provider has left, refusals and failed creates,
+health and the circuit breaker, live sandboxes with their state as of now, and jobs with every
+move and why. It is two packages in this repository, both MIT: [back/](back) (an ingest and
+read API on Postgres) and [dashboard/](dashboard) (Next.js). Reporting is off unless you turn
+it on.
+
+### Self-hosting
+
+```bash
+cp deploy/.env.example deploy/.env          # set POSTGRES_PASSWORD and SBR_ADMIN_TOKEN
+docker compose -f deploy/docker-compose.yml --env-file deploy/.env up -d --build
+```
+
+That runs Postgres, back on port 8787 and the dashboard on port 3000. Sign in with
+`SBR_ADMIN_TOKEN`, then make an ingest key for each router under API keys (or set
+`SBR_INGEST_TOKEN` too). Each image is configured only by environment variables:
+
+| back | |
+|---|---|
+| `DATABASE_URL` | `postgres://…` (required). Migrations run at startup and only move forward. |
+| `SBR_ADMIN_TOKEN`, `SBR_INGEST_TOKEN` | Optional keys for the first account, made if missing and never brought back once revoked. At least 24 characters. |
+| `SBR_SWEEP_TOKEN` | Lets a cron call `POST /v1/sweep` for every account. |
+| `PORT` | Default 8787. |
+
+| dashboard | |
+|---|---|
+| `BACK_URL` | back as the dashboard's server reaches it (required). |
+| `BACK_PUBLIC_URL` | back as routers reach it, for the setup snippet. |
+| `PORT` | Default 3000. |
+
+Nothing has to run in the background: whatever changes with time (a sandbox past its deadline,
+a mark that lapsed, a job whose runner stopped) is worked out when the dashboard reads it, with
+the database's clock. The sweep only rolls up closed days so reads stay cheap; run it from any
+cron (`curl -X POST -H "authorization: Bearer $SBR_SWEEP_TOKEN" http://back:8787/v1/sweep`) or
+with the compose file's `sweep` profile. Without Docker, `cd back && npm run build &&
+DATABASE_URL=… node dist/main.js` and `cd dashboard && npm run build && BACK_URL=… npm start`;
+`node back/dist/cli.js account create <name>` makes an account and prints its admin key.
+
+### Turning on the reporter
+
+```bash
+export SBR_REPORT_URL=http://localhost:8787
+export SBR_REPORT_TOKEN=sbrk_…                # an ingest key
+```
+
+or in config:
+
+```jsonc
+{ "report": { "url": "https://back.example", "token": "sbrk_…", "metadataKeys": ["team"] } }
+```
+
+`SBR_REPORT=0` turns it off for one run. `createRouter` (and so the CLI, REST server and MCP
+server) reports when it is on; for a router you construct yourself, wrap its ledger with
+`reportingLedger`. Only ids, provider ids, sizes, times, states and prices leave the machine,
+plus the metadata keys you list. Never commands, env, file contents, provider error messages
+or keys.
+
+After every ledger write, and when a router starts, the reporter compares the ledger with what
+it last queued and queues an event for each thing that changed, in an outbox at
+`$SBR_HOME/report/outbox.json` (written whole, under a lock, like the ledger). Each event keeps
+its id until back acknowledges it, and back keeps the newest state of each sandbox, job and
+mark whatever order events arrive in, so a resend never counts twice. Routing never waits on
+back: a send times out after 4 s, and a failure backs off (recorded in the outbox, so other
+processes don't each retry a back end that is down) until the next router to start, or the
+same long-running one, delivers what is queued. Several quick changes may reach back as one
+state; the billing segments in it are complete.
+
 ## Adding a provider
 
 A provider is one file. Only `create`, `exec` and `kill` are required. The router
@@ -777,6 +848,11 @@ npm test             # the Docker ones run real containers when Docker is up
 npm run simulate     # compare the routing strategies on a simulated month
 npm run build && node dist/cli.js providers
 ```
+
+back/ and dashboard/ are npm workspaces with their own checks: `npm run lint|typecheck|test|build
+-w back` (or `-w dashboard`). back's tests run on PGlite, a real Postgres in WebAssembly;
+`TEST_DATABASE_URL=postgres://…` runs them on a Postgres server instead, each test in its own
+database. `cd back && DATABASE_URL=pglite:memory npm run dev` starts back with nothing to set up.
 
 CI runs lint, typecheck and the tests through [hushrun](https://hushrun.com), which skips
 what this exact code already passed: a test file that passed on the exact files it read
