@@ -14,6 +14,19 @@ checks:
   lint: {}
   typecheck: {}
 
+  # The workspaces' own checks, each run from its directory by its package.json script
+  # (`npm run <script> -w back`), which names the check it is.
+  back-test:
+    tests: reuse
+  back-lint: {}
+  back-typecheck: {}
+  back-build: {}
+  dashboard-test:
+    tests: reuse
+  dashboard-lint: {}
+  dashboard-typecheck: {}
+  dashboard-build: {}
+
 transparency_log:   # the server's log key
   origin: api.hushrun.com/l/jccorzot/sandboxrouting
   key: "ed25519:IuLTaCriRAHf3AzteXA3CmUd2hKcUCygdrD8dZqUKF4="
