@@ -9,7 +9,7 @@
 //   GET  /v1/refusals?days=30       admin        refusals, marks in force, failed creates
 //   GET  /v1/keys, POST /v1/keys, POST /v1/keys/:id/revoke   admin
 //   POST /v1/sweep                  sweep token (all accounts) or admin key (its own account)
-//   GET  /healthz
+//   GET  /health, /healthz          checks the database (Cloud Run's front end swallows paths ending in z, so it gets /health)
 
 import { Hono, type Context } from "hono";
 import { bodyLimit } from "hono/body-limit";
@@ -56,10 +56,12 @@ export function createApp(opts: AppOptions): Hono<Env> {
   });
   app.notFound((c) => fail(c, 404, "not_found", "no such endpoint"));
 
-  app.get("/healthz", async (c) => {
+  const health = async (c: Context<Env>) => {
     await db.query("SELECT 1");
     return c.json({ ok: true });
-  });
+  };
+  app.get("/health", health);
+  app.get("/healthz", health);
 
   const bearer = (c: Context) => {
     const h = c.req.header("authorization") ?? "";
