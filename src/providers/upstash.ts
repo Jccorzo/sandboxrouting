@@ -1,30 +1,37 @@
 // Upstash Box (developer preview): containers with an agent harness. Free (monthly): 5 CPU
-// hours, 10 concurrent boxes, up to 2 vCPU / 4 GB. The router uses EphemeralBox, which has a
-// TTL (max 3 days) and supports exec and files, but no public URL or pause.
-// SDK: npm `@upstash/box` (REST at https://us-east-1.box.upstash.com, X-Box-Api-Key).
-// CLI: `@upstash/box-cli`. Runtimes only (node, python, golang, ruby, rust), no arbitrary images.
+// hours, 10 concurrent boxes, up to 2 vCPU / 4 GB. The router uses ephemeral boxes, which have a
+// TTL (max 3 days) and support exec and files, but no public URL or pause.
+// Spoken over HTTP, no SDK: REST at https://us-east-1.box.upstash.com with an X-Box-Api-Key
+// header (docs https://upstash.com/docs/box), with the calls the official SDK (npm `@upstash/box`
+// 0.7.10, MIT) makes for `EphemeralBox`. CLI: `@upstash/box-cli`. Runtimes only (node, python,
+// golang, ruby, rust), no arbitrary images.
 
-import { defineProvider, loadSdk } from "./util.js";
-import { shellQuote } from "../core/sandbox.js";
+import { defineProvider, httpJson } from "./util.js";
+import { inline } from "./rest-helpers.js";
 import type { ProviderContext } from "../core/types.js";
 
-type UpstashSdk = typeof import("@upstash/box");
-type UBox = Awaited<ReturnType<UpstashSdk["Box"]["get"]>>;
+/** Where the SDK starts every box's working directory; relative file paths resolve against it. */
+const WORKSPACE = "/workspace/home";
+/** The SDK's per-request timeout (10 min). */
+const TIMEOUT_MS = 600_000;
 
-const cache = new Map<string, UBox>();
-const sdk = () => loadSdk<UpstashSdk>("@upstash/box", "upstash");
-const conn = (ctx: ProviderContext) => ({ apiKey: ctx.env["UPSTASH_BOX_API_KEY"], baseUrl: ctx.env["UPSTASH_BOX_BASE_URL"] });
+// UPSTASH_BOX_BASE_URL is the override the SDK itself reads.
+const base = (ctx: ProviderContext) => (ctx.env["UPSTASH_BOX_BASE_URL"] ?? "https://us-east-1.box.upstash.com").replace(/\/$/, "");
 
-async function get(id: string, ctx: ProviderContext): Promise<UBox> {
-  const hit = cache.get(id);
-  if (hit) return hit;
-  const box = await (await sdk()).Box.get(id, conn(ctx));
-  cache.set(id, box);
-  return box;
+function api<T>(ctx: ProviderContext, path: string, init: { method?: string; body?: unknown } = {}): Promise<T> {
+  return httpJson<T>(`${base(ctx)}${path}`, { ...init, headers: { "X-Box-Api-Key": ctx.env["UPSTASH_BOX_API_KEY"] ?? "" }, timeoutMs: TIMEOUT_MS });
 }
 
+const box = (id: string) => `/v2/box/${id}`;
+const resolve = (path: string) => (path.startsWith("/") ? path : `${WORKSPACE}/${path}`);
+
 const RUNTIMES = ["node", "python", "golang", "ruby", "rust", "node-alpine", "python-alpine", "golang-alpine", "ruby-alpine", "rust-alpine"] as const;
-type Runtime = (typeof RUNTIMES)[number];
+
+interface ExecResponse {
+  output?: string;
+  error?: string;
+  exit_code?: number | null;
+}
 
 export const upstashProvider = defineProvider({
   info: {
@@ -32,7 +39,6 @@ export const upstashProvider = defineProvider({
     name: "Upstash Box",
     homepage: "https://upstash.com/docs/box",
     env: ["UPSTASH_BOX_API_KEY"],
-    sdkPackage: "@upstash/box",
     capabilities: ["fileList", "snapshot"],
     isolation: "container",
     maxTimeoutSec: 259_200,
@@ -50,44 +56,47 @@ export const upstashProvider = defineProvider({
   },
 
   async create(spec, ctx) {
-    const { EphemeralBox } = await sdk();
     // A template names a runtime here; an OCI image can't be used.
-    const runtime = (RUNTIMES as readonly string[]).includes(spec.nativeTemplate ?? "") ? (spec.nativeTemplate as Runtime) : "python";
+    const runtime = (RUNTIMES as readonly string[]).includes(spec.nativeTemplate ?? "") ? spec.nativeTemplate : "python";
     const size = spec.cpu > 4 ? "large" : spec.cpu > 2 ? "medium" : "small";
-    const box = await EphemeralBox.create({ ...conn(ctx), runtime, size, env: spec.env, ttl: Math.min(259_200, spec.timeoutSec) });
-    return { providerSandboxId: box.id, cpu: size === "small" ? 2 : size === "medium" ? 4 : 8 };
+    // An ephemeral box answers ready: unlike a regular box there is no "creating" state to poll.
+    const created = await api<{ id: string }>(ctx, "/v2/box", {
+      method: "POST",
+      body: { ephemeral: true, size, ttl: Math.min(259_200, spec.timeoutSec), runtime, env_vars: spec.env },
+    });
+    return { providerSandboxId: created.id, cpu: size === "small" ? 2 : size === "medium" ? 4 : 8 };
   },
 
   async exec(id, command, o, ctx) {
-    const env = Object.entries(o.env ?? {}).map(([k, v]) => `export ${k}=${shellQuote(v)}; `).join("");
-    const cd = o.cwd ? `cd ${shellQuote(o.cwd)} && ` : "";
-    const run = await (await get(id, ctx)).exec.command(`sh -c ${shellQuote(`${env}${cd}${command}`)}`);
-    const stdout = run.stdout;
-    const stderr = run.stderr;
+    // The box runs argv; `sh -c` gives the command a shell, with cwd and env set inside it.
+    const r = await api<ExecResponse>(ctx, `${box(id)}/exec`, { method: "POST", body: { command: ["sh", "-c", inline(command, o)] } });
+    const stdout = r.output ?? "";
+    const stderr = r.error ?? "";
     if (stdout) o.onStdout?.(stdout);
     if (stderr) o.onStderr?.(stderr);
-    return { stdout, stderr, exitCode: run.exitCode ?? -1 };
+    return { stdout, stderr, exitCode: r.exit_code ?? -1 };
   },
 
   async readFile(id, path, ctx) {
-    return Buffer.from(await (await get(id, ctx)).files.read(path, { encoding: "base64" }), "base64");
+    const r = await api<{ content: string }>(ctx, `${box(id)}/files/read?path=${encodeURIComponent(resolve(path))}&encoding=base64`);
+    return Buffer.from(r.content, "base64");
   },
 
   async writeFile(id, path, data, ctx) {
-    await (await get(id, ctx)).files.write({ path, content: Buffer.from(data).toString("base64"), encoding: "base64" });
+    await api(ctx, `${box(id)}/files/write`, { method: "POST", body: { path: resolve(path), content: Buffer.from(data).toString("base64"), encoding: "base64" } });
   },
 
   async listFiles(id, path, ctx) {
-    return (await (await get(id, ctx)).files.list(path)).map((f) => ({ name: f.name, path: f.path, isDir: f.is_dir, size: f.size }));
+    const qs = path ? `?folder=${encodeURIComponent(resolve(path))}` : "";
+    const r = await api<{ files?: { name: string; path: string; is_dir: boolean; size?: number }[] }>(ctx, `${box(id)}/files/list${qs}`);
+    return (r.files ?? []).map((f) => ({ name: f.name, path: f.path, isDir: f.is_dir, size: f.size }));
   },
 
   async kill(id, ctx) {
-    const box = await get(id, ctx);
-    cache.delete(id);
-    await box.delete();
+    await api(ctx, box(id), { method: "DELETE" });
   },
 
   async listAlive(ctx) {
-    return (await (await sdk()).Box.list(conn(ctx))).map((b) => b.id);
+    return (await api<{ id: string }[]>(ctx, "/v2/box")).map((b) => b.id);
   },
 });
