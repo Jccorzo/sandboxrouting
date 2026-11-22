@@ -1,0 +1,43 @@
+{
+  "name": "@sandboxrouting/back",
+  "version": "0.1.0",
+  "description": "Ingest API and read API for the sandboxrouting usage dashboard, on Postgres.",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "exports": {
+    ".": "./src/index.ts",
+    "./api": "./src/api.ts"
+  },
+  "scripts": {
+    "dev": "tsx watch src/main.ts",
+    "start": "node dist/main.js",
+    "build": "hushrun run back-build -- node build.mjs",
+    "typecheck": "hushrun run back-typecheck -- tsc -p tsconfig.json --noEmit",
+    "lint": "hushrun run back-lint -- eslint .",
+    "test": "hushrun run back-test -- vitest run",
+    "account": "tsx src/cli.ts"
+  },
+  "dependencies": {
+    "@hono/node-server": "^2.1.11",
+    "hono": "^4.13.19",
+    "pg": "^8.23.1",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "^0.5.17",
+    "@eslint/js": "^9.39.5",
+    "@types/node": "^20.19.0",
+    "@types/pg": "^8.23.1",
+    "esbuild": "^0.28.2",
+    "eslint": "^9.39.5",
+    "globals": "^17.14.0",
+    "tsx": "^4.20.0",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.72.2",
+    "vitest": "^4.1.12"
+  }
+}

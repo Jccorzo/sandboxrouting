@@ -36,6 +36,10 @@
     "templates",
     "README.md"
   ],
+  "workspaces": [
+    "back",
+    "dashboard"
+  ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "prepack": "npm run build",

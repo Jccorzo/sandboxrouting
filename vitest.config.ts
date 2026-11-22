@@ -5,6 +5,7 @@ export default defineConfig({
   plugins: [process.env.HUSHRUN_VITEST && import(process.env.HUSHRUN_VITEST).then((m) => m.default())],
   test: {
     // Claude Code keeps session worktrees under .claude/worktrees, each with its own copy of the tests.
-    exclude: [...configDefaults.exclude, ".claude/**"],
+    // The workspaces (back/, dashboard/, web/) run their own tests.
+    exclude: [...configDefaults.exclude, ".claude/**", "back/**", "dashboard/**", "web/**"],
   },
 });

@@ -1,0 +1,43 @@
+{
+  "name": "@sandboxrouting/dashboard",
+  "version": "0.1.0",
+  "description": "The sandboxrouting usage dashboard: how sandbox workloads spread across providers.",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "next dev --port 3000",
+    "start": "next start",
+    "build": "hushrun run dashboard-build -- next build",
+    "typecheck": "hushrun run dashboard-typecheck -- tsc -p tsconfig.json --noEmit",
+    "lint": "hushrun run dashboard-lint -- eslint .",
+    "test": "hushrun run dashboard-test -- vitest run"
+  },
+  "dependencies": {
+    "@sandboxrouting/back": "0.1.0",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "lucide-react": "^1.77.0",
+    "next": "16.4.6",
+    "radix-ui": "^1.8.1",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "recharts": "^3.11.0",
+    "tailwind-merge": "^3.7.1"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.5",
+    "@tailwindcss/postcss": "^4.3.5",
+    "@types/node": "^20.19.0",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.2.3",
+    "eslint": "^9.39.5",
+    "eslint-config-next": "16.4.6",
+    "tailwindcss": "^4.3.5",
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.12"
+  }
+}

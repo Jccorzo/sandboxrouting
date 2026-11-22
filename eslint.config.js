@@ -1,10 +1,11 @@
-// Lint for the whole repository: sources, tests, the simulator and the templates.
+// Lint for the router: sources, tests, the simulator and the templates. The workspaces (back/,
+// dashboard/, web/) each lint themselves with their own config.
 import js from "@eslint/js";
 import globals from "globals";
 import tseslint from "typescript-eslint";
 
 export default tseslint.config(
-  { ignores: ["dist/**", "node_modules/**", ".claude/**", "templates/**/node_modules/**"] },
+  { ignores: ["dist/**", "node_modules/**", ".claude/**", "templates/**/node_modules/**", "back/**", "dashboard/**", "web/**"] },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
