@@ -46,13 +46,13 @@ export const apiKeyAuth: AuthProvider = {
     await db
       .query("UPDATE api_keys SET last_used_at = now() WHERE id = $1 AND (last_used_at IS NULL OR last_used_at < now() - interval '1 minute')", [row.id])
       .catch(() => undefined);
-    return { accountId: row.account_id, keyId: row.id, scope: row.scope };
+    return { accountId: row.account_id, via: "key", credentialId: row.id, scope: row.scope };
   },
   async stillAuthorized(p, q) {
     const { rows } = await q.query(
       `SELECT 1 FROM api_keys k JOIN accounts a ON a.id = k.account_id
        WHERE k.id = $1 AND k.account_id = $2 AND k.scope = $3 AND k.state = 'active' AND a.status = 'active'`,
-      [p.keyId, p.accountId, p.scope],
+      [p.credentialId, p.accountId, p.scope],
     );
     return rows.length === 1;
   },

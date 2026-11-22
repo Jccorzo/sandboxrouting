@@ -680,12 +680,15 @@ That runs Postgres, back on port 8787 and the dashboard on port 3000. Sign in wi
 | `DATABASE_URL` | `postgres://…` (required). Migrations run at startup and only move forward. |
 | `SBR_ADMIN_TOKEN`, `SBR_INGEST_TOKEN` | Optional keys for the first account, made if missing and never brought back once revoked. At least 24 characters. |
 | `SBR_SWEEP_TOKEN` | Lets a cron call `POST /v1/sweep` for every account. |
+| `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET` | Optional, together: GitHub sign-in instead of admin keys. A first sign-in makes that person's account (one per GitHub user). The OAuth app's callback is `<dashboard>/api/auth/github/callback`. |
+| `SBR_SECRETS_KEY` | Optional: 32 bytes, base64. Seals the provider keys people save for the hosted router (envelope encryption, a data key per row). `SBR_SECRETS_OLD_KEYS` lists keys rotated out that still open older rows. `SBR_KMS_KEY` (a Cloud KMS key name) seals with Cloud KMS instead. Neither: saving provider keys is off. |
 | `PORT` | Default 8787. |
 
 | dashboard | |
 |---|---|
 | `BACK_URL` | back as the dashboard's server reaches it (required). |
 | `BACK_PUBLIC_URL` | back as routers reach it, for the setup snippet. |
+| `DASHBOARD_PUBLIC_URL` | The dashboard as browsers reach it, for GitHub's callback. Default: the forwarded host. |
 | `PORT` | Default 3000. |
 
 Nothing has to run in the background: whatever changes with time (a sandbox past its deadline,

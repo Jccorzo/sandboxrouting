@@ -1,7 +1,8 @@
-// Sign in with an admin API key (checked against back before the cookie is set) and sign out.
+// Sign in with an admin API key (checked against back before the cookie is set), and sign out:
+// a GitHub sign-in's session is revoked in back too, so the token is dead even if a copy exists.
 import { cookies } from "next/headers";
 import { type NextRequest } from "next/server";
-import { SESSION_COOKIE, callBack, cookieOptions } from "@/lib/server";
+import { SESSION_COOKIE, callBack, cookieOptions, isSessionToken } from "@/lib/server";
 import type { Me } from "@sandboxrouting/back/api";
 
 export const dynamic = "force-dynamic";
@@ -27,6 +28,11 @@ export async function POST(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
   if (req.headers.get("x-requested-with") !== "sbr-dashboard") return json(403, { error: { code: "forbidden", message: "missing request header" } });
-  (await cookies()).delete(SESSION_COOKIE);
+  const jar = await cookies();
+  const token = jar.get(SESSION_COOKIE)?.value ?? "";
+  // 401 means it was already dead (expired or revoked): signed out all the same.
+  const revoked = isSessionToken(token) ? [200, 401].includes((await callBack("/v1/sessions/current", token, { method: "DELETE" })).status) : true;
+  if (!revoked) return json(502, { error: { code: "back_unreachable", message: "Couldn't sign out on the server. Try again." } });
+  jar.delete(SESSION_COOKIE);
   return json(200, { ok: true });
 }

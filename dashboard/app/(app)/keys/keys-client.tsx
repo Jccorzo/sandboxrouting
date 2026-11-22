@@ -19,7 +19,7 @@ type RowAction = { state: "confirming" } | { state: "busy" } | { state: "failed"
 
 type CreateState = { state: "idle" } | { state: "busy" } | { state: "failed"; message: string } | { state: "created"; created: CreatedKey };
 
-export function KeysClient({ publicUrl }: { publicUrl: string }) {
+export function KeysClient({ publicUrl, welcome = false }: { publicUrl: string; welcome?: boolean }) {
   const keys = usePoll<KeysView>("keys", 30_000);
   const me = usePoll<Me>("me", 120_000);
   const [rows, setRows] = useState<Record<string, RowAction>>({});
@@ -49,9 +49,16 @@ export function KeysClient({ publicUrl }: { publicUrl: string }) {
 
   return (
     <>
-      <PageHeader title="API keys" description="Ingest keys let a router send its events here. Admin keys sign in to this dashboard and manage keys. back stores only a hash: a key is shown once, when you make it.">
+      <PageHeader title="API keys" description="Ingest keys let a router send its events here. Admin keys manage this account from scripts (and sign in to a self-hosted dashboard). back stores only a hash: a key is shown once, when you make it.">
         <Freshness view={keys} onRetry={keys.refresh} />
       </PageHeader>
+
+      {welcome && (
+        <div role="status" className="mb-8 rounded-lg border bg-panel px-4 py-3 text-sm leading-relaxed">
+          <p className="font-medium">Your account is ready.</p>
+          <p className="mt-1 text-muted-foreground">Make an ingest key below, then set the two variables it shows where your router runs. Its sandboxes show up here as it makes them.</p>
+        </div>
+      )}
 
       <CreateKey publicUrl={publicUrl} onCreated={keys.refresh} />
 
