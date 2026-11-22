@@ -684,15 +684,15 @@ export async function createRouter(opts: Partial<RouterOptions> = {}): Promise<S
   const home = defaultHome(env);
   const config = parseConfig(opts.config ?? (await loadConfig(env)));
   // With `report` configured, every ledger write is also reported to a back end (src/report/).
-  let router: SandboxRouter | undefined;
+  // The reporter asks for the router's providers only after this function has returned.
   const ledger = reportingLedger(opts.ledger ?? new FileLedger(join(home, "ledger.json")), {
     config,
     env,
     home,
-    providers: () => router?.providers() ?? [],
+    providers: () => router.providers(),
     ...(opts.now ? { now: opts.now } : {}),
   });
-  router = new SandboxRouter({
+  const router = new SandboxRouter({
     config,
     ledger,
     env,

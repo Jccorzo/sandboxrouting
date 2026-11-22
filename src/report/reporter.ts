@@ -302,11 +302,15 @@ export function observeInto(
   for (const [provider, samples] of Object.entries(data.health ?? {})) {
     const seen = new Set(box.healthSeen[provider] ?? []);
     const keys: string[] = [];
+    const counts = new Map<string, number>();
     for (const s of samples) {
       const sample = toWireHealthSample(s);
-      const key = healthSampleKey(sample);
+      const base = healthSampleKey(sample);
+      const occurrence = counts.get(base) ?? 0;
+      counts.set(base, occurrence + 1);
+      const key = healthSampleKey(sample, occurrence);
       keys.push(key);
-      if (!seen.has(key)) queue({ type: "health", provider, sample });
+      if (!seen.has(key)) queue({ type: "health", provider, sample, ...(occurrence ? { occurrence } : {}) });
     }
     box.healthSeen[provider] = keys;
   }

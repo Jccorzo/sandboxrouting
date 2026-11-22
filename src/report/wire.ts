@@ -177,7 +177,16 @@ const envelope = {
 export const wireEventSchema = z.discriminatedUnion("type", [
   z.object({ ...envelope, type: z.literal("sandbox"), sandbox: wireSandboxSchema }).strict(),
   z.object({ ...envelope, type: z.literal("mark"), provider: providerId, kind: z.enum(MARK_KINDS), mark: wireMarkSchema.nullable() }).strict(),
-  z.object({ ...envelope, type: z.literal("health"), provider: providerId, sample: wireHealthSampleSchema }).strict(),
+  z
+    .object({
+      ...envelope,
+      type: z.literal("health"),
+      provider: providerId,
+      sample: wireHealthSampleSchema,
+      /** How many identical samples (same time and outcome) come before this one in the ledger. */
+      occurrence: z.number().int().nonnegative().max(10_000).optional(),
+    })
+    .strict(),
   z.object({ ...envelope, type: z.literal("job"), job: wireJobSchema }).strict(),
   z.object({ ...envelope, type: z.literal("provider"), provider: wireProviderSchema }).strict(),
 ]);
@@ -298,9 +307,12 @@ export function toWireHealthSample(s: HealthSample): WireHealthSample {
   return { at: s.at, op: s.op, ok: s.ok, ...pick(s.ms === undefined ? undefined : { ms: s.ms }), ...pick(s.kind === undefined ? undefined : { kind: s.kind }) };
 }
 
-/** A key that tells two health samples apart; the ledger keeps no id for them. */
-export function healthSampleKey(s: WireHealthSample): string {
-  return `${s.at}|${s.op}|${s.ok ? 1 : 0}|${s.ms ?? ""}|${s.kind ?? ""}`;
+/**
+ * A key that tells two health samples apart; the ledger keeps no id for them. Two samples can be
+ * identical (same instant, same outcome), so the key counts which of them this is.
+ */
+export function healthSampleKey(s: WireHealthSample, occurrence = 0): string {
+  return `${s.at}|${s.op}|${s.ok ? 1 : 0}|${s.ms ?? ""}|${s.kind ?? ""}${occurrence ? `#${occurrence}` : ""}`;
 }
 
 /** A job as it may leave the machine: no spec (commands, env, files), outputs, errors or lease owner. */
@@ -384,7 +396,7 @@ export function entityKey(ev: WireEvent): string {
     case "provider":
       return `provider:${ev.provider.id}`;
     case "health":
-      return `health:${ev.provider}:${healthSampleKey(ev.sample)}`;
+      return `health:${ev.provider}:${healthSampleKey(ev.sample, ev.occurrence)}`;
   }
 }
 

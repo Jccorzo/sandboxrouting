@@ -10,7 +10,7 @@ import { localShellProvider } from "./localshell.js";
 import { createRouter, FileLedger, MemoryLedger, SandboxRouter, loadConfig, parseConfig, type Ledger, type ProviderAdapter } from "../src/index.js";
 import { FileOutbox, MemoryOutbox, type Outbox } from "../src/report/outbox.js";
 import { claimBatch, observeInto, providerSnapshots, Reporter, ReportingLedger, reportingLedger, reportSettings, settle } from "../src/report/reporter.js";
-import { wireEventSchema, wireSandboxProblem, type IngestResponse, type WireEvent } from "../src/report/wire.js";
+import { entityKey, wireEventSchema, wireSandboxProblem, type IngestResponse, type WireEvent } from "../src/report/wire.js";
 
 const BACK = "https://back.test";
 
@@ -140,6 +140,8 @@ describe("what the reporter sends", () => {
     await reporter.flush();
     const samples = back.events().filter((e) => e.type === "health");
     expect(samples).toHaveLength(2);
+    // The clock didn't move: the two samples are identical but for which one they are.
+    expect(new Set(samples.map(entityKey)).size).toBe(2);
   });
 });
 
