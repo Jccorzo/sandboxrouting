@@ -5,5 +5,7 @@ export { openDb, pgDb, pgliteDb, type Db, type Queryable } from "./db.js";
 export { migrate, MIGRATIONS, MigrationError, type Migration } from "./migrate.js";
 export { sweep, rollupAccount, type SweepResult } from "./sweep.js";
 export { bootstrap, createAccount, apiKeyAuth } from "./keys.js";
-export { allowEverything, type AuthProvider, type BackPlugins, type Entitlements, type Principal, type Scope, type Action, type Decision, type UsageEvent } from "./plugins.js";
+export { defaultAuth, sessionAuth, signIn, revokeSession } from "./sessions.js";
+export { exchangeCode, GitHubError, type GitHubConfig, type GitHubUser } from "./github.js";
+export { allowEverything, type Newcomer, type AuthProvider, type BackPlugins, type Entitlements, type Principal, type Scope, type Action, type Decision, type UsageEvent } from "./plugins.js";
 export type * from "./api.js";

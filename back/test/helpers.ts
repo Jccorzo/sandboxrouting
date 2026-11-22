@@ -9,6 +9,7 @@ import { pgDb, pgliteDb, type Db } from "../src/db.js";
 import { createKey, createAccount } from "../src/keys.js";
 import { migrate } from "../src/migrate.js";
 import type { BackPlugins } from "../src/plugins.js";
+import type { GitHubConfig } from "../src/github.js";
 import { MemoryOutbox } from "../../src/report/outbox.js";
 import { observeInto, providerSnapshots } from "../../src/report/reporter.js";
 import { MemoryLedger, SandboxRouter, defineProvider, parseConfig, type FreeTier, type ProviderAdapter } from "../../src/index.js";
@@ -62,11 +63,11 @@ export interface Fixture {
   send: (install: string, events: WireEvent[], token?: string) => Promise<{ status: number; body: IngestResponse }>;
 }
 
-export async function fixture(opts: { plugins?: BackPlugins; sweepToken?: string; db?: Db } = {}): Promise<Fixture> {
+export async function fixture(opts: { plugins?: BackPlugins; sweepToken?: string; db?: Db; github?: GitHubConfig } = {}): Promise<Fixture> {
   const db = opts.db ?? (await freshDb());
   const { accountId, adminToken } = await createAccount(db, "test");
   const ingestKey = await db.tx(async (q) => (await createKey(q, accountId, "router", "ingest")).token);
-  const appOpts: AppOptions = { db, log: () => undefined, ...(opts.plugins ? { plugins: opts.plugins } : {}), ...(opts.sweepToken ? { sweepToken: opts.sweepToken } : {}) };
+  const appOpts: AppOptions = { db, log: () => undefined, ...(opts.plugins ? { plugins: opts.plugins } : {}), ...(opts.sweepToken ? { sweepToken: opts.sweepToken } : {}), ...(opts.github ? { github: opts.github } : {}) };
   const app = createApp(appOpts);
   const call: Fixture["call"] = async (method, path, o = {}) => {
     const res = await app.request(path, {

@@ -193,7 +193,7 @@ describe("authority", () => {
     const { resolvePlugins } = await import("../src/plugins.js");
     const plugins = resolvePlugins();
     const p = (await plugins.auth.authenticate(f.ingestKey, f.db))!;
-    await f.db.query("UPDATE api_keys SET state = 'revoked', revoked_at = now() WHERE id = $1", [p.keyId]);
+    await f.db.query("UPDATE api_keys SET state = 'revoked', revoked_at = now() WHERE id = $1", [p.credentialId]);
     await expect(ingest(f.db, plugins, p, { install: await r.install(), events })).rejects.toMatchObject({ status: 401 });
     expect((await f.db.query("SELECT 1 FROM sandboxes")).rows).toHaveLength(0);
   });

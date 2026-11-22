@@ -30,12 +30,16 @@ import type {
   InstallView,
   JobsView,
   MarkView,
+  Me,
   ProvidersView,
   RefusalsView,
   SandboxesView,
   UsagePoint,
   UsageView,
 } from "./api.js";
+
+import type { Principal } from "./plugins.js";
+import { sessionUser } from "./sessions.js";
 
 const read = <T>(db: Db, fn: (q: Queryable) => Promise<T>) => db.tx(fn, { isolation: "repeatable read", readOnly: true });
 
@@ -234,10 +238,11 @@ export async function refusals(db: Db, accountId: string, days: number): Promise
   });
 }
 
-export async function me(db: Db, accountId: string, keyId: string, scope: "ingest" | "admin") {
+export async function me(db: Db, p: Principal) {
   return read(db, async (q) => {
     const now = await dbNow(q);
-    const { rows } = await q.query<{ id: string; name: string }>("SELECT id, name FROM accounts WHERE id = $1", [accountId]);
-    return { now: new Date(now).toISOString(), account: rows[0]!, key: { id: keyId, scope } };
+    const { rows } = await q.query<{ id: string; name: string }>("SELECT id, name FROM accounts WHERE id = $1", [p.accountId]);
+    const user = p.via === "session" ? await sessionUser(q, p.credentialId) : undefined;
+    return { now: new Date(now).toISOString(), account: rows[0]!, key: { id: p.credentialId, scope: p.scope }, via: p.via, ...(user ? { user } : {}) } satisfies Me;
   });
 }

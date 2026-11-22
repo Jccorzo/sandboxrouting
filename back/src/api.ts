@@ -14,7 +14,25 @@ export interface Timed {
 
 export interface Me extends Timed {
   account: { id: string; name: string };
+  /** The key or session used (a session is always admin). */
   key: { id: string; scope: "ingest" | "admin" };
+  via: "key" | "session";
+  /** Who is signed in, for a session. */
+  user?: { id: string; login: string };
+}
+
+/** GET /v1/auth/config: how the dashboard signs people in. */
+export interface AuthConfig {
+  github: { clientId: string } | null;
+}
+
+/** POST /v1/sessions/github: a new session, its token shown once. */
+export interface SignedIn {
+  token: string;
+  account: { id: string; name: string };
+  user: { id: string; login: string };
+  /** This sign-in made the account (a first sign-in). */
+  created: boolean;
 }
 
 export interface InstallView {

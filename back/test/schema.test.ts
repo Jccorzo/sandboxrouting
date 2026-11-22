@@ -5,6 +5,9 @@ import { afterEach, describe, expect, it } from "vitest";
 import { closeAll, emptyDb, freshDb } from "./helpers.js";
 import { randomBytes } from "node:crypto";
 import { MIGRATIONS, MigrationError, checkMigrations, migrate, prepareSchema } from "../src/migrate.js";
+
+/** A version no real migration has yet, for a made-up next migration. */
+const NEXT = Math.max(...MIGRATIONS.map((m) => m.version)) + 1;
 import { pgDb } from "../src/db.js";
 import type { Db } from "../src/db.js";
 import { BILLINGS, ERROR_KINDS, FREE_TIER_KINDS, HEALTH_OPS, JOB_STATES, MARK_KINDS, MIGRATION_REASONS, SANDBOX_STATES, STOP_REASONS } from "../src/router.js";
@@ -33,8 +36,8 @@ describe("migrations", () => {
   it("run a new migration on a database at the old schema, keeping its rows", async () => {
     const db = await freshDb();
     await db.query("INSERT INTO accounts (name) VALUES ('kept')");
-    const next = [...MIGRATIONS, { version: 2, name: "add-column", sql: "ALTER TABLE accounts ADD COLUMN note text" }];
-    expect(await migrate(db, next)).toEqual([2]);
+    const next = [...MIGRATIONS, { version: NEXT, name: "add-column", sql: "ALTER TABLE accounts ADD COLUMN note text" }];
+    expect(await migrate(db, next)).toEqual([NEXT]);
     expect((await db.query("SELECT name, note FROM accounts")).rows).toEqual([{ name: "kept", note: null }]);
   });
 
@@ -58,8 +61,8 @@ describe("a back that doesn't migrate (SBR_MIGRATE_ON_START=0)", () => {
   it("starts on a database that is up to date, and refuses one with a migration left", async () => {
     const db = await freshDb();
     expect(await prepareSchema(db, off)).toEqual([]);
-    const next = [...MIGRATIONS, { version: 2, name: "add-column", sql: "ALTER TABLE accounts ADD COLUMN note text" }];
-    expect(await checkMigrations(db, next)).toEqual([2]);
+    const next = [...MIGRATIONS, { version: NEXT, name: "add-column", sql: "ALTER TABLE accounts ADD COLUMN note text" }];
+    expect(await checkMigrations(db, next)).toEqual([NEXT]);
   });
 
   it("refuses, as migrate does, a migration it doesn't know or one that was edited", async () => {
