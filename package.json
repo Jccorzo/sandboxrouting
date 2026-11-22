@@ -25,6 +25,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
+    },
+    "./agentrun": {
+      "types": "./dist/agentrun/index.d.ts",
+      "default": "./dist/agentrun/index.js"
     }
   },
   "files": [
@@ -58,6 +62,7 @@
     "@koyeb/sandbox-sdk": "*",
     "@namespacelabs/sdk": "*",
     "@northflank/js-client": "*",
+    "@parcha/agentrun-computer": "*",
     "@runloop/api-client": "*",
     "@runta/runta-sdk": "*",
     "@tenkicloud/sandbox": "*",
@@ -103,6 +108,9 @@
       "optional": true
     },
     "@northflank/js-client": {
+      "optional": true
+    },
+    "@parcha/agentrun-computer": {
       "optional": true
     },
     "@runloop/api-client": {
@@ -155,6 +163,7 @@
     "@koyeb/sandbox-sdk": "^1.1.0",
     "@namespacelabs/sdk": "^1.6.0",
     "@northflank/js-client": "^0.9.5",
+    "@parcha/agentrun-computer": "0.1.0-beta.51",
     "@runloop/api-client": "^3.0.0",
     "@runta/runta-sdk": "^0.2.0",
     "@tenkicloud/sandbox": "^1.5.1",

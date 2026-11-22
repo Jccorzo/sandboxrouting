@@ -597,6 +597,20 @@ claude mcp add sandboxes -- node /path/to/sandboxrouting/dist/cli.js mcp
 
 Once the package is published, `npx sandboxrouting mcp` works the same way.
 
+## AgentRun
+
+`sandboxrouting/agentrun` is a computer provider for [AgentRun](https://agentrun.ai/): one provider that gives an
+AgentRun server every sandboxrouting provider able to boot AgentRun's box image, routed free usage first, with
+failover. It implements AgentRun's `MachineHost` with the router in-process, as a dial host (the machine's
+`agentrun-dial` connects to the AgentRun server), and reports the provider it chose in the computer's labels.
+AgentRun keeps durable runs, cost caps and the run timeline. Tested against fake providers only, not yet against
+AgentRun's conformance suite or a live provider. See [docs/agentrun.md](docs/agentrun.md).
+
+```ts
+import { create } from "sandboxrouting/agentrun"; // needs @parcha/agentrun-computer too
+const provider = create({ strategy: "free-first", providers: "daytona,modal,fly", dial });
+```
+
 ## Configuration
 
 `./sandboxrouting.json`, else `~/.sandboxrouting/config.json`, or the path in `SBR_CONFIG`.
