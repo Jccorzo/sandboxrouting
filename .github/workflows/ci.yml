@@ -1,6 +1,6 @@
-# Lint, typecheck and tests on every push and pull request. Each check runs through hushrun,
-# which skips what this exact code already passed: the tests by test file (a file that passed
-# on the exact files it read doesn't run again), lint and typecheck for the whole project.
+# Lint, typecheck and tests on every push and pull request, and the workspaces' builds. Each
+# check runs through hushrun, which skips what this exact code already passed: the tests by test
+# file (a file that passed on the exact files it read doesn't run again), the rest as a whole.
 name: CI
 
 on:
@@ -28,3 +28,12 @@ jobs:
       - run: npm run lint
       - run: npm run typecheck
       - run: npm test
+      # The workspaces: back (on PGlite, a real Postgres in WebAssembly) and the dashboard.
+      - run: npm run lint -w back
+      - run: npm run typecheck -w back
+      - run: npm test -w back
+      - run: npm run build -w back
+      - run: npm run lint -w dashboard
+      - run: npm run typecheck -w dashboard
+      - run: npm test -w dashboard
+      - run: npm run build -w dashboard
