@@ -213,7 +213,7 @@ describe("koyeb over HTTP", () => {
     expect(api.bodies("POST /edge/koyeb-sandbox/run_streaming")[1]!.json()).toEqual({ cmd: "true" });
   });
 
-  it("hands output to the callbacks as it streams and, as the SDK does, then collects none", async () => {
+  it("hands output to the callbacks as it streams and still returns all of it", async () => {
     const api = await koyebMock({ sh: true });
     const ctx = ctxFor(api.url);
     const { providerSandboxId: id } = await koyebProvider.create(spec, ctx);
@@ -222,10 +222,10 @@ describe("koyeb over HTTP", () => {
     const r = await koyebProvider.exec(id, "echo a; echo b; echo c >&2", { onStdout: (c) => out.push(c), onStderr: (c) => err.push(c) }, ctx);
     expect(out).toEqual(["a\n", "b\n"]);
     expect(err).toEqual(["c\n"]);
-    expect(r).toEqual({ stdout: "", stderr: "", exitCode: 0 });
-    // One callback is enough to stop collecting both streams.
+    expect(r).toEqual({ stdout: "a\nb\n", stderr: "c\n", exitCode: 0 });
+    // A stdout callback alone loses nothing from stderr (the SDK dropped both streams here).
     const only = await koyebProvider.exec(id, "echo a; echo c >&2; exit 2", { onStdout: () => undefined }, ctx);
-    expect(only).toEqual({ stdout: "", stderr: "", exitCode: 2 });
+    expect(only).toEqual({ stdout: "a\n", stderr: "c\n", exitCode: 2 });
   });
 
   it("a command that fails to start discards its output and exits 1", async () => {

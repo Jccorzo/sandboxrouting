@@ -159,7 +159,7 @@ async function runStreaming(exe: Executor, command: string, o: ExecOptions): Pro
     }, timeoutSec * 1000);
     timer.unref();
   };
-  const collect = !o.onStdout && !o.onStderr;
+  // Output is always collected, as every other adapter does; the callbacks see it as it streams.
   const out = { stdout: [] as string[], stderr: [] as string[] };
   let code = 0;
   let startError: string | undefined;
@@ -200,9 +200,8 @@ async function runStreaming(exe: Executor, command: string, o: ExecOptions): Pro
         }
         if (stream !== "stdout" && stream !== "stderr") continue;
         const chunk = typeof d["data"] === "string" ? d["data"] : "";
-        const cb = stream === "stdout" ? o.onStdout : o.onStderr;
-        if (cb) cb(chunk);
-        else if (collect) out[stream].push(chunk);
+        out[stream].push(chunk);
+        (stream === "stdout" ? o.onStdout : o.onStderr)?.(chunk);
       } else if (ev.event === "complete" || ev.event === "error") {
         exit(eventData(ev.data));
       }
