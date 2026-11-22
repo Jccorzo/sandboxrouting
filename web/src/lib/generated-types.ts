@@ -34,6 +34,8 @@ export interface ProviderDoc {
   adapterSummary?: string;
   env: string[];
   sdkPackage?: string;
+  /** How sdkPackage gets installed: with sandboxrouting, or by the user (an optional peer). Absent: not installed next to the router. */
+  sdkInstall?: "bundled" | "optional";
   capabilities: string[];
   isolation?: string;
   os: string;

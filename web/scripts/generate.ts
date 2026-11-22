@@ -38,6 +38,7 @@ import { effectiveState, transition, type SandboxEvent, type SandboxRecord } fro
 import type { ProviderAdapter, SandboxSpec } from "../../src/core/types";
 import { createMcpServer } from "../../src/mcp/server";
 import { builtinProviders } from "../../src/providers/index";
+import { sdkInstall } from "../../src/providers/util";
 
 import { loadDocs, repoRoot } from "../src/lib/docs";
 import {
@@ -197,6 +198,7 @@ const providers: ProviderDoc[] = adapters.map((a) => {
     adapterSummary: summary,
     env: info.env,
     sdkPackage: info.sdkPackage,
+    sdkInstall: info.sdkPackage ? sdkInstall(info.sdkPackage) : undefined,
     capabilities: info.capabilities,
     isolation: info.isolation,
     os: info.os ?? "linux",

@@ -169,7 +169,7 @@ template's **权限与访问控制** section, you can attach an IAM role that th
 assumes. The router doesn't use that role. Keys are listed under **身份与权限 > 凭据管理**.
 
 veFaaS lacks E2B's `connect` call. Only the process that created a sandbox can run commands in
-it, and a paused sandbox can't be resumed through the SDK.
+it, and a paused sandbox can't be resumed.
 
 ## Railway Sandboxes (`railway`)
 

@@ -12,7 +12,17 @@ export function AdapterPanel({ id = "modal" }: { id?: string }) {
       rows: [
         { label: "id", value: p.id, code: true },
         { label: "env", value: p.env.join(", ") || "none", code: true },
-        { label: "sdk", value: p.sdkPackage ?? "REST, no SDK", code: Boolean(p.sdkPackage) },
+        {
+          label: "sdk",
+          value: !p.sdkPackage
+            ? "none, it calls the HTTP API"
+            : p.sdkInstall === "bundled"
+              ? `${p.sdkPackage} (installs with sandboxrouting)`
+              : p.sdkInstall === "optional"
+                ? `npm i ${p.sdkPackage}`
+                : p.sdkPackage,
+          code: Boolean(p.sdkPackage),
+        },
       ],
     },
     {

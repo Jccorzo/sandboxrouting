@@ -43,6 +43,11 @@ the shape. Before you open the pull request:
 - Claim only the capabilities the adapter implements.
 - Make `create` throw errors with an HTTP `status`, so a 402 (credit used up) and a 429
   (rate limit) fail over correctly.
+- Speak the provider's HTTP API with `fetch` (`http`/`httpJson` in `util.ts`) rather than
+  loading its SDK, so users install only sandboxrouting. Use an SDK only where there is no HTTP
+  equivalent; it then goes in `dependencies` unless it builds native code, runs an install
+  script or is large, in which case it is an optional peer dependency (`sdkInstall` in
+  `util.ts` reads which, and `test/fetch-providers.test.ts` checks package.json matches).
 - Add a test with a mocked API (see `test/rest-providers.test.ts` and `test/restmock.ts`),
   or with the SDK mocked (`test/sdk-providers.test.ts`).
 - Say in the pull request whether you ran it against the real service.
