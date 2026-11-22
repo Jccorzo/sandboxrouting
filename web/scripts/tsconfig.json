@@ -1,0 +1,18 @@
+{
+  // The data generator and the tests that read the router import its sources (../../src), which
+  // are typed for Node, not the DOM; so they are typechecked here, with the router's strictness.
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "lib": ["ES2023"],
+    "types": ["node"],
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "noEmit": true
+  },
+  "include": ["./*.ts", "../test/router/*.ts"]
+}

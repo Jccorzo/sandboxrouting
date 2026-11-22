@@ -37,3 +37,8 @@ jobs:
       - run: npm run typecheck -w dashboard
       - run: npm test -w dashboard
       - run: npm run build -w dashboard
+      # The site (web/): generated from the router, so it runs after the router's checks.
+      - run: npm run lint -w web
+      - run: npm run typecheck -w web
+      - run: npm test -w web
+      - run: npm run build -w web

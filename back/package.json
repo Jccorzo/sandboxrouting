@@ -15,10 +15,10 @@
   "scripts": {
     "dev": "tsx watch src/main.ts",
     "start": "node dist/main.js",
-    "build": "hushrun run back-build -- node build.mjs",
-    "typecheck": "hushrun run back-typecheck -- tsc -p tsconfig.json --noEmit",
-    "lint": "hushrun run back-lint -- eslint .",
-    "test": "hushrun run back-test -- vitest run",
+    "build": "hushrun run --scope back back-build -- node build.mjs",
+    "typecheck": "hushrun run --scope back back-typecheck -- tsc -p tsconfig.json --noEmit",
+    "lint": "hushrun run --scope back back-lint -- eslint .",
+    "test": "hushrun run --scope back back-test -- vitest run",
     "account": "tsx src/cli.ts"
   },
   "dependencies": {

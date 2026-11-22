@@ -11,10 +11,10 @@
   "scripts": {
     "dev": "next dev --port 3000",
     "start": "next start",
-    "build": "hushrun run dashboard-build -- next build",
-    "typecheck": "hushrun run dashboard-typecheck -- tsc -p tsconfig.json --noEmit",
-    "lint": "hushrun run dashboard-lint -- eslint .",
-    "test": "hushrun run dashboard-test -- vitest run"
+    "build": "hushrun run --scope dashboard dashboard-build -- next build",
+    "typecheck": "hushrun run --scope dashboard dashboard-typecheck -- tsc -p tsconfig.json --noEmit",
+    "lint": "hushrun run --scope dashboard dashboard-lint -- eslint .",
+    "test": "hushrun run --scope dashboard dashboard-test -- vitest run"
   },
   "dependencies": {
     "@sandboxrouting/back": "0.1.0",

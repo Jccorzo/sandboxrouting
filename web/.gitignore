@@ -1,0 +1,9 @@
+# Next.js
+.next/
+out/
+next-env.d.ts
+*.tsbuildinfo
+
+# Written by scripts/generate.ts from the router's registry before dev, build, lint, typecheck and test.
+src/generated/
+public/data/

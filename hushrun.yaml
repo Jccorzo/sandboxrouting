@@ -5,7 +5,24 @@ version: 1
 repository: github.com/jccorzo/sandboxrouting
 repository_url: https://api.hushrun.com/l/jccorzot/sandboxrouting
 
+# Four projects share the repository. Each check names its scope (`hushrun run --scope …`), so a
+# change to the site doesn't re-run the router's checks. The site's scope includes the router's
+# sources and docs, because the site is generated from them.
+scopes:
+  router:
+    include: ["**"]
+    exclude: ["web/**", "back/**", "dashboard/**"]
+  # back and the dashboard import the router's sources (back/src/router.ts), and the dashboard
+  # imports back, so each scope includes what it is built from.
+  back:
+    include: ["back/**", "src/**", "package.json", "package-lock.json", "hushrun.yaml", ".github/**"]
+  dashboard:
+    include: ["dashboard/**", "back/**", "src/**", "package.json", "package-lock.json", "hushrun.yaml", ".github/**"]
+  web:
+    include: ["web/**", "src/**", "README.md", "docs/**", "sandboxrouting.example.json", "package.json", "package-lock.json", "hushrun.yaml", ".github/**"]
+
 checks:
+  # The router (package.json at the root, --scope router).
   # Vitest's test files are the unit: a file that already passed on the exact files it read
   # doesn't run again (vitest.config.ts loads hushrun's plugin when hushrun asks for it).
   test:
@@ -14,18 +31,26 @@ checks:
   lint: {}
   typecheck: {}
 
-  # The workspaces' own checks, each run from its directory by its package.json script
-  # (`npm run <script> -w back`), which names the check it is.
+  # back/ (back/package.json, --scope back): the ingest API. Tests run on PGlite.
   back-test:
     tests: reuse
   back-lint: {}
   back-typecheck: {}
   back-build: {}
+
+  # dashboard/ (dashboard/package.json, --scope dashboard).
   dashboard-test:
     tests: reuse
   dashboard-lint: {}
   dashboard-typecheck: {}
   dashboard-build: {}
+
+  # The site (web/package.json, --scope web): lint, typecheck, unit tests and the static build.
+  web-test:
+    tests: reuse
+  web-lint: {}
+  web-typecheck: {}
+  web-build: {}
 
 transparency_log:   # the server's log key
   origin: api.hushrun.com/l/jccorzot/sandboxrouting

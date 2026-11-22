@@ -5,6 +5,7 @@ import globals from "globals";
 import tseslint from "typescript-eslint";
 
 export default tseslint.config(
+  // back/, dashboard/ and web/ are workspaces with their own lint configs.
   { ignores: ["dist/**", "node_modules/**", ".claude/**", "templates/**/node_modules/**", "back/**", "dashboard/**", "web/**"] },
   js.configs.recommended,
   ...tseslint.configs.recommended,
