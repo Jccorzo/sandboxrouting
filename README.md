@@ -592,10 +592,13 @@ on demand and returns `{ sandboxes, jobs }`.
 then returns the job's id to poll with `job_status`. For Claude Code:
 
 ```bash
-claude mcp add sandboxes -- node /path/to/sandboxrouting/dist/cli.js mcp
+claude mcp add sandboxes -- npx -y sandboxrouting mcp
 ```
 
-Once the package is published, `npx sandboxrouting mcp` works the same way.
+Other clients take the same command (`npx -y sandboxrouting mcp`) in their MCP config, with
+your provider keys in its `env`. From a clone, `node /path/to/sandboxrouting/dist/cli.js mcp`
+runs the local build instead. The server is listed in the MCP Registry as
+`com.sandboxrouting/sandboxrouting`.
 
 ## AgentRun
 
