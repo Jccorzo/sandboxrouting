@@ -1,31 +1,125 @@
 // Namespace (namespace.so) Compute: micro-VM instances with a deadline, running one managed
 // container that commands go into. No free tier (the Developer plan is $0 base, pay as you
 // go, capped at 32 vCPU and 3 h per instance).
-// SDK: npm `@namespacelabs/sdk` (Connect at https://{us|eu}.compute.namespaceapis.com).
-// CLI: `nsc`. Credentials: NSC_TOKEN (bearer), else the SDK's defaults (NSC_TOKEN_FILE, nsc login).
+// Spoken over HTTP, no SDK: the Connect (JSON) calls the official SDK (npm `@namespacelabs/sdk`
+// 1.6.0, Apache-2.0) makes to https://{us|eu}.compute.namespaceapis.com, services
+// namespace.cloud.compute.v1beta.ComputeService and CommandService. API docs:
+// https://buf.build/namespace/cloud/docs/main:namespace.cloud.compute.v1beta. CLI: `nsc`.
+// NSC_API_URL overrides the base URL.
+// Credentials: NSC_TOKEN (bearer), else the token file the SDK's `loadDefaults` reads
+// (NSC_TOKEN_FILE, /var/run/nsc/token.json, or the `nsc login` file in the user config dir).
 
-import { defineProvider, loadSdk } from "./util.js";
+import { access, readFile } from "node:fs/promises";
+import { homedir, platform } from "node:os";
+import { dirname, join } from "node:path";
+import { defineProvider } from "./util.js";
+import { connectUnary } from "./connect-rpc.js";
+import { SandboxRouterError } from "../core/errors.js";
 import type { ProviderContext } from "../core/types.js";
 
-type NsSdk = typeof import("@namespacelabs/sdk");
-type NsClient = ReturnType<NsSdk["createComputeClient"]>;
-
 const CONTAINER = "sandbox";
-let client: NsClient | undefined;
+const COMPUTE = "namespace.cloud.compute.v1beta.ComputeService";
+const COMMAND = "namespace.cloud.compute.v1beta.CommandService";
+const ISSUE_FROM_SESSION = "namespace.private.sessions.v1beta.UserSessionsService/IssueTenantTokenFromSession";
+/** The validity the SDK wants left on a token it sends (TOKEN_MIN_VALIDITY_MS). */
+const MIN_VALIDITY_MS = 5 * 60_000;
 
-async function ns(ctx: ProviderContext): Promise<NsClient> {
-  if (client) return client;
-  const sdk = await loadSdk<NsSdk>("@namespacelabs/sdk", "namespace");
-  const token = ctx.env["NSC_TOKEN"];
-  client = sdk.createComputeClient({
-    tokenSource: token ? sdk.fromBearerToken(token) : await sdk.loadDefaults(),
-    region: ctx.env["NSC_REGION"] ?? (ctx.options["region"] as string | undefined),
-  });
-  return client;
+const region = (ctx: ProviderContext) => String(ctx.env["NSC_REGION"] || ctx.options["region"] || "us");
+const baseUrl = (ctx: ProviderContext) => ctx.env["NSC_API_URL"] || `https://${region(ctx)}.compute.namespaceapis.com`;
+const iamUrl = (ctx: ProviderContext) => ctx.env["NSC_IAM_ENDPOINT"] || ctx.env["NSC_GLOBAL_ENDPOINT"] || "https://private-api.global.namespaceapis.com";
+
+/** A JWT's claims, unverified, after the SDK's known token prefixes; {} when it isn't one. */
+function claims(token: string): { exp?: number; tenant_id?: string } {
+  const payload = token.replace(/^(st_|nsct_|nscw_|oidc_|cognito_)/, "").split(".");
+  if (payload.length !== 3) return {};
+  try {
+    return JSON.parse(Buffer.from(payload[1]!, "base64url").toString("utf8")) as { exp?: number; tenant_id?: string };
+  } catch {
+    return {};
+  }
+}
+/** Whether a token has MIN_VALIDITY_MS left; one without `exp` never expires. */
+const fresh = (token: string) => {
+  const exp = claims(token).exp;
+  return exp === undefined || exp * 1000 > Date.now() + MIN_VALIDITY_MS;
+};
+
+/** Where `loadDefaults` looks, in its order: NSC_TOKEN_FILE, the workload token, the `nsc login` file. */
+async function tokenFile(ctx: ProviderContext): Promise<string> {
+  if (ctx.env["NSC_TOKEN_FILE"]) return ctx.env["NSC_TOKEN_FILE"];
+  const workload = "/var/run/nsc/token.json";
+  if (await access(workload).then(() => true, () => false)) return workload;
+  const os = platform();
+  const config =
+    os === "darwin"
+      ? join(homedir(), "Library/Application Support")
+      : os === "win32"
+        ? ctx.env["APPDATA"] || join(homedir(), "AppData/Roaming")
+        : ctx.env["XDG_CONFIG_HOME"] || join(homedir(), ".config");
+  return join(config, "ns/token.json");
 }
 
-const deadlineIn = (sec: number) => ({ seconds: BigInt(Math.floor(Date.now() / 1000) + sec), nanos: 0 });
-const dec = (b: Uint8Array) => new TextDecoder().decode(b);
+/** Tokens taken from a token file, by its path; reused while they have MIN_VALIDITY_MS left. */
+const fromFiles = new Map<string, string>();
+
+/**
+ * A token from the file, as the SDK's LoadedToken issues one: its bearer token as is, or for a
+ * session token (what `nsc login` leaves) a tenant token from the cache `nsc` keeps next to it,
+ * else a new 10-minute one from the IAM API.
+ */
+async function tokenFromFile(ctx: ProviderContext, path: string): Promise<string> {
+  const hit = fromFiles.get(path);
+  if (hit && fresh(hit)) return hit;
+  let file: { bearer_token?: string; session_token?: string };
+  try {
+    file = JSON.parse(await readFile(path, "utf8")) as typeof file;
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === "ENOENT") {
+      throw new SandboxRouterError("auth", "namespace: you are not logged in to Namespace; set NSC_TOKEN or run `nsc login`", "namespace", { cause: err });
+    }
+    throw err;
+  }
+  let token: string;
+  if (file.session_token) {
+    const session = file.session_token;
+    const cached = await readFile(join(dirname(path), "token.cache"), "utf8").catch(() => "");
+    const c = claims(cached);
+    if (c.tenant_id && c.tenant_id === claims(session).tenant_id && (c.exp ?? 0) * 1000 > Date.now() + MIN_VALIDITY_MS) token = cached;
+    else {
+      // The SDK asks for twice the validity it needs, capped at an hour.
+      const res = await connectUnary<{ tenantToken?: string }>(
+        iamUrl(ctx),
+        ISSUE_FROM_SESSION,
+        { tokenDuration: `${(2 * MIN_VALIDITY_MS) / 1000}s` },
+        { headers: { authorization: `Bearer ${session}` } },
+      );
+      if (!res.tenantToken) throw new Error("namespace: IssueTenantTokenFromSession returned no token");
+      token = res.tenantToken;
+    }
+  } else if (file.bearer_token) token = file.bearer_token;
+  else throw new SandboxRouterError("auth", `namespace: ${path} holds no bearer or session token`, "namespace");
+  fromFiles.set(path, token);
+  return token;
+}
+
+const bearer = async (ctx: ProviderContext) => ctx.env["NSC_TOKEN"] || tokenFromFile(ctx, await tokenFile(ctx));
+
+/** A unary call; `timeoutMs` is sent as the Connect deadline too. */
+async function call<T>(ctx: ProviderContext, method: string, request: unknown, timeoutMs?: number): Promise<T> {
+  return connectUnary<T>(baseUrl(ctx), method, request, { headers: { authorization: `Bearer ${await bearer(ctx)}` }, timeoutMs });
+}
+
+/** A protobuf Timestamp in JSON: RFC 3339, whole seconds as the SDK sends them. */
+const deadlineIn = (sec: number) => new Date((Math.floor(Date.now() / 1000) + sec) * 1000).toISOString().replace(".000Z", "Z");
+const pairs = (m: Record<string, string>) => Object.entries(m).map(([name, value]) => ({ name, value }));
+/** protobuf JSON `bytes`: base64, left out when empty. */
+const text = (b64: string | undefined) => (b64 ? Buffer.from(b64, "base64").toString("utf8") : "");
+
+interface InstanceMetadata {
+  instanceId: string;
+  /** The enum's name in JSON; a number if the server sends one. */
+  status?: string | number;
+}
 
 export const namespaceProvider = defineProvider({
   info: {
@@ -33,7 +127,6 @@ export const namespaceProvider = defineProvider({
     name: "Namespace",
     homepage: "https://namespace.so",
     env: ["NSC_TOKEN"],
-    sdkPackage: "@namespacelabs/sdk",
     capabilities: ["customImage", "extendTimeout"],
     isolation: "microvm",
     maxTimeoutSec: 3 * 3600,
@@ -49,55 +142,57 @@ export const namespaceProvider = defineProvider({
   },
 
   async create(spec, ctx) {
-    const c = await ns(ctx);
     const vcpu = Math.max(1, Math.round(spec.cpu));
-    const res = await c.compute.createInstance({
-      shape: { os: "linux", machineArch: String(ctx.options["arch"] ?? "amd64"), virtualCpu: vcpu, memoryMegabytes: spec.memoryMiB },
-      deadline: deadlineIn(spec.timeoutSec),
-      documentedPurpose: "sandboxrouting",
-      labels: Object.entries(spec.metadata).map(([name, value]) => ({ name, value })),
-      containers: [
-        {
-          name: CONTAINER,
-          imageRef: spec.nativeTemplate ?? spec.image ?? "ubuntu:24.04",
-          args: ["sleep", "infinity"],
-          envVars: Object.entries(spec.env).map(([name, value]) => ({ name, value })),
-        },
-      ],
-    });
+    // The SDK sets no deadline here; an image that isn't pinned is resolved during the call.
+    const res = await call<{ metadata?: InstanceMetadata }>(
+      ctx,
+      `${COMPUTE}/CreateInstance`,
+      {
+        shape: { os: "linux", machineArch: String(ctx.options["arch"] ?? "amd64"), virtualCpu: vcpu, memoryMegabytes: spec.memoryMiB },
+        deadline: deadlineIn(spec.timeoutSec),
+        documentedPurpose: "sandboxrouting",
+        labels: pairs(spec.metadata),
+        containers: [{ name: CONTAINER, imageRef: spec.nativeTemplate ?? spec.image ?? "ubuntu:24.04", args: ["sleep", "infinity"], envVars: pairs(spec.env) }],
+      },
+      600_000,
+    );
     const instanceId = res.metadata?.instanceId;
     if (!instanceId) throw new Error("namespace: createInstance returned no instance id");
-    await c.compute.waitInstanceSync({ instanceId }, { timeoutMs: 180_000 });
+    // Returns once the instance is RUNNING.
+    await call(ctx, `${COMPUTE}/WaitInstanceSync`, { instanceId }, 180_000);
     return { providerSandboxId: instanceId, cpu: vcpu, memoryMiB: spec.memoryMiB };
   },
 
   async exec(id, command, o, ctx) {
-    const c = await ns(ctx);
-    const r = await c.command.runCommandSync(
+    const r = await call<{ stdout?: string; stderr?: string; exitCode?: number }>(
+      ctx,
+      `${COMMAND}/RunCommandSync`,
       {
         instanceId: id,
         targetContainerName: CONTAINER,
-        command: { command: ["sh", "-c", command], cwd: o.cwd ?? "", envVars: Object.entries(o.env ?? {}).map(([name, value]) => ({ name, value })) },
+        command: { command: ["sh", "-c", command], envVars: pairs(o.env ?? {}), ...(o.cwd ? { cwd: o.cwd } : {}) },
       },
-      { timeoutMs: (o.timeoutSec ?? 3600) * 1000 },
+      (o.timeoutSec ?? 3600) * 1000,
     );
-    const stdout = dec(r.stdout);
-    const stderr = dec(r.stderr);
+    // One response with all the output: the callbacks get it at the end, in one piece each.
+    const stdout = text(r.stdout);
+    const stderr = text(r.stderr);
     if (stdout) o.onStdout?.(stdout);
     if (stderr) o.onStderr?.(stderr);
-    return { stdout, stderr, exitCode: r.exitCode };
+    return { stdout, stderr, exitCode: r.exitCode ?? 0 };
   },
 
   async setTimeout(id, timeoutSec, ctx) {
-    await (await ns(ctx)).compute.extendInstance({ instanceId: id, newDeadline: deadlineIn(timeoutSec) });
+    await call(ctx, `${COMPUTE}/ExtendInstance`, { instanceId: id, newDeadline: deadlineIn(timeoutSec) });
   },
 
   async kill(id, ctx) {
-    await (await ns(ctx)).compute.destroyInstance({ instanceId: id, reason: "sandboxrouting kill" });
+    await call(ctx, `${COMPUTE}/DestroyInstance`, { instanceId: id, reason: "sandboxrouting kill" });
   },
 
   async listAlive(ctx) {
-    const res = await (await ns(ctx)).compute.listInstances({});
-    return res.instances.filter((i) => i.status !== 4 /* DESTROYED */).map((i) => i.instanceId);
+    // Without includeCompleteRuns the API lists only PENDING, CREATING and RUNNING instances.
+    const res = await call<{ instances?: InstanceMetadata[] }>(ctx, `${COMPUTE}/ListInstances`, {});
+    return (res.instances ?? []).filter((i) => i.status !== "DESTROYED" && i.status !== 4).map((i) => i.instanceId);
   },
 });

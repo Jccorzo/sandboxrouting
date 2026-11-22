@@ -254,10 +254,9 @@ Notes:
 - Tenki is now Luxor Agent Cloud (tenki.cloud redirects to luxor.ai). The id stays `tenki`; the
   adapter reads `LUXOR_API_KEY` / `LUXOR_AUTH_TOKEN` / `LUXOR_API_ENDPOINT` as the SDK does, and
   the old `TENKI_*` names still work.
-- Runta, Watasu and Archil run commands only over a WebSocket protocol their SDKs speak, so
-  their adapters load the SDK for `exec` and use REST for everything else. `@runta/runta-sdk`
-  and `@watasu/sdk` install with sandboxrouting; Archil's, `disk`, needs Node 22.19 or newer, so
-  it stays an optional install (`npm install disk`). Reaching
+- Runta, Watasu, Archil and Northflank run commands only over a WebSocket. Their adapters speak
+  it themselves (src/providers/websocket.ts, a small RFC 6455 client, so Node 20 works too),
+  with the frames each official SDK uses, and use REST for everything else. Reaching
   a Watasu sandbox's data plane resets its deadline, so the adapter passes the time it has left
   and the router also deletes it at its deadline.
 - Vers's newer docs create computers through a v2 operation API whose exec and file routes
@@ -290,19 +289,19 @@ Notes:
 | `daytona` | `DAYTONA_API_KEY` | REST app.daytona.io/api + the sandbox's toolbox API (no SDK) |
 | `modal` | `MODAL_TOKEN_ID`, `MODAL_TOKEN_SECRET` | SDK `modal` (gRPC) |
 | `vercel` | `VERCEL_TOKEN`, `VERCEL_TEAM_ID`, `VERCEL_PROJECT_ID` (or `VERCEL_OIDC_TOKEN`) | REST vercel.com/api/v2/sandboxes (no SDK) |
-| `runloop` | `RUNLOOP_API_KEY` | SDK `@runloop/api-client` |
-| `freestyle` | `FREESTYLE_API_KEY` | SDK `freestyle` |
-| `blaxel` | `BL_API_KEY`, `BL_WORKSPACE` | SDK `@blaxel/core` |
-| `northflank` | `NORTHFLANK_TOKEN`, `NORTHFLANK_PROJECT` | SDK `@northflank/js-client` |
+| `runloop` | `RUNLOOP_API_KEY` | REST api.runloop.ai/v1/devboxes (no SDK) |
+| `freestyle` | `FREESTYLE_API_KEY` | REST api.freestyle.sh/v5 (no SDK) |
+| `blaxel` | `BL_API_KEY`, `BL_WORKSPACE` | REST api.blaxel.ai/v0 + each sandbox's API (no SDK) |
+| `northflank` | `NORTHFLANK_TOKEN`, `NORTHFLANK_PROJECT` | REST api.northflank.com/v1 + the command-exec WebSocket (no SDK) |
 | `cloudflare` | `CLOUDFLARE_SANDBOX_URL`, `CLOUDFLARE_SANDBOX_TOKEN` | REST, to the bridge Worker in templates/cloudflare-worker |
 | `instabox` | `INSTABOX_API_KEY` | REST api.instabox.sh |
-| `upstash` | `UPSTASH_BOX_API_KEY` | SDK `@upstash/box` |
-| `tenki` | `LUXOR_API_KEY` or `LUXOR_AUTH_TOKEN` (the old `TENKI_API_KEY` / `TENKI_AUTH_TOKEN` still work) | SDK `@tenkicloud/sandbox` (also published as `@luxorai/sandbox`) |
+| `upstash` | `UPSTASH_BOX_API_KEY` | REST us-east-1.box.upstash.com/v2 (no SDK) |
+| `tenki` | `LUXOR_API_KEY` or `LUXOR_AUTH_TOKEN` (the old `TENKI_API_KEY` / `TENKI_AUTH_TOKEN` still work) | Connect at api.luxor.ai + gRPC to each session's data plane (no SDK) |
 | `boxlite` | `BOXLITE_API_KEY` | SDK `@boxlite-ai/boxlite` (native: macOS arm64, Linux glibc) |
 | `dedalus` | `DEDALUS_API_KEY` | REST dcs.dedaluslabs.ai/v1 |
 | `createos` | `CREATEOS_SANDBOX_API_KEY` | REST api.sb.createos.sh/v1 |
 | `quivvo` | `QUIVVO_API_KEY` | REST tryquivvo.com/api/v1 |
-| `celesto` | `CELESTO_API_KEY` | SDK `@celestoai/sdk` |
+| `celesto` | `CELESTO_API_KEY` | REST api.celesto.ai/v1/computers (no SDK) |
 | `agent37` | `AGENT37_API_KEY` | REST api.agent37.com/v1 + sandbox.agent37.app |
 | `boat` | `BOAT_API_KEY` | REST boat.dev/api/v1 |
 | `tensorlake` | `TENSORLAKE_API_KEY` | REST api.tensorlake.ai + `<id>.sandbox.tensorlake.ai` |
@@ -320,14 +319,14 @@ Notes:
 | `instavm` | `INSTAVM_API_KEY` | REST api.instavm.io |
 | `prized` | `PRIZED_API_KEY` | REST api.prized.dev/api/v1 + the sandbox's edge |
 | `zipbox` | `ZIPBOX_API_KEY` | REST api.tribes.xyz + the box's own API |
-| `koyeb` | `KOYEB_API_TOKEN` | SDK `@koyeb/sandbox-sdk` |
+| `koyeb` | `KOYEB_API_TOKEN` | REST app.koyeb.com/v1 + the sandbox executor (no SDK) |
 | `fly` | `FLY_API_TOKEN`, `FLY_APP` | REST api.machines.dev/v1 |
 | `sprites` | `SPRITES_TOKEN` | REST api.sprites.dev/v1 (the SDK needs Node 24) |
-| `morph` | `MORPH_API_KEY` | SDK `morphcloud` |
-| `together` | `TOGETHER_API_KEY` | SDK `together-sandbox` |
-| `depot` | `DEPOT_TOKEN` | SDK `@depot/sandbox` |
-| `namespace` | `NSC_TOKEN` | SDK `@namespacelabs/sdk` |
-| `lambda-microvm` | `LAMBDA_MICROVM_IMAGE` + AWS credentials | SDK `@aws-sdk/client-lambda-microvms`, plus execd (templates/aws-lambda-microvm) |
+| `morph` | `MORPH_API_KEY` | REST cloud.morph.so/api (no SDK) |
+| `together` | `TOGETHER_API_KEY` | REST api.bartender.codesandbox.io/v1 + the sandbox agent (no SDK) |
+| `depot` | `DEPOT_TOKEN` | Connect at api.depot.dev (no SDK) |
+| `namespace` | `NSC_TOKEN` | Connect at {us,eu}.compute.namespaceapis.com (no SDK) |
+| `lambda-microvm` | `LAMBDA_MICROVM_IMAGE` + AWS credentials | REST lambda.&lt;region&gt;.amazonaws.com, SigV4-signed (no SDK), plus execd (templates/aws-lambda-microvm) |
 | `thunder` | `TNR_API_TOKEN` | REST api.thundercompute.com:8443/v1, plus system `ssh` |
 | `exedev` | `EXE_API_TOKEN` (minted with `generate-api-key --cmds=new,ssh,rm,ls`) | REST `POST exe.dev/exec` |
 | `nanite` | `NANITE_API_KEY` | REST api.nanite.run/v1 |
@@ -341,7 +340,7 @@ Notes:
 | `mandala` | `MANDALA_API_KEY` | REST app.mandala.computer/api/v1 |
 | `platinum` | `PT_TOKEN` (`PT_API_URL` for a self-hosted control plane) | REST api.platinum.dev/v1 |
 | `inngest` | `INNGEST_SIGNING_KEY` (`INNGEST_ENV` for a branch environment) | REST api.inngest.com/v2/sandboxes, the calls the `inngest` SDK makes |
-| `archil` | `ARCHIL_API_KEY` (`ARCHIL_REGION`, default `aws-us-east-1`) | REST control.&lt;region&gt;.archil.com/api for the lifecycle; SDK `disk` (Node 22.19+) for commands |
+| `archil` | `ARCHIL_API_KEY` (`ARCHIL_REGION`, default `aws-us-east-1`) | REST control.&lt;region&gt;.archil.com/api, commands over its process WebSocket (no SDK) |
 | `openpond` | `OPENPOND_API_KEY` | REST api.openpond.ai/v1/sandboxes, the calls `openpond-sdk` makes |
 | `gmi` | `GMI_SANDBOX_API_KEY`, `GMI_SANDBOX_TEMPLATE` (an Agent template id or name) | REST console.gmicloud.ai/api/v2 + the sandbox's data plane |
 | `dory` | `DORY_API_KEY` | REST api.dory.run/v1 + data.dory.run |
@@ -358,11 +357,11 @@ Notes:
 | `pilldrops` | `PILLDROPS_API_KEY` | REST pilldrops.com/v1 |
 | `vers` | `VERS_API_KEY` | REST api.vers.sh/api/v1 |
 | `oblien` | `OBLIEN_CLIENT_ID`, `OBLIEN_CLIENT_SECRET` | REST api.oblien.com/v1 + the vm.oblien.com runtime gateway (short-lived JWT) |
-| `runta` | `RUNTA_API_KEY` | REST api.runta.com/v2, exec through SDK `@runta/runta-sdk` (WebSocket; `npm i @runta/runta-sdk`, about 9 MB) |
+| `runta` | `RUNTA_API_KEY` | REST api.runta.com/v2, exec over its WebSocket (no SDK) |
 | `stateset` | `STATESET_API_KEY` | REST api.sandbox.stateset.app/api/v1 |
 | `saas-sandbox` | `AAS_API_KEY` | REST sandbox-as-a-service.com/v1 |
 | `sandbox0` | `SANDBOX0_TOKEN` | REST api.sandbox0.ai/api/v1 |
-| `watasu` | `WATASU_API_KEY` (`options.team` for a shared team) | REST api.watasu.io/v1, exec through SDK `@watasu/sdk` (WebSocket; installed with sandboxrouting) |
+| `watasu` | `WATASU_API_KEY` (`options.team` for a shared team) | REST api.watasu.io/v1, exec over its data-plane WebSocket (no SDK) |
 | `langsmith` | `LANGSMITH_API_KEY` (`LANGSMITH_ENDPOINT` for EU, `LANGSMITH_WORKSPACE_ID` for org keys) | REST api.smith.langchain.com/api/v2/sandboxes + each sandbox's data plane |
 | `miosa` | `MIOSA_API_KEY` | REST api.miosa.ai/api/v1 |
 | `railway` | `RAILWAY_TOKEN` (project token), or `RAILWAY_API_TOKEN` + `RAILWAY_ENVIRONMENT_ID` | GraphQL backboard.railway.com/graphql/v2 |
@@ -395,16 +394,14 @@ Notes:
 | `azure-sandboxes` | `AZURE_SUBSCRIPTION_ID`, `AZURE_RESOURCE_GROUP`, `AZURE_SANDBOX_GROUP`, `AZURE_REGION` + `AZURE_ACCESS_TOKEN` or `AZURE_TENANT_ID`/`AZURE_CLIENT_ID`/`AZURE_CLIENT_SECRET` | REST management.{region}.azuredevcompute.io |
 | `docker` | none (`SBR_DOCKER=0` turns it off) | `docker` CLI |
 
-`npm install sandboxrouting` is all most providers need: the adapters speak each provider's
-HTTP API themselves (E2B and the services that speak its API, Daytona, Vercel and every REST
-provider above), and Watasu's small SDK, which has no HTTP equivalent, is a dependency. The
-providers still marked "SDK" in the table load an SDK that is an optional peer dependency,
-because it is large for one provider (`@runta/runta-sdk`), builds native code or runs an
-install script (`modal`, `@boxd-sh/sdk`, `@northflank/js-client`, `@namespacelabs/sdk`,
-`morphcloud`, `@boxlite-ai/boxlite`), is large (`@beamcloud/beam-js`), needs a newer Node
-(`disk`), or hasn't been replaced by HTTP calls yet. Install one only for a provider you use,
-e.g. `npm install sandboxrouting modal`; a provider whose key is set but whose SDK is missing
-is skipped with an install hint.
+`npm install sandboxrouting` is all every provider needs but four: the adapters speak each
+provider's HTTP, Connect, gRPC or WebSocket API themselves, with no provider SDK installed.
+The four still marked "SDK" in the table load an SDK that is an optional peer dependency,
+because the provider has no API but gRPC through it (`modal`, `@boxd-sh/sdk`, both with
+install scripts), it is a native binding (`@boxlite-ai/boxlite`), or it is large and its API
+undocumented (`@beamcloud/beam-js`). Install one only for that provider, e.g.
+`npm install sandboxrouting modal`; a provider whose key is set but whose SDK is missing is
+skipped with an install hint.
 
 ## How a provider is chosen
 

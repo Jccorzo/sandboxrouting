@@ -6,8 +6,10 @@
 // Control plane: https://api.watasu.io/v1 (Bearer Watasu API key); docs
 // docs.watasu.io/sandboxes/overview.md, docs.watasu.io/sandboxes/files-and-commands.md,
 // docs.watasu.io/sandboxes/billing.md, docs.watasu.io/sandboxes/networking.md.
-// Commands run only over the data plane's process WebSocket (/runtime/v1/process), so `exec`
-// loads the official SDK, npm `@watasu/sdk` (optional peer dependency). Reaching the data plane
+// Commands run only over the data plane's process WebSocket (/runtime/v1/process), spoken here
+// with websocket.ts and the JSON frames the official SDK uses (npm `@watasu/sdk` 0.1.77, MIT OR
+// Apache-2.0: dist/processSocket.js, dist/commands.js): a start frame; started, stdout/stderr
+// (base64), lagged, exit and error frames, each with a cursor to reconnect from. Reaching the data plane
 // means `resume`, which refreshes the deadline, so exec passes the time the sandbox has left and
 // the router also deletes it at its deadline (enforcesTimeout false). Files go through the
 // router's exec fallback. Create takes an Idempotency-Key and answers once a data-plane session
@@ -15,8 +17,9 @@
 // quota a create answers 422 `sandbox_quota_exceeded`.
 
 import { randomUUID } from "node:crypto";
-import { defineProvider, http, httpJson, HttpError, loadSdk, refusals } from "./util.js";
+import { defineProvider, http, httpJson, HttpError, refusals } from "./util.js";
 import { pollMs, sleep } from "./rest-helpers.js";
+import { WebSocketClient } from "./websocket.js";
 import { USD_PER_EUR } from "./currency.js";
 import type { ProviderContext } from "../core/types.js";
 
@@ -39,20 +42,126 @@ const sandboxOf = (r: { sandbox?: Sandbox } & Sandbox): Sandbox => r.sandbox ?? 
 const idOf = (s: Sandbox) => String(s.id ?? s.sandbox_id ?? "");
 const DEAD = ["failed", "lost", "destroyed", "destroying", "killed", "stopped", "stopping"];
 
-interface WatasuSdk {
-  Sandbox: {
-    connect(
-      id: string,
-      opts: { apiKey?: string; apiUrl?: string; timeoutMs?: number },
-    ): Promise<{
-      commands: {
-        run(
-          cmd: string,
-          opts: { cwd?: string; envs?: Record<string, string>; timeoutMs?: number; onStdout?: (d: string) => void; onStderr?: (d: string) => void },
-        ): Promise<{ exitCode: number; stdout: string; stderr: string }>;
-      };
-    }>;
+// The SDK's process-stream limits.
+const SOCKET_TIMEOUT_MS = 60_000;
+const KEEPALIVE_MS = 50_000;
+const RECONNECTS = 12;
+/** The runtime's own ceiling for a command that names none, and the client's grace past it. */
+const DEFAULT_COMMAND_MS = 3_600_000;
+const WAIT_GRACE_MS = 60_000;
+
+interface ProcessFrame {
+  type?: string;
+  cursor?: number | string;
+  pid?: number | string;
+  process?: { pid?: number | string; id?: number | string };
+  data?: string;
+  exit_code?: number | string | null;
+  exitCode?: number | string | null;
+  status?: string;
+  error?: string;
+  message?: string;
+  code?: string;
+}
+
+/** One process socket: opened with the session token, kept alive with pings, read frame by frame. */
+async function openSocket(dataPlane: string, token: string, path: string): Promise<{ ws: WebSocketClient; frames: AsyncGenerator<ProcessFrame> }> {
+  const url = new URL(path, dataPlane.replace(/^http/, "ws"));
+  const ws = await WebSocketClient.connect(url.toString(), { headers: { Authorization: `Bearer ${token}` }, timeoutMs: SOCKET_TIMEOUT_MS }).catch((err: unknown) => {
+    if (err instanceof HttpError && err.status === 404) throw new HttpError(404, `watasu: process not found: ${err.message}`);
+    throw err;
+  });
+  const keepalive = setInterval(() => ws.ping("watasu-sdk"), KEEPALIVE_MS);
+  keepalive.unref();
+  async function* frames(): AsyncGenerator<ProcessFrame> {
+    try {
+      for await (const m of ws.messages()) {
+        const f = JSON.parse(m.data.toString("utf8")) as ProcessFrame;
+        if (f.type === "pong" || f.type === "ready" || f.type === "stdin_ack" || f.type === "close_stdin_ack") continue;
+        yield f;
+        if (f.type === "error") return;
+      }
+    } catch (err) {
+      // A dropped socket reads as an error frame, which the reader may reconnect from.
+      yield { type: "error", message: `process websocket failed: ${(err as Error).message}` };
+    } finally {
+      clearInterval(keepalive);
+      await ws.close().catch(() => undefined);
+    }
+  }
+  return { ws, frames: frames() };
+}
+
+const exitOf = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : typeof v === "string" && v !== "" && Number.isFinite(Number(v)) ? Number(v) : undefined);
+
+/** Runs `command` on the data plane as `commands.run` does, reconnecting from the last cursor when the stream drops or lags. */
+async function runCommand(dataPlane: string, token: string, command: string, o: { cwd?: string; env?: Record<string, string>; timeoutMs?: number; onStdout?: (s: string) => void; onStderr?: (s: string) => void }) {
+  const env = { ...(o.env ?? {}) };
+  let { ws, frames } = await openSocket(dataPlane, token, "/runtime/v1/process");
+  ws.send(JSON.stringify({ type: "start", cmd: "/bin/bash", args: ["-l", "-c", command], cwd: o.cwd, environment: env, envs: env, stdin: false, timeout_ms: o.timeoutMs ?? 60_000 }));
+  let pid: string | number | undefined;
+  let cursor = 0;
+  let stdout = "";
+  let stderr = "";
+  const work = async () => {
+    for (;;) {
+      let streamError: string | undefined;
+      for await (const f of frames) {
+        // The runtime dropped frames: replay them from the next undelivered cursor.
+        if (f.type === "lagged") break;
+        const c = exitOf(f.cursor);
+        if (c !== undefined) cursor = Math.max(cursor, c + 1);
+        if (f.type === "started") {
+          pid ??= f.pid ?? f.process?.pid ?? f.process?.id;
+          continue;
+        }
+        if (f.type === "stdout" || f.type === "stderr") {
+          const text = Buffer.from(f.data ?? "", "base64").toString("utf8");
+          if (f.type === "stdout") {
+            stdout += text;
+            o.onStdout?.(text);
+          } else {
+            stderr += text;
+            o.onStderr?.(text);
+          }
+        } else if (f.type === "exit") {
+          // A command that ends without an exit code (killed, failed) reports -1, as the SDK does.
+          return { exitCode: exitOf(f.exit_code ?? f.exitCode) ?? -1, stdout, stderr };
+        } else if (f.type === "error") {
+          streamError = String(f.message ?? f.code ?? "process error");
+          if (!/websocket|closed/i.test(streamError)) throw new Error(`watasu: ${streamError}`);
+          break;
+        }
+      }
+      if (pid === undefined) throw new Error(`watasu: ${streamError ?? "process ended before started frame"}`);
+      // Reconnect to the same process from the next undelivered event.
+      let last: unknown;
+      let opened = false;
+      for (let attempt = 0; attempt < RECONNECTS && !opened; attempt++) {
+        if (attempt > 0) await sleep(Math.min(2000, 250 * 2 ** (attempt - 1)));
+        try {
+          ({ ws, frames } = await openSocket(dataPlane, token, `/runtime/v1/process/${encodeURIComponent(String(pid))}/connect?since=${cursor}`));
+          opened = true;
+        } catch (err) {
+          last = err;
+        }
+      }
+      if (!opened) throw last instanceof Error ? last : new Error("watasu: process websocket closed before exit and could not reconnect");
+    }
   };
+  const limit = (o.timeoutMs && o.timeoutMs > 0 ? o.timeoutMs : DEFAULT_COMMAND_MS) + WAIT_GRACE_MS;
+  let timer: NodeJS.Timeout | undefined;
+  try {
+    return await Promise.race([
+      work(),
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(() => reject(new Error(`watasu: timed out waiting for command ${pid ?? ""} to exit; it may still be running`)), limit);
+      }),
+    ]);
+  } finally {
+    clearTimeout(timer);
+    await ws.close().catch(() => undefined);
+  }
 }
 
 export const watasuProvider = defineProvider({
@@ -61,7 +170,6 @@ export const watasuProvider = defineProvider({
     name: "Watasu Sandboxes",
     homepage: "https://watasu.io",
     env: ["WATASU_API_KEY"],
-    sdkPackage: "@watasu/sdk",
     // Preview ports are declared at create (`exposed_ports`), so `ports` is not offered.
     capabilities: ["pause", "snapshot", "extendTimeout"],
     maxTimeoutSec: 86_400,
@@ -128,24 +236,23 @@ export const watasuProvider = defineProvider({
     const cur = sandboxOf(await httpJson(sb(ctx, id), { headers: auth(ctx) }));
     const deadline = Date.parse(cur.end_at ?? cur.deadline_at ?? cur.deadline ?? "");
     const timeoutMs = Number.isFinite(deadline) ? Math.max(1000, deadline - Date.now()) : undefined;
-    const { Sandbox } = await loadSdk<WatasuSdk>("@watasu/sdk", "watasu");
-    const sbx = await Sandbox.connect(id, { apiKey: String(ctx.env["WATASU_API_KEY"]), apiUrl: base(ctx), timeoutMs });
-    try {
-      // A string command runs through a login shell.
-      const r = await sbx.commands.run(command, {
-        cwd: o.cwd,
-        envs: o.env,
-        timeoutMs: o.timeoutSec === undefined ? undefined : o.timeoutSec * 1000,
-        onStdout: o.onStdout,
-        onStderr: o.onStderr,
-      });
-      return { stdout: r.stdout, stderr: r.stderr, exitCode: r.exitCode };
-    } catch (err) {
-      // A non-zero exit is thrown as CommandExitError, which carries the result.
-      const e = err as { name?: string; exitCode?: unknown; stdout?: string; stderr?: string };
-      if (e?.name === "CommandExitError" && typeof e.exitCode === "number") return { stdout: e.stdout ?? "", stderr: e.stderr ?? "", exitCode: e.exitCode };
-      throw err;
-    }
+    // Resuming hands out the data-plane session (URL and token), as the SDK's Sandbox.connect does.
+    const r = await httpJson<{ session?: { data_plane_url?: string; token?: string; access_token?: string } }>(sb(ctx, id, "/resume"), {
+      method: "POST",
+      headers: auth(ctx),
+      body: timeoutMs ? { timeout: Math.ceil(timeoutMs / 1000) } : {},
+    });
+    const token = r.session?.token ?? r.session?.access_token;
+    const dataPlane = ctx.env["WATASU_SANDBOX_URL"] ?? r.session?.data_plane_url;
+    if (!token || !dataPlane) throw new Error("watasu: the sandbox session did not include data_plane_url and token");
+    // A string command runs through a login shell; a non-zero exit is a result, not an error.
+    return runCommand(dataPlane, token, command, {
+      cwd: o.cwd,
+      env: o.env,
+      timeoutMs: o.timeoutSec === undefined ? undefined : o.timeoutSec * 1000,
+      onStdout: o.onStdout,
+      onStderr: o.onStderr,
+    });
   },
 
   async setTimeout(id, timeoutSec, ctx) {

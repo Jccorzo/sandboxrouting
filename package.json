@@ -72,39 +72,17 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.32.2",
-    "@watasu/sdk": "^0.1.77",
     "zod": "^3.25.76"
   },
   "peerDependencies": {
-    "@aws-sdk/client-lambda-microvms": "*",
     "@beamcloud/beam-js": "*",
-    "@blaxel/core": "*",
     "@boxd-sh/sdk": "*",
     "@boxlite-ai/boxlite": "*",
-    "@celestoai/sdk": "*",
-    "@depot/sandbox": "*",
-    "@koyeb/sandbox-sdk": "*",
-    "@namespacelabs/sdk": "*",
-    "@northflank/js-client": "*",
     "@parcha/agentrun-computer": "*",
-    "@runloop/api-client": "*",
-    "@runta/runta-sdk": "*",
-    "@tenkicloud/sandbox": "*",
-    "@upstash/box": "*",
-    "disk": "*",
-    "freestyle": "*",
-    "modal": "*",
-    "morphcloud": "*",
-    "together-sandbox": "*"
+    "modal": "*"
   },
   "peerDependenciesMeta": {
-    "@aws-sdk/client-lambda-microvms": {
-      "optional": true
-    },
     "@beamcloud/beam-js": {
-      "optional": true
-    },
-    "@blaxel/core": {
       "optional": true
     },
     "@boxd-sh/sdk": {
@@ -113,81 +91,29 @@
     "@boxlite-ai/boxlite": {
       "optional": true
     },
-    "@celestoai/sdk": {
-      "optional": true
-    },
-    "@depot/sandbox": {
-      "optional": true
-    },
-    "@koyeb/sandbox-sdk": {
-      "optional": true
-    },
-    "@namespacelabs/sdk": {
-      "optional": true
-    },
-    "@northflank/js-client": {
-      "optional": true
-    },
     "@parcha/agentrun-computer": {
-      "optional": true
-    },
-    "@runloop/api-client": {
-      "optional": true
-    },
-    "@runta/runta-sdk": {
-      "optional": true
-    },
-    "@tenkicloud/sandbox": {
-      "optional": true
-    },
-    "@upstash/box": {
-      "optional": true
-    },
-    "disk": {
-      "optional": true
-    },
-    "freestyle": {
       "optional": true
     },
     "modal": {
       "optional": true
-    },
-    "morphcloud": {
-      "optional": true
-    },
-    "together-sandbox": {
-      "optional": true
     }
   },
   "devDependencies": {
-    "@aws-sdk/client-lambda-microvms": "^3.1167.0",
     "@beamcloud/beam-js": "^1.1.6",
-    "@blaxel/core": "^0.3.37",
     "@boxd-sh/sdk": "^0.3.2",
     "@boxlite-ai/boxlite": "^0.12.0",
-    "@celestoai/sdk": "^0.1.6",
-    "@depot/sandbox": "^0.1.0-beta.7",
     "@eslint/js": "^9.39.5",
-    "@koyeb/sandbox-sdk": "^1.1.0",
-    "@namespacelabs/sdk": "^1.6.0",
-    "@northflank/js-client": "^0.9.5",
     "@parcha/agentrun-computer": "0.1.0-beta.51",
-    "@runloop/api-client": "^3.0.0",
-    "@runta/runta-sdk": "^0.2.0",
-    "@tenkicloud/sandbox": "^1.5.1",
     "@types/node": "^20.19.0",
-    "@upstash/box": "^0.7.10",
     "eslint": "^9.39.5",
-    "freestyle": "^0.2.23",
     "globals": "^17.14.0",
     "hushrun": "^0.15.0",
     "modal": "^0.11.1",
-    "morphcloud": "^0.0.20",
-    "together-sandbox": "^4.1.1",
     "tsx": "^4.20.0",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.72.2",
-    "vitest": "^4.1.12"
+    "vitest": "^4.1.12",
+    "yaml": "^2.9.1"
   },
   "hushrun": {
     "backend": "https://api.hushrun.com/o/jccorzot"
