@@ -35,14 +35,14 @@ export function Failover({ steps }: { steps: FailoverStep[] }) {
               n === i ? "bg-ground text-ink" : "text-ink hover:bg-tone-1",
             )}
           >
-            <span className="text-[12px] text-muted tabular">t = {s.atSec} s</span>
+            <span className="text-[13px] text-muted tabular">t = {s.atSec} s</span>
             <span className="text-[13.5px] font-medium leading-snug">{s.label}</span>
           </button>
         ))}
       </div>
-      <div className="grid gap-[3px] lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
-        <div className="bg-ground p-4 sm:p-5">
-          <code className="block truncate text-[12.5px] text-muted">{step.request}</code>
+      <div className="grid grid-cols-1 gap-[3px] lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
+        <div className="min-w-0 bg-ground p-4 sm:p-5">
+          <code className="block truncate text-[13px] text-muted">{step.request}</code>
           <ol key={i} className="mt-4 space-y-2" aria-label="Attempts, in order">
             {step.attempts.map((a, n) => (
               <li
@@ -80,7 +80,7 @@ export function Failover({ steps }: { steps: FailoverStep[] }) {
             ))}
           </ol>
         </div>
-        <div className="bg-ground p-4 sm:p-5">
+        <div className="min-w-0 bg-ground p-4 sm:p-5">
           <p className="text-[13px] font-semibold">The ledger after this request</p>
           {step.marks.length ? (
             <ul className="mt-3 space-y-3">
@@ -94,7 +94,7 @@ export function Failover({ steps }: { steps: FailoverStep[] }) {
           ) : (
             <p className="mt-3 text-[13px] text-muted">No marks in force.</p>
           )}
-          <p className="mt-5 text-[12.5px] leading-relaxed text-muted">
+          <p className="mt-5 text-[13px] leading-relaxed text-muted">
             A mark is in force until its time, evaluated whenever it is read. Nothing has to clear it; a free create that works after a quota mark lapses removes it.
           </p>
         </div>

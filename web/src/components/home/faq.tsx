@@ -10,7 +10,7 @@ export function Faq({ items = FAQ, title = "Before you ask" }: { items?: { q: st
         </h2>
         <div className="space-y-[6px] lg:col-span-8">
           {items.map((f, i) => (
-            <details key={f.q} name="faq" className="group bg-tone-1 open:bg-green [&_summary::-webkit-details-marker]:hidden" open={i === 0}>
+            <details key={f.q} name="faq" data-reveal style={{ ["--i" as string]: i % 4 }} className="group bg-tone-1 open:bg-green [&_summary::-webkit-details-marker]:hidden" open={i === 0}>
               <summary className="flex min-h-[64px] cursor-pointer list-none items-center justify-between gap-6 px-5 py-4 text-[18px] font-medium transition-colors hover:bg-tone-2 group-open:hover:bg-transparent sm:min-h-[72px] sm:px-6 sm:text-[20px]">
                 {f.q}
                 <span className="relative block size-4 shrink-0" aria-hidden="true">

@@ -7,7 +7,7 @@ export function Hero() {
   const defaults = { strategy: site.defaults.strategy, allowPaid: false, needs: [] as string[], minIsolation: "" };
   return (
     <section className="relative overflow-x-clip">
-      <div className="wrap grid gap-x-8 lg:grid-cols-12">
+      <div className="wrap grid grid-cols-1 gap-x-8 lg:grid-cols-12">
         <h1
           data-reveal
           className="pt-14 text-[clamp(2.6rem,10vw,3.4rem)] leading-[0.98] tracking-[-0.035em] sm:pt-20 lg:col-span-8 lg:pt-[112px] lg:text-[clamp(3.25rem,5.2vw,5rem)]"
@@ -33,7 +33,7 @@ export function Hero() {
               <CopyButton text="npm i sandboxrouting" className="bg-transparent" />
             </span>
           </div>
-          <p data-reveal style={{ ["--i" as string]: 3 }} className="max-w-[40ch] text-[14px] leading-relaxed text-muted lg:mt-auto lg:pb-16">
+          <p data-reveal style={{ ["--i" as string]: 3 }} className="hidden max-w-[40ch] text-[14px] leading-relaxed text-muted lg:mt-auto lg:block lg:pb-16">
             The panel is the router&rsquo;s own <code className="text-[13px]">plan()</code>, run at build time against an example ledger as of{" "}
             {date(site.asOf)}: {site.hero.ledger.slice(1).join("; ")}. Change the request and see where it goes.
           </p>
@@ -63,6 +63,10 @@ export function Hero() {
           </div>
           </div>
         </div>
+        <p className="mt-5 max-w-[60ch] text-[14px] leading-relaxed text-muted lg:hidden">
+          The panel is the router&rsquo;s own <code className="text-[13px]">plan()</code>, run at build time on an example ledger as of{" "}
+          {date(site.asOf)}: {site.hero.ledger.slice(1).join("; ")}.
+        </p>
       </div>
     </section>
   );

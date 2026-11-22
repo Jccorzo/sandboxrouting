@@ -41,7 +41,7 @@ export function AdapterPanelClient({ title, file, parts }: { title: string; file
       <div data-ui className="order-1 bg-tone-1 lg:order-none">
         <div className="flex items-baseline justify-between bg-tone-2 px-4 py-2.5">
           <span className="text-[14px] font-semibold">{title}</span>
-          <code className="text-[12px] text-muted">{file}</code>
+          <code className="text-[13px] text-muted">{file}</code>
         </div>
         <div className="divide-y divide-tone-2">
           {parts.map((p) => (
@@ -49,7 +49,7 @@ export function AdapterPanelClient({ title, file, parts }: { title: string; file
               {p.rows.map((r) => (
                 <div key={r.label} className="grid grid-cols-[112px_minmax(0,1fr)] gap-2 py-0.5 text-[13px]">
                   <dt className="text-muted">{r.label}</dt>
-                  <dd className={cn("min-w-0 break-words", r.code && "font-mono text-[12.5px]")}>{r.value}</dd>
+                  <dd className={cn("min-w-0 break-words", r.code && "font-mono text-[13px]")}>{r.value}</dd>
                 </div>
               ))}
             </dl>

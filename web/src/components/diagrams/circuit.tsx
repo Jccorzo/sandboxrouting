@@ -44,7 +44,8 @@ export function Circuit({ points, cfg }: { points: CircuitPoint[]; cfg: { failur
 
   return (
     <div data-ui className="bg-tone-1">
-      <svg viewBox={`0 0 ${W} 150`} className="block w-full bg-ground" role="img" aria-label="Circuit state of the provider over time">
+      <div className="overflow-x-auto bg-ground">
+      <svg viewBox={`0 0 ${W} 150`} className="block w-full min-w-[640px] bg-ground" role="img" aria-label="Circuit state of the provider over time">
         {segments.map((s, n) => (
           <rect key={n} x={x(s.from)} y={58} width={Math.max(0, x(s.to) - x(s.from))} height={14} fill={STATE_FILL[s.state]} />
         ))}
@@ -63,7 +64,7 @@ export function Circuit({ points, cfg }: { points: CircuitPoint[]; cfg: { failur
                 stroke="var(--ink)"
                 strokeWidth={1.5}
               />
-              <text y={110} textAnchor="middle" className={cn("text-[12px] tabular-nums", n === sel ? "fill-ink font-semibold" : "fill-muted")}>
+              <text y={110} textAnchor="middle" className={cn("text-[13px] tabular-nums", n === sel ? "fill-ink font-semibold" : "fill-muted")}>
                 {pt.atSec}s
               </text>
               <rect x={-16} y={20} width={32} height={100} fill="transparent" className="cursor-pointer" onClick={() => setSel(n)}>
@@ -72,10 +73,11 @@ export function Circuit({ points, cfg }: { points: CircuitPoint[]; cfg: { failur
             </g>
           );
         })}
-        <text x={40} y={142} className="fill-muted text-[12px]">
+        <text x={40} y={142} className="fill-muted text-[13px]">
           green closed, black open, grey half-open; filled dots are creates that failed (black) or worked (green)
         </text>
       </svg>
+      </div>
       <div className="grid gap-4 p-4 sm:grid-cols-[1fr_auto] sm:items-center sm:p-5">
         <div aria-live="polite">
           <p className="text-[14px] font-semibold">
@@ -95,7 +97,7 @@ export function Circuit({ points, cfg }: { points: CircuitPoint[]; cfg: { failur
           </button>
         </div>
       </div>
-      <p className="px-4 pb-4 text-[12.5px] text-muted sm:px-5">
+      <p className="px-4 pb-4 text-[13px] text-muted sm:px-5">
         Config: {cfg.failures} failures open it for {cfg.cooldownSec} s, doubling with each further failure up to {cfg.maxCooldownSec} s (routing.circuitBreaker).
       </p>
     </div>

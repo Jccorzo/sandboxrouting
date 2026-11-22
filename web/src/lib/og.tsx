@@ -26,7 +26,7 @@ function albertSans(): Promise<ArrayBuffer | undefined> {
 export async function ogImage({ title, line, accent = false }: { title: string; line: string; accent?: boolean }) {
   const data = await albertSans();
   const ink = "#0b0b0a";
-  const green = "#12a150";
+  const green = "#17b057";
   return new ImageResponse(
     (
       <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", justifyContent: "space-between", background: accent ? green : "#ffffff", padding: 72, fontFamily: data ? "Albert Sans" : undefined, color: ink }}>

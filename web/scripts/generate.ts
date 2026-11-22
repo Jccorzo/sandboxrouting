@@ -41,6 +41,7 @@ import { builtinProviders } from "../../src/providers/index";
 
 import { loadDocs, repoRoot } from "../src/lib/docs";
 import {
+  HERO_TIMEOUT_SEC,
   REFERENCE_SIZE,
   planFile,
   planKey,
@@ -385,7 +386,7 @@ async function heroGrid(): Promise<{ grid: PlanGridEntry[]; story: string[]; def
       for (let mask = 0; mask < 1 << NEEDS.length; mask++) {
         const needs = NEEDS.filter((_, i) => mask & (1 << i));
         for (const minIsolation of ISOLATION) {
-          const spec: SandboxSpec = { strategy, cpu: REFERENCE_SIZE.cpu, memoryMiB: REFERENCE_SIZE.memoryMiB, timeoutSec: 600, needs: [...needs] };
+          const spec: SandboxSpec = { strategy, cpu: REFERENCE_SIZE.cpu, memoryMiB: REFERENCE_SIZE.memoryMiB, timeoutSec: HERO_TIMEOUT_SEC, needs: [...needs] };
           if (minIsolation) spec.minIsolation = minIsolation;
           const plan = await router.plan(spec);
           grid.push({ key: planKey({ strategy, allowPaid, needs, minIsolation }), plan: planDoc(plan) });

@@ -92,7 +92,7 @@ export default async function ComparePage({ params }: { params: Promise<{ pair: 
       </header>
 
       <section className="wrap mt-14 overflow-x-auto">
-        <table className="w-full min-w-[640px] text-left text-[15px] [&_code]:rounded-[4px] [&_code]:bg-tone-1 [&_code]:px-1 [&_code]:text-[13.5px]">
+        <table className="w-full min-w-[640px] text-left text-[16px] [&_code]:rounded-[4px] [&_code]:bg-tone-1 [&_code]:px-1 [&_code]:text-[13.5px]">
           <thead>
             <tr>
               <th className="w-[24%] py-3" />

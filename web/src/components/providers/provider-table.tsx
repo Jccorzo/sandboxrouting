@@ -119,7 +119,7 @@ export function ProviderTable({ rows }: { rows: ProviderRow[] }) {
                   <Link href={`/providers/${r.id}/`} className="font-medium hover:underline">
                     {r.name}
                   </Link>
-                  <code className="ml-2 text-[12.5px] text-muted">{r.id}</code>
+                  <code className="ml-2 text-[13px] text-muted">{r.id}</code>
                 </td>
                 <td className="px-3 py-2.5">
                   {r.category === "monthly" || r.category === "one-time" || r.category === "self-hosted" ? (
@@ -130,7 +130,7 @@ export function ProviderTable({ rows }: { rows: ProviderRow[] }) {
                 <td className="px-3 py-2.5 tabular">{r.freeHours !== undefined ? `${r.freeHours >= 100 ? Math.round(r.freeHours) : r.freeHours.toFixed(1)} h` : r.category === "self-hosted" ? "unlimited" : "—"}</td>
                 <td className="px-3 py-2.5 tabular">
                   {usd(r.expected, { perHour: true })}
-                  {r.activeCpu ? <span className="block text-[12.5px] text-muted">up to {usd(r.max, { perHour: true })}, active CPU</span> : null}
+                  {r.activeCpu ? <span className="block text-[13px] text-muted">up to {usd(r.max, { perHour: true })}, active CPU</span> : null}
                 </td>
                 <td className="px-3 py-2.5">{r.isolation ? ISOLATION_LABEL[r.isolation] ?? r.isolation : <span className="text-muted">not published</span>}</td>
                 <td className="px-3 py-2.5 tabular text-muted">{r.checked ?? "—"}</td>

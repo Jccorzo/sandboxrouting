@@ -97,7 +97,8 @@ export function Lifecycle({ cells, events }: { cells: TransitionCell[]; events: 
 
   return (
     <div data-ui className="bg-tone-1">
-      <svg viewBox="0 0 940 380" className="block w-full bg-ground" role="img" aria-label={`Sandbox lifecycle; current state ${state}`}>
+      <div className="overflow-x-auto bg-ground">
+      <svg viewBox="0 0 940 380" className="block w-full min-w-[680px] bg-ground" role="img" aria-label={`Sandbox lifecycle; current state ${state}`}>
         <defs>
           <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
             <path d="M0 0 L10 5 L0 10 z" fill="var(--ink)" />
@@ -124,14 +125,14 @@ export function Lifecycle({ cells, events }: { cells: TransitionCell[]; events: 
                 markerEnd={active ? "url(#arrow-g)" : "url(#arrow)"}
                 className="transition-[stroke] duration-300"
               />
-              <text x={r.lx} y={r.ly} textAnchor={r.anchor ?? "middle"} className={cn("text-[12px]", live ? "fill-ink font-medium" : "fill-muted")}>
+              <text x={r.lx} y={r.ly} textAnchor={r.anchor ?? "middle"} className={cn("text-[13px]", live ? "fill-ink font-medium" : "fill-muted")}>
                 {e.events.join(" · ")}
               </text>
             </g>
           );
         })}
         <path d={ROUTES["running>expired"]!.d} fill="none" stroke={state === "running" ? "var(--ink)" : "var(--tone-3)"} strokeWidth={1.5} strokeDasharray="5 4" markerEnd="url(#arrow)" />
-        <text x={ROUTES["running>expired"]!.lx} y={ROUTES["running>expired"]!.ly} textAnchor="middle" className="fill-muted text-[12px]">
+        <text x={ROUTES["running>expired"]!.lx} y={ROUTES["running>expired"]!.ly} textAnchor="middle" className="fill-muted text-[13px]">
           deadline passes
         </text>
         {Object.entries(NODES).map(([name, n]) => {
@@ -159,6 +160,7 @@ export function Lifecycle({ cells, events }: { cells: TransitionCell[]; events: 
         </text>
         {token ? <circle cx={token.x} cy={token.y} r={7} fill="var(--green)" stroke="var(--ink)" strokeWidth={1.5} /> : null}
       </svg>
+      </div>
       <div className="p-4 sm:p-5">
         <p className="text-[13px] font-semibold">Send an event to the sandbox in {state}</p>
         <div className="mt-3 flex flex-wrap gap-1.5">
@@ -173,7 +175,7 @@ export function Lifecycle({ cells, events }: { cells: TransitionCell[]; events: 
                 disabled={!ok || Boolean(moving)}
                 title={ok ? `${state} → ${cell!.to}` : cell?.error ?? "not allowed"}
                 className={cn(
-                  "h-9 rounded-[5px] px-3 text-[12.5px] transition-[background-color,transform] active:scale-[0.97]",
+                  "h-9 rounded-[5px] px-3 text-[13px] transition-[background-color,transform] active:scale-[0.97]",
                   ok ? "bg-ink text-ground hover:bg-[#2b2b29]" : "bg-tone-2 text-muted",
                 )}
               >
@@ -185,11 +187,11 @@ export function Lifecycle({ cells, events }: { cells: TransitionCell[]; events: 
             type="button"
             onClick={letDeadlinePass}
             disabled={!deadline || Boolean(moving)}
-            className="h-9 rounded-[5px] bg-ground px-3 text-[12.5px] font-medium transition-[background-color,transform] enabled:hover:bg-tone-2 active:scale-[0.97] disabled:text-muted"
+            className="h-9 rounded-[5px] bg-ground px-3 text-[13px] font-medium transition-[background-color,transform] enabled:hover:bg-tone-2 active:scale-[0.97] disabled:text-muted"
           >
             let the deadline pass
           </button>
-          <button type="button" onClick={() => { setState("creating"); setNote("Back to a new record in creating"); }} className="h-9 rounded-[5px] px-3 text-[12.5px] font-medium text-muted hover:text-ink">
+          <button type="button" onClick={() => { setState("creating"); setNote("Back to a new record in creating"); }} className="h-9 rounded-[5px] px-3 text-[13px] font-medium text-muted hover:text-ink">
             start over
           </button>
         </div>

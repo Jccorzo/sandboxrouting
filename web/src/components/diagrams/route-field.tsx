@@ -117,16 +117,19 @@ export function RouteField({ initial, defaults, options, names }: { initial: { k
               <text transform={`translate(${x + 4} ${118}) rotate(-90)`} className={cn("text-[11.5px]", n ? "fill-ink" : "fill-muted")}>
                 {f.short}
               </text>
-              <text x={x} y={138} textAnchor="middle" className={cn("text-[12px] font-semibold tabular-nums", n ? "fill-ink" : "fill-tone-3")}>
+              <text x={x} y={138} textAnchor="middle" className={cn("text-[13px] font-semibold tabular-nums", n ? "fill-ink" : "fill-tone-3")}>
                 {n}
               </text>
             </g>
           );
         })}
         {target.lanes.map((l) => (
-          <text key={l.lane} x={LANE_X0 - 4} y={l.y + 6} className="fill-muted text-[12px]">
+          <text key={l.lane} x={LANE_X0 - 4} y={l.y + 6} className="fill-muted text-[13px]">
             {LANE_LABEL[l.lane] ?? l.lane} <tspan className="fill-ink font-semibold">{l.n}</tspan>
           </text>
+        ))}
+        {ids.map((id, i) => (
+          <circle key={`from-${id}`} cx={24 + (i % 9) * 13} cy={64 + Math.floor(i / 9) * 13} r={3} fill="none" stroke="var(--tone-3)" strokeWidth={1} />
         ))}
         {ids.map((id, i) => {
           const p = target.pos.get(id)!;

@@ -49,7 +49,7 @@ export function JobMove({ frames, steps }: { frames: JobFrame[]; steps: string[]
           <li
             key={s}
             className={cn(
-              "flex-1 rounded-[4px] px-2 py-2 text-center text-[12.5px] font-medium transition-colors duration-300",
+              "flex-1 rounded-[4px] px-2 py-2 text-center text-[13px] font-medium transition-colors duration-300",
               f.state === s ? (s === "succeeded" ? "bg-green text-ink" : s === "migrating" ? "bg-ink text-ground" : "bg-ink text-ground") : "bg-ground text-muted",
             )}
           >
@@ -66,7 +66,7 @@ export function JobMove({ frames, steps }: { frames: JobFrame[]; steps: string[]
                   <p className="text-[13px] font-semibold">Checkpoints</p>
                   <code className="text-[11.5px] text-muted">~/.sandboxrouting/checkpoints/</code>
                 </div>
-                <ul className="mt-3 space-y-1 text-[12.5px]">
+                <ul className="mt-3 space-y-1 text-[13px]">
                   {checkpoints.length ? (
                     checkpoints.map((c) => (
                       <li key={c} className="flex items-center gap-1.5">
@@ -80,7 +80,7 @@ export function JobMove({ frames, steps }: { frames: JobFrame[]; steps: string[]
                     <li className="text-muted">none yet: the initial files are the spec&rsquo;s</li>
                   )}
                 </ul>
-                <p className="mt-3 text-[12px] text-muted" aria-live="polite">
+                <p className="mt-3 text-[13px] text-muted" aria-live="polite">
                   {stored ? `stored step ${f.checkpoint} ←` : restored ? `→ restored step ${f.cursor - 1}` : " "}
                 </p>
               </div>
@@ -96,7 +96,7 @@ export function JobMove({ frames, steps }: { frames: JobFrame[]; steps: string[]
                 <p className="text-[13px] font-semibold">
                   Box {n === 0 ? 1 : 2}: {col}
                 </p>
-                <span className={cn("text-[12px] font-medium", finished ? "text-green-ink" : "text-ink")}>
+                <span className={cn("text-[13px] font-medium", finished ? "text-green-ink" : "text-ink")}>
                   {p ? (p.endReason ?? (here ? f.state : "")) : "not placed yet"}
                 </span>
               </div>
@@ -106,7 +106,7 @@ export function JobMove({ frames, steps }: { frames: JobFrame[]; steps: string[]
                     <Glyph kind="fail" className="size-5" /> gone before its deadline
                   </span>
                 ) : here && f.inFlight !== undefined ? (
-                  <code className="max-w-full truncate rounded-[4px] bg-tone-1 px-2 py-1 text-[12px] motion-safe:animate-pulse">{steps[f.inFlight]}</code>
+                  <code className="max-w-full truncate rounded-[4px] bg-tone-1 px-2 py-1 text-[13px] motion-safe:animate-pulse">{steps[f.inFlight]}</code>
                 ) : here ? (
                   <span className="text-[13px] text-muted">{f.state === "preparing" ? "setup, then restore" : f.state}</span>
                 ) : finished ? (
@@ -123,7 +123,7 @@ export function JobMove({ frames, steps }: { frames: JobFrame[]; steps: string[]
         {steps.map((s, n) => {
           const st = stepStatus(n);
           return (
-            <li key={s} className={cn("flex items-center gap-3 px-4 py-2 text-[12.5px] transition-colors", st === "done" ? "bg-green-wash" : st === "running" ? "bg-ground" : "bg-ground/60")}>
+            <li key={s} className={cn("flex items-center gap-3 px-4 py-2 text-[13px] transition-colors", st === "done" ? "bg-green-wash" : st === "running" ? "bg-ground" : "bg-ground/60")}>
               <span className={cn("w-4", st === "done" ? "text-green-ink" : "text-ink")}>
                 {st === "done" ? <Glyph kind="ok" /> : st === "lost" ? <Glyph kind="fail" /> : st === "running" ? <span className="block size-2 rounded-full bg-ink motion-safe:animate-pulse" /> : null}
               </span>

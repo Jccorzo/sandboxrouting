@@ -66,7 +66,7 @@ export function Footer() {
         </div>
         <Link
           href="/mcp/"
-          className="group order-2 col-span-2 flex min-h-[160px] flex-col justify-between bg-green p-5 text-ink transition-colors hover:bg-[#15b259] lg:order-none lg:col-span-4 lg:min-h-[320px]"
+          className="group order-2 col-span-2 flex min-h-[160px] flex-col justify-between bg-green p-5 text-ink transition-colors hover:bg-[#1fc163] lg:order-none lg:col-span-4 lg:min-h-[320px]"
         >
           <span className="text-[28px] font-semibold leading-tight tracking-[-0.03em]">Give your agent sandboxes</span>
           <svg className="self-end transition-transform duration-300 group-hover:translate-x-1.5" width="56" height="56" viewBox="0 0 56 56" fill="none" aria-hidden="true">

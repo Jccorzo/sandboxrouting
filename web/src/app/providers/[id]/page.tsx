@@ -28,7 +28,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
 
 function Fact({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="grid gap-1 py-3 sm:grid-cols-[200px_minmax(0,1fr)] sm:gap-6">
+    <div className="grid gap-1 px-3 py-3 sm:grid-cols-[200px_minmax(0,1fr)] sm:gap-6">
       <dt className="text-[15px] text-muted">{label}</dt>
       <dd className="min-w-0 text-[16px] leading-relaxed [&_a]:underline [&_a]:decoration-green [&_code]:rounded-[4px] [&_code]:bg-tone-1 [&_code]:px-1 [&_code]:text-[14px]">{children}</dd>
     </div>
@@ -78,7 +78,7 @@ export default async function ProviderPage({ params }: { params: Promise<{ id: s
       </header>
 
       <section className={p.category === "paid" || p.category === "off" ? "mt-12 bg-tone-1" : "mt-12 bg-green"}>
-        <div className="wrap grid gap-6 py-12 sm:py-16 lg:grid-cols-12 lg:items-end">
+        <div className="wrap grid grid-cols-1 gap-6 py-12 sm:py-16 lg:grid-cols-12 lg:items-end">
           <p className="text-[clamp(2.25rem,1rem+4vw,4.25rem)] font-semibold leading-none tracking-[-0.035em] lg:col-span-7">
             {p.category === "paid" ? usd(p.expectedUsdPerHour, { perHour: true }) : p.freeLabel}
           </p>
@@ -108,7 +108,7 @@ export default async function ProviderPage({ params }: { params: Promise<{ id: s
       <section className="wrap mt-16 grid gap-12 lg:grid-cols-12">
         <div className="lg:col-span-8">
           <h2 className="text-[clamp(1.75rem,1.2rem+1.6vw,2.5rem)] tracking-[-0.03em]">Terms</h2>
-          <dl className="mt-4 divide-y divide-tone-2">
+          <dl className="mt-4 [&>div:nth-child(odd)]:bg-tone-1">
             {p.readme?.cells
               .filter((c) => c.text && c.header !== "Isolation")
               .map((c) => (
@@ -143,7 +143,7 @@ export default async function ProviderPage({ params }: { params: Promise<{ id: s
 
           <h2 className="mt-16 text-[clamp(1.75rem,1.2rem+1.6vw,2.5rem)] tracking-[-0.03em]">The adapter</h2>
           {p.adapterSummary ? <p className="mt-4 max-w-[68ch] text-[17px] leading-relaxed">{p.adapterSummary}</p> : null}
-          <dl className="mt-4 divide-y divide-tone-2">
+          <dl className="mt-4 [&>div:nth-child(odd)]:bg-tone-1">
             <Fact label="Keys">{p.access ? <span dangerouslySetInnerHTML={{ __html: p.access.keysHtml }} /> : p.env.length ? p.env.map((e) => <code key={e} className="mr-1">{e}</code>) : "none"}</Fact>
             {p.access ? (
               <Fact label="Connects through">
@@ -205,7 +205,7 @@ export default async function ProviderPage({ params }: { params: Promise<{ id: s
         </aside>
       </section>
 
-      <section className="wrap mt-16 grid gap-6 lg:grid-cols-2">
+      <section className="wrap mt-16 grid items-start gap-6 lg:grid-cols-2">
         <CodeBlock lang="ts" title="Route only here" code={`const sbx = await router.create({ providers: ["${p.id}"] });`} />
         <CodeBlock
           lang="json"

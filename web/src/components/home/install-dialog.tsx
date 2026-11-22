@@ -17,7 +17,7 @@ export function InstallDialog({ clients = ["claude-code", "cursor"] }: { clients
   const snippet = c.snippet(valid ? name : "sandboxes");
 
   return (
-    <div data-ui role="group" aria-labelledby="install-title" className="w-full max-w-[460px] rounded-[10px] bg-ground p-6 text-ink shadow-[0_24px_60px_-20px_rgba(0,0,0,0.55)]">
+    <div data-ui role="group" aria-labelledby="install-title" className="w-full min-w-0 max-w-[460px] rounded-[10px] bg-ground p-6 text-ink shadow-[0_24px_60px_-20px_rgba(0,0,0,0.55)]">
       <p id="install-title" className="text-[17px] font-semibold tracking-[-0.01em]">
         Add sandboxes to your agent
       </p>
@@ -36,7 +36,7 @@ export function InstallDialog({ clients = ["claude-code", "cursor"] }: { clients
           valid ? "border-tone-3" : "border-ink",
         )}
       />
-      <p id="server-name-hint" className="mt-1 text-[12.5px] text-muted">
+      <p id="server-name-hint" className="mt-1 text-[13px] text-muted">
         {valid ? "What your agent will call the tools' server." : "Lowercase letters, digits, - and _, starting with a letter."}
       </p>
       <div role="radiogroup" aria-label="Client" className="mt-5 grid grid-cols-2 gap-1 rounded-[7px] bg-tone-1 p-1">
@@ -53,8 +53,8 @@ export function InstallDialog({ clients = ["claude-code", "cursor"] }: { clients
           </button>
         ))}
       </div>
-      <p className="mt-4 text-[12.5px] text-muted">{c.where}</p>
-      <pre className="mt-1.5 max-h-[150px] overflow-auto rounded-[6px] bg-tone-1 px-3 py-2.5 text-[12.5px] leading-relaxed">
+      <p className="mt-4 text-[13px] text-muted">{c.where}</p>
+      <pre className="mt-1.5 max-h-[150px] overflow-auto rounded-[6px] bg-tone-1 px-3 py-2.5 text-[13px] leading-relaxed">
         <code>{snippet}</code>
       </pre>
       <CopyButton

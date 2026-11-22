@@ -220,6 +220,9 @@ export interface SiteData {
 /** The size every example and price on the site is quoted at. */
 export const REFERENCE_SIZE = { cpu: 2, memoryMiB: 4096 } as const;
 
+/** The lifetime every example request asks for. */
+export const HERO_TIMEOUT_SEC = 600;
+
 /** Key of a hero grid cell, so the page and the generator name cells the same way. */
 export function planKey(c: { strategy: string; allowPaid: boolean; needs: readonly string[]; minIsolation: string }): string {
   return [c.strategy, c.allowPaid ? "paid" : "free", [...c.needs].sort().join("+") || "-", c.minIsolation || "-"].join("|");

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { FILTERS, LANE_LABEL, isFreeLane } from "@/lib/format";
-import type { PlanDoc } from "@/lib/generated-types";
+import { HERO_TIMEOUT_SEC, REFERENCE_SIZE, type PlanDoc } from "@/lib/generated-types";
 import { cn } from "@/lib/utils";
 import { PlanControls } from "./plan-controls";
 import { shownPlan, usePlan, type Controls } from "./use-plan";
@@ -21,6 +21,18 @@ export interface ExplorerProps {
 export function priceLabel(usdPerHour: number): string {
   if (usdPerHour === 0) return "$0";
   return `$${usdPerHour < 0.1 ? usdPerHour.toFixed(4) : usdPerHour.toFixed(3)}/h`;
+}
+
+/** The CLI call that plans the same request (sbr's own flags; paid usage is an env switch). */
+export function routeCommand(c: Controls): string {
+  return [
+    c.allowPaid ? "SBR_ALLOW_PAID=1" : "",
+    `sbr route --strategy ${c.strategy} --cpu ${REFERENCE_SIZE.cpu} --memory ${REFERENCE_SIZE.memoryMiB} --timeout ${HERO_TIMEOUT_SEC}`,
+    ...[...c.needs].sort().map((n) => `--needs ${n}`),
+    c.minIsolation ? `--min-isolation ${c.minIsolation}` : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
 }
 
 export function skipCounts(plan: PlanDoc): number[] {
@@ -43,12 +55,10 @@ export function PlanExplorer({ initial, defaults, options, names, total, rows = 
   return (
     <div data-ui className={cn("bg-ground text-ink", className)}>
       <div className="flex items-center justify-between gap-4 bg-tone-1 px-4 py-2.5">
-        <code className="truncate text-[12.5px] text-ink">
-          sbr route --strategy {controls.strategy}
-          {controls.needs.length ? ` --needs ${controls.needs.join(",")}` : ""}
-          {controls.minIsolation ? ` --min-isolation ${controls.minIsolation}` : ""}
+        <code className="truncate text-[13px] text-ink">
+          {routeCommand(controls)}
         </code>
-        <span className="shrink-0 text-[12px] text-muted" aria-live="polite">
+        <span className="shrink-0 text-[13px] text-muted" aria-live="polite">
           {state.status === "loading" ? "planning…" : state.status === "error" ? "not loaded" : `${plan.ordered.length} in order`}
         </span>
       </div>
@@ -93,7 +103,7 @@ export function PlanExplorer({ initial, defaults, options, names, total, rows = 
           })}
         </div>
         {openFilter !== null ? (
-          <ul className="mx-4 mt-2 max-h-[148px] overflow-y-auto bg-tone-1 px-3 py-2 text-[12.5px]">
+          <ul className="mx-4 mt-2 max-h-[148px] overflow-y-auto bg-tone-1 px-3 py-2 text-[13px]">
             {plan.skipped
               .filter((s) => s.filter === openFilter)
               .map((s) => (
@@ -114,18 +124,18 @@ export function PlanExplorer({ initial, defaults, options, names, total, rows = 
                 i === 0 ? "bg-green-wash" : i % 2 ? "bg-ground" : "bg-tone-1/60",
               )}
             >
-              <span className={cn("text-[12px] tabular", i === 0 ? "font-semibold text-green-ink" : "text-muted")}>{i + 1}</span>
+              <span className={cn("text-[13px] tabular", i === 0 ? "font-semibold text-green-ink" : "text-muted")}>{i + 1}</span>
               <Link href={`/providers/${e.provider}/`} className="truncate font-medium hover:underline">
                 {names[e.provider] ?? e.provider}
               </Link>
-              <span className="col-start-2 row-start-2 flex min-w-0 items-center gap-1.5 text-[12.5px] text-muted sm:col-start-3 sm:row-start-1">
+              <span className="col-start-2 row-start-2 flex min-w-0 items-center gap-1.5 text-[13px] text-muted sm:col-start-3 sm:row-start-1">
                 <span aria-hidden="true" className={cn("inline-block size-2 shrink-0 rounded-full", isFreeLane(e.lane) ? "bg-green" : e.lane.startsWith("self") ? "bg-tone-3" : "bg-ink")} />
                 <span className="truncate">
                   {LANE_LABEL[e.lane] ?? e.lane}
                   {e.why.slice(1).length ? `, ${e.why.slice(1).join(", ")}` : ""}
                 </span>
               </span>
-              <span className="text-right text-[12.5px] tabular">{e.billing === "free" ? <span className="font-medium text-green-ink">free</span> : priceLabel(e.usdPerHour)}</span>
+              <span className="text-right text-[13px] tabular">{e.billing === "free" ? <span className="font-medium text-green-ink">free</span> : priceLabel(e.usdPerHour)}</span>
             </li>
           ))}
         </ol>
@@ -134,7 +144,7 @@ export function PlanExplorer({ initial, defaults, options, names, total, rows = 
             No provider can take this request: the router fails it with every provider&rsquo;s reason{controls.allowPaid ? "" : ". Allowing paid usage would widen it"}.
           </p>
         ) : plan.ordered.length > rows ? (
-          <p className="px-4 py-3 text-[12.5px] text-muted">
+          <p className="px-4 py-3 text-[13px] text-muted">
             then {plan.ordered.length - rows} more, each tried in turn if {first ? names[first.provider] ?? first.provider : "the first"} refuses
           </p>
         ) : null}

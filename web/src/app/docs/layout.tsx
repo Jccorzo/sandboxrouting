@@ -8,7 +8,7 @@ export default function DocsLayout({ children }: { children: React.ReactNode }) 
     items: pages.filter((p) => p.group === g).map((p) => ({ href: docPath(p.slug), label: p.title })),
   }));
   return (
-    <div className="wrap grid gap-10 pt-10 lg:grid-cols-[240px_minmax(0,1fr)] lg:gap-16 lg:pt-16">
+    <div className="wrap grid grid-cols-1 gap-10 pt-10 lg:grid-cols-[240px_minmax(0,1fr)] lg:gap-16 lg:pt-16">
       <DocsNav groups={groups} />
       <div className="min-w-0">{children}</div>
     </div>

@@ -65,7 +65,7 @@ export function PlanControls({
                 on ? "bg-ink text-ground" : "bg-ground text-ink hover:bg-tone-2",
               )}
             >
-              <code className="text-[12.5px]">{NEED_LABEL[n] ?? n}</code>
+              <code className="text-[13px]">{NEED_LABEL[n] ?? n}</code>
             </button>
           );
         })}

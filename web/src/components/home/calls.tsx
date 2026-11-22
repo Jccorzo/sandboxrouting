@@ -68,7 +68,7 @@ export function Calls() {
                   })}
                 </tbody>
               </table>
-              <p className="px-4 pb-3 pt-2 text-[12.5px] text-muted">and {site.counts.total - 3} more, each skipped until its key is set</p>
+              <p className="px-4 pb-3 pt-2 text-[13px] text-muted">and {site.counts.total - 3} more, each skipped until its key is set</p>
             </div>
           </Exchange>
 
@@ -128,7 +128,7 @@ export function Calls() {
                       <span aria-hidden="true" className={done ? "text-green-ink" : "text-ink"}>
                         <Glyph kind={done ? "ok" : "fail"} />
                       </span>
-                      <code className="min-w-0 truncate text-[12.5px]">{s}</code>
+                      <code className="min-w-0 truncate text-[13px]">{s}</code>
                       {lost ? <span className="shrink-0 text-muted">box lost</span> : null}
                     </li>
                   );

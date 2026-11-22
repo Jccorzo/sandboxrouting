@@ -63,10 +63,10 @@ export function TiersClient({ tabs }: { tabs: TierTab[] }) {
               <Link href={`/providers/${r.id}/`} className="text-[18px] font-medium hover:underline">
                 {r.name}
               </Link>
-              <p className="text-[13px] leading-snug text-muted [&_code]:text-[12px]" dangerouslySetInnerHTML={{ __html: r.limitsHtml }} />
+              <p className="text-[13px] leading-snug text-muted [&_code]:text-[13px]" dangerouslySetInnerHTML={{ __html: r.limitsHtml }} />
             </div>
             <div className="text-[14px] leading-snug md:text-right">
-              <span className="[&_code]:text-[12.5px]" dangerouslySetInnerHTML={{ __html: r.paidHtml }} />
+              <span className="[&_code]:text-[13px]" dangerouslySetInnerHTML={{ __html: r.paidHtml }} />
               <span className="block text-[13px] text-muted">
                 {r.isolation}, checked {r.checked}
               </span>

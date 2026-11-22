@@ -97,17 +97,18 @@ export default function HowRoutingWorks() {
         <div className="md:hidden">
           <PlanExplorer initial={{ key: defaultPlan.key, plan: defaultPlan.plan }} defaults={defaults} options={site.hero.controls} names={names} total={site.counts.total} />
         </div>
-        <div className="mt-12 grid gap-[6px] sm:grid-cols-2 lg:grid-cols-5">
+        <h3 className="mt-16 text-[24px] tracking-[-0.02em]">The strategies</h3>
+        <dl className="mt-4 space-y-[4px]">
           {site.strategies.map((s) => (
-            <div key={s.name} className={s.name === site.defaults.strategy ? "bg-green-wash p-5" : "bg-tone-1 p-5"}>
-              <p className="text-[18px] font-semibold tracking-[-0.01em]">
-                <code className="text-[16px]">{s.name}</code>
-              </p>
-              <p className="mt-1 text-[13px] font-medium text-green-ink">{s.name === site.defaults.strategy ? "the default" : " "}</p>
-              <p className="mt-2 text-[15px] leading-snug">{s.description}</p>
+            <div key={s.name} className={`grid gap-2 px-5 py-4 md:grid-cols-[260px_minmax(0,1fr)] md:items-baseline ${s.name === site.defaults.strategy ? "bg-green-wash" : "bg-tone-1"}`}>
+              <dt className="text-[18px] font-semibold">
+                <code className="text-[17px]">{s.name}</code>
+                {s.name === site.defaults.strategy ? <span className="ml-2 text-[14px] font-medium text-green-ink">the default</span> : null}
+              </dt>
+              <dd className="max-w-[80ch] text-[16px] leading-relaxed">{s.description}</dd>
             </div>
           ))}
-        </div>
+        </dl>
       </Section>
 
       <Section

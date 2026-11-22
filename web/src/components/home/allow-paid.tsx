@@ -35,7 +35,7 @@ export function AllowPaidField({ free, paid, total }: { free: number; paid: numb
           )}
         </p>
       </div>
-      <div className="absolute bottom-[-3vh] left-[var(--gutter)] text-[40vw] sm:bottom-[-7vh] sm:left-auto sm:right-[-6vw] sm:text-[clamp(110px,14.5vw,230px)]">
+      <div className="absolute bottom-[-3vh] left-[var(--gutter)] text-[40vw] sm:bottom-[7vh] sm:left-auto sm:right-[-2.5vw] sm:text-[clamp(110px,14.5vw,230px)]">
         <div data-ui style={{ fontSize: "inherit" }} className="flex flex-col items-start gap-[0.12em]">
           <span className={cn("text-[0.32em] font-medium tracking-[-0.02em]", on ? "text-ground/80" : "text-ink/80")}>
             allowPaid: <span className="tabular">{on ? "true" : "false"}</span>

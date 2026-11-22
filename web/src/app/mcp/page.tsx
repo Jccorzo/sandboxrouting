@@ -17,7 +17,7 @@ export default function McpPage() {
   return (
     <>
       <JsonLd data={breadcrumbLd([{ name: "Home", path: "/" }, { name: "MCP server", path: "/mcp/" }])} />
-      <header className="wrap grid gap-12 pt-14 sm:pt-20 lg:grid-cols-12 lg:pt-28">
+      <header className="wrap grid grid-cols-1 gap-12 pt-14 sm:pt-20 lg:grid-cols-12 lg:pt-28">
         <div className="lg:col-span-7">
           <h1 data-reveal className="max-w-[13ch] text-[clamp(2.6rem,1.2rem+5.2vw,5rem)] leading-[0.98] tracking-[-0.035em]">
             Sandboxes for your agent
@@ -60,11 +60,11 @@ export default function McpPage() {
         <p className="mt-4 max-w-[62ch] text-[17px] leading-relaxed">Read from the server itself when this site was built.</p>
         <dl className="mt-8 grid gap-x-10 md:grid-cols-2">
           {site.mcpTools.map((t) => (
-            <div key={t.name} className="grid gap-1 border-b border-tone-2 py-4">
+            <div key={t.name} className="grid gap-1 py-4">
               <dt>
                 <code className="text-[15px] font-medium">{t.name}</code>
               </dt>
-              <dd className="text-[15px] leading-relaxed">{t.description}</dd>
+              <dd className="text-[16px] leading-relaxed">{t.description}</dd>
             </div>
           ))}
         </dl>
