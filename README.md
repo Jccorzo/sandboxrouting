@@ -794,3 +794,5 @@ differ.
 ## License
 
 [MIT](LICENSE)
+
+The sandboxrouting name and logo are not covered by the MIT license.
