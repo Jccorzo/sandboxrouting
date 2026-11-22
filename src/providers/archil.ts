@@ -6,14 +6,19 @@
 // REST: https://control.green.us-east-1.aws.prod.archil.com (one host per region, Bearer key-…),
 // OpenAPI at docs.archil.com/api-reference/openapi.yaml; docs docs.archil.com/llms.txt,
 // /compute/sandboxes/introduction.md, /administration/billing.md, /reference/limits.md.
-// Lifecycle goes over REST. Commands don't: the process API is a WebSocket protocol only the SDK
-// speaks (npm `disk`, Node 22.19+), so exec loads it. Files use the router's exec fallback, as the
+// Lifecycle goes over REST. Commands don't: they ride a WebSocket (POST /connections hands out its
+// endpoint and a token, sent as the `archil.token.<token>` subprotocol) carrying protobuf frames,
+// spoken here with websocket.ts and grpc-web.ts's protobuf fields. The frames and flow control are
+// the official SDK's (npm `disk` 1.14.0, MIT; schemas in @archildata/api-types process_pb, MIT),
+// which needs Node 22.19 for its global WebSocket; this needs none. Files use the router's exec fallback, as the
 // SDK's own file calls do. A sandbox is deleted only once stopped, so kill stops it first.
 // `max_ttl_seconds` pauses rather than deletes (memory kept, disk billed), so the router deletes
 // at the deadline (enforcesTimeout: false). Responses are `{success, data}` / `{success, error, code}`.
 
-import { defineProvider, http, httpJson, HttpError, loadSdk } from "./util.js";
+import { defineProvider, http, httpJson, HttpError } from "./util.js";
 import { pollMs, sbrName, sleep } from "./rest-helpers.js";
+import { decode, pb, type Fields } from "./grpc-web.js";
+import { WebSocketClient } from "./websocket.js";
 import type { ProviderContext } from "../core/types.js";
 
 const REGIONS: Record<string, string> = {
@@ -44,15 +49,80 @@ interface Sandbox {
 const one = async (ctx: ProviderContext, id: string) => (await httpJson<{ data: Sandbox }>(box(ctx, id), { headers: auth(ctx) })).data;
 const INACTIVE = ["stopped", "exited", "failed"];
 
-/** The slice of the `disk` SDK the adapter uses. */
-interface ArchilSdk {
-  Archil: new (opts: { apiKey?: string; region?: string; baseUrl?: string }) => {
-    sandboxes: {
-      get(id: string): Promise<{
-        exec(command: string, opts?: { cwd?: string; env?: Record<string, string>; timeoutSeconds?: number }): Promise<{ status: string; exitCode?: number; stdout: string; stderr: string }>;
-      }>;
-    };
-  };
+// The process protocol (archil.process.v2, @archildata/api-types process_pb), field numbers:
+// ClientFrame { channel_id = 1; start = 2; window_update = 9; detach = 8 }
+// Start { command = 1; cwd = 2; env = 4 (map); timeout_seconds = 5 }
+// ServerFrame { channel_id = 1; started = 2; stdout = 4; stderr = 5; window_update = 6; exit = 7; error = 8; detached = 11; drain = 12 }
+// Output { offset = 1; data = 2 }  Exit { status = 1; exit_code = 2; exit_reason = 3 }  Error { code = 1; message = 2 }
+const PROTOCOL = "archil.connect.v2";
+const TOKEN_PROTOCOL = "archil.token.";
+/** Output the runtime may send before the client hands credit back, and the per-chunk cost floor. */
+const INITIAL_WINDOW = 262_144;
+const MIN_DATA_COST = 256;
+const EXIT_STATUS: Record<number, string> = { 1: "completed", 2: "failed", 3: "cancelled", 4: "timed_out" };
+const CHANNEL = 1;
+
+const field = (f: Fields, no: number) => f.get(no)?.[0];
+const text = (v: bigint | Uint8Array | undefined) => (v instanceof Uint8Array ? new TextDecoder().decode(v) : "");
+
+/** Runs one command over the process socket, as the SDK's sandbox.exec does: start, read until exit. */
+async function execProcess(ctx: ProviderContext, id: string, command: string, o: { cwd?: string; env?: Record<string, string>; timeoutSeconds?: number }) {
+  // The SDK opens the socket up to four times, asking for a fresh endpoint and token each time.
+  let ws: WebSocketClient | undefined;
+  for (let attempt = 0; !ws; attempt++) {
+    const ep = (await httpJson<{ data: { endpoint: string; token: string } }>(box(ctx, id, "/connections"), { method: "POST", headers: auth(ctx) })).data;
+    try {
+      ws = await WebSocketClient.connect(ep.endpoint, { protocols: [PROTOCOL, `${TOKEN_PROTOCOL}${ep.token}`], maxMessageBytes: 1024 * 1024 });
+    } catch (err) {
+      if (attempt >= 3 || (err instanceof HttpError && err.status < 500 && err.status !== 429)) throw err;
+      await sleep(Math.random() * Math.min(pollMs(ctx, 5000), 500 * 2 ** attempt));
+    }
+  }
+  if (ws.protocol !== PROTOCOL) {
+    await ws.close();
+    throw new Error(`archil: the sandbox runtime does not support the ${PROTOCOL} process protocol`);
+  }
+  const send = (body: number[]) => ws.send(new Uint8Array([...pb.uint(1, CHANNEL), ...body]));
+  const out = { stdout: [] as Uint8Array[], stderr: [] as Uint8Array[] };
+  let credit = INITIAL_WINDOW;
+  let consumed = 0;
+  try {
+    send(pb.msg(2, [...pb.str(1, command), ...pb.str(2, o.cwd), ...pb.map(4, o.env), ...pb.uint(5, o.timeoutSeconds)]));
+    for await (const m of ws.messages()) {
+      const f = decode(m.data);
+      if (Number(field(f, 1) ?? 0n) !== CHANNEL) continue; // channel 0 carries only `drain`
+      const stream = f.has(4) ? "stdout" : f.has(5) ? "stderr" : undefined;
+      if (stream) {
+        const data = field(decode(field(f, stream === "stdout" ? 4 : 5) as Uint8Array), 2);
+        const bytes = data instanceof Uint8Array ? data : new Uint8Array();
+        const cost = Math.max(bytes.length, MIN_DATA_COST);
+        if (cost > credit) throw new Error("archil: process output exceeded its flow-control window");
+        credit -= cost;
+        out[stream].push(bytes);
+        // Hand the credit back once half the window is used, as the SDK does.
+        consumed += cost;
+        if (consumed >= INITIAL_WINDOW / 2) {
+          credit += consumed;
+          send(pb.msg(9, pb.uint(1, consumed)));
+          consumed = 0;
+        }
+      } else if (f.has(7)) {
+        const exit = decode(field(f, 7) as Uint8Array);
+        const status = EXIT_STATUS[Number(field(exit, 1) ?? 0n)];
+        if (!status) throw new Error(`archil: unknown process exit status ${field(exit, 1)}`);
+        const code = field(exit, 2);
+        const join = (parts: Uint8Array[]) => Buffer.concat(parts).toString("utf8");
+        return { status, exitCode: typeof code === "bigint" ? Number(BigInt.asIntN(32, code)) : undefined, stdout: join(out.stdout), stderr: join(out.stderr) };
+      } else if (f.has(8)) {
+        const e = decode(field(f, 8) as Uint8Array);
+        throw new Error(`archil: ${text(field(e, 1))}: ${text(field(e, 2))}`);
+      }
+    }
+    throw new Error("archil: process connection closed before exit");
+  } finally {
+    if (ws.state === "open") send(pb.msg(8, []));
+    await ws.close().catch(() => undefined);
+  }
 }
 
 export const archilProvider = defineProvider({
@@ -61,7 +131,6 @@ export const archilProvider = defineProvider({
     name: "Archil Sandboxes",
     homepage: "https://archil.com",
     env: ["ARCHIL_API_KEY"],
-    sdkPackage: "disk",
     capabilities: ["ports", "pause", "customImage", "snapshot", "extendTimeout"],
     isolation: "microvm",
     enforcesTimeout: false,
@@ -130,10 +199,9 @@ export const archilProvider = defineProvider({
   },
 
   async exec(id, command, o, ctx) {
-    const { Archil } = await loadSdk<ArchilSdk>("disk", "archil");
-    const client = new Archil({ apiKey: ctx.env["ARCHIL_API_KEY"], region: region(ctx), ...(ctx.env["ARCHIL_API_URL"] ? { baseUrl: ctx.env["ARCHIL_API_URL"] } : {}) });
-    const sbx = await client.sandboxes.get(id);
-    const r = await sbx.exec(command, {
+    // The sandbox must exist (404 otherwise), as the SDK's sandboxes.get checks first.
+    await one(ctx, id);
+    const r = await execProcess(ctx, id, command, {
       ...(o.cwd ? { cwd: o.cwd } : {}),
       ...(o.env && Object.keys(o.env).length ? { env: o.env } : {}),
       ...(o.timeoutSec ? { timeoutSeconds: Math.ceil(o.timeoutSec) } : {}),

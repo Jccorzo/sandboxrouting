@@ -52,15 +52,16 @@ describe("no provider SDK to install", () => {
     for (const p of peers) expect(pkg.peerDependenciesMeta[p]?.optional, p).toBe(true);
     // Bundled ones are regular dependencies, not peers too.
     for (const sdk of loaded.filter((s) => sdkInstall(s) === "bundled")) expect(pkg.peerDependencies[sdk], sdk).toBeUndefined();
-    expect(sdkInstall("@watasu/sdk")).toBe("bundled");
-    expect(sdkInstall("@runta/runta-sdk")).toBe("optional");
-    expect(sdkInstall("modal")).toBe("optional");
+    // Only the gRPC-only and native-binding SDKs remain, all optional; nothing installs with us.
+    expect([...loaded].sort()).toEqual(["@beamcloud/beam-js", "@boxd-sh/sdk", "@boxlite-ai/boxlite", "modal"]);
+    expect(loaded.map((s) => sdkInstall(s))).toEqual(["optional", "optional", "optional", "optional"]);
     expect(sdkInstall("e2b")).toBeUndefined();
   });
 
   it("hints at installing an optional SDK, and at reinstalling for a bundled one", async () => {
     await expect(loadSdk("@no-such/sdk-for-test", "x")).rejects.toThrow(/x needs its SDK: npm install @no-such\/sdk-for-test/);
-    expect(sdkInstall("@watasu/sdk")).toBe("bundled");
+    // A regular dependency reads as bundled (the MCP SDK is one).
+    expect(sdkInstall("@modelcontextprotocol/sdk")).toBe("bundled");
   });
 });
 

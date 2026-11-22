@@ -72,17 +72,13 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.32.2",
-    "@watasu/sdk": "^0.1.77",
     "zod": "^3.25.76"
   },
   "peerDependencies": {
     "@beamcloud/beam-js": "*",
     "@boxd-sh/sdk": "*",
     "@boxlite-ai/boxlite": "*",
-    "@northflank/js-client": "*",
     "@parcha/agentrun-computer": "*",
-    "@runta/runta-sdk": "*",
-    "disk": "*",
     "modal": "*"
   },
   "peerDependenciesMeta": {
@@ -95,16 +91,7 @@
     "@boxlite-ai/boxlite": {
       "optional": true
     },
-    "@northflank/js-client": {
-      "optional": true
-    },
     "@parcha/agentrun-computer": {
-      "optional": true
-    },
-    "@runta/runta-sdk": {
-      "optional": true
-    },
-    "disk": {
       "optional": true
     },
     "modal": {
@@ -116,9 +103,7 @@
     "@boxd-sh/sdk": "^0.3.2",
     "@boxlite-ai/boxlite": "^0.12.0",
     "@eslint/js": "^9.39.5",
-    "@northflank/js-client": "^0.9.5",
     "@parcha/agentrun-computer": "0.1.0-beta.51",
-    "@runta/runta-sdk": "^0.2.0",
     "@types/node": "^20.19.0",
     "eslint": "^9.39.5",
     "globals": "^17.14.0",

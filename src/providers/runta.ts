@@ -6,16 +6,18 @@
 // docs runta.com/llms.txt, runta.com/docs/runtime/runtime-basic/, pricing runta.com/pricing/.
 // The REST API creates, reads, pauses, resumes and deletes runtimes and moves files, but has no
 // route that runs a command: commands go over a WebSocket (wss://api.runta.com/v2/runtimes/{id}/
-// exec/stream), so `exec` loads the official SDK, npm `@runta/runta-sdk` (optional peer
-// dependency; dist/internal/exec-stream.js speaks that socket). Everything else is plain REST.
+// exec/stream, Bearer), spoken here with websocket.ts. Its JSON frames (start, close_stdin; then
+// stdout/stderr as base64, heartbeat, exit, error) are the ones the official SDK sends and reads
+// (npm `@runta/runta-sdk` 0.2.0, MIT, dist/internal/exec-stream.js). Everything else is REST.
 // Mutations take `expected_revision` (compare-and-set: a stale one is a 409, read again and
 // retry). Create takes an Idempotency-Key. `auto_shutdown_policy` shuts the runtime down at
 // the deadline and `auto_delete_policy` then deletes it. Errors are `{error: {code, message}}`;
 // 403 `tenant_blocked` is read as an account billing block.
 
 import { randomUUID } from "node:crypto";
-import { defineProvider, http, httpJson, HttpError, loadSdk, refusals } from "./util.js";
-import { pollMs, sbrName, sleep } from "./rest-helpers.js";
+import { defineProvider, http, httpJson, HttpError, refusals } from "./util.js";
+import { pollMs, sbrName, shq, sleep } from "./rest-helpers.js";
+import { WebSocketClient, WebSocketError } from "./websocket.js";
 import type { ProviderContext } from "../core/types.js";
 
 const base = (ctx: ProviderContext) => String(ctx.env["RUNTA_API_URL"] ?? "https://api.runta.com").replace(/\/+$/, "");
@@ -33,15 +35,51 @@ interface Runtime {
 }
 const FAILED = ["error", "crashed", "deleting", "shutdown"];
 
-interface RuntaSdk {
-  Runta: new (config: { token?: string; endpoint?: string }) => {
-    runtimes: {
-      get(id: string): Promise<{
-        exec(command: readonly string[], options: { timeoutSecs?: number; env?: Record<string, string>; cwd?: string }): Promise<{ exitCode: number; stdout: string; stderr: string }>;
-      }>;
-    };
-    close(): Promise<void>;
-  };
+/** What the SDK waits for a handshake, and for a command that names no timeout of its own. */
+const CLIENT_TIMEOUT_MS = 30_000;
+/** Output kept per stream; the rest is dropped, as the SDK does. */
+const MAX_OUTPUT_BYTES = 4 * 1024 * 1024;
+
+interface ExecFrame {
+  type: string;
+  data_base64?: string;
+  code?: number;
+  message?: string;
+}
+
+/** One command over the exec stream: start it, close stdin, read until it exits. */
+async function execStream(ctx: ProviderContext, id: string, command: string, args: string[], env: Record<string, string>, timeoutMs: number) {
+  const url = new URL(base(ctx));
+  url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
+  url.pathname = `${url.pathname.replace(/\/+$/, "")}/v2/runtimes/${encodeURIComponent(id)}/exec/stream`;
+  const ac = new AbortController();
+  const ws = await WebSocketClient.connect(url.toString(), { headers: auth(ctx), timeoutMs: CLIENT_TIMEOUT_MS, maxMessageBytes: 64 * 1024 * 1024, signal: ac.signal });
+  const timer = setTimeout(() => ac.abort(`runtime exec timed out after ${timeoutMs}ms`), timeoutMs);
+  const out = { stdout: [] as Buffer[], stderr: [] as Buffer[] };
+  const size = { stdout: 0, stderr: 0 };
+  try {
+    ws.send(JSON.stringify({ type: "start", command, args, env, tty: false, rows: null, cols: null }));
+    ws.send(JSON.stringify({ type: "close_stdin" }));
+    for await (const msg of ws.messages()) {
+      const frame = JSON.parse(msg.data.toString("utf8")) as ExecFrame;
+      if ((frame.type === "stdout" || frame.type === "stderr") && frame.data_base64 !== undefined) {
+        const chunk = Buffer.from(frame.data_base64, "base64").subarray(0, Math.max(0, MAX_OUTPUT_BYTES - size[frame.type]));
+        if (chunk.length) out[frame.type].push(chunk);
+        size[frame.type] += chunk.length;
+      } else if (frame.type === "heartbeat") continue;
+      else if (frame.type === "exit" && typeof frame.code === "number") {
+        return { exitCode: frame.code, stdout: Buffer.concat(out.stdout).toString("utf8"), stderr: Buffer.concat(out.stderr).toString("utf8") };
+      } else if (frame.type === "error" || frame.type === "transport_error") throw new Error(`runta: ${frame.message ?? "exec stream failed"}`);
+      else throw new Error(`runta: invalid exec stream frame: ${JSON.stringify(frame)}`);
+    }
+    throw new Error("runta: exec stream closed before completion");
+  } catch (err) {
+    if (err instanceof WebSocketError) throw new Error(`runta: ${ac.signal.aborted ? String(ac.signal.reason) : err.message}`, { cause: err });
+    throw err;
+  } finally {
+    clearTimeout(timer);
+    await ws.close().catch(() => undefined);
+  }
 }
 
 const read = async (ctx: ProviderContext, id: string) => (await httpJson<{ data: Runtime }>(rt(ctx, id), { headers: auth(ctx) })).data;
@@ -70,7 +108,6 @@ export const runtaProvider = defineProvider({
     name: "Runta",
     homepage: "https://runta.com",
     env: ["RUNTA_API_KEY"],
-    sdkPackage: "@runta/runta-sdk",
     capabilities: ["pause", "snapshot", "extendTimeout"],
     maxTimeoutSec: 2_147_483_647,
     // Isolation is left unset: Runta does not publish it, so `minIsolation` requests skip it.
@@ -125,16 +162,28 @@ export const runtaProvider = defineProvider({
   },
 
   async exec(id, command, o, ctx) {
-    const { Runta } = await loadSdk<RuntaSdk>("@runta/runta-sdk", "runta");
-    const client = new Runta({ token: String(ctx.env["RUNTA_API_KEY"]), endpoint: base(ctx) });
-    try {
-      const runtime = await client.runtimes.get(id);
-      const r = await runtime.exec(["sh", "-c", command], { timeoutSecs: o.timeoutSec, env: o.env, cwd: o.cwd });
-      if (r.stdout) o.onStdout?.(r.stdout);
-      if (r.stderr) o.onStderr?.(r.stderr);
-      return { stdout: r.stdout, stderr: r.stderr, exitCode: r.exitCode };
-    } finally {
-      await client.close().catch(() => undefined);
+    // The runtime must exist (404 otherwise), as the SDK's runtimes.get checks first.
+    await read(ctx, id);
+    // argv as the SDK builds it: a cwd wraps it in a login shell that cds and execs it.
+    const [cmd, args] = o.cwd ? ["sh", ["-lc", `cd ${shq(o.cwd)} && exec ${["sh", "-c", command].map(shq).join(" ")}`]] : ["sh", ["-c", command]];
+    const timeoutMs = o.timeoutSec !== undefined ? o.timeoutSec * 1000 : CLIENT_TIMEOUT_MS;
+    // A 404 at the handshake while the runtime is still starting is a route that isn't up yet:
+    // the SDK retries it for up to a minute, backing off from 1 s to 5 s.
+    const deadline = Date.now() + 60_000;
+    let delay = 1000;
+    for (;;) {
+      try {
+        const r = await execStream(ctx, id, cmd as string, args as string[], o.env ?? {}, timeoutMs);
+        if (r.stdout) o.onStdout?.(r.stdout);
+        if (r.stderr) o.onStderr?.(r.stderr);
+        return r;
+      } catch (err) {
+        if (!(err instanceof HttpError && err.status === 404) || Date.now() >= deadline) throw err;
+        const status = await read(ctx, id).then((r) => r.status, () => undefined);
+        if (status !== "creating" && status !== "running") throw err;
+        await sleep(Math.min(delay, pollMs(ctx, delay)));
+        delay = Math.min(delay * 2, 5000);
+      }
     }
   },
 

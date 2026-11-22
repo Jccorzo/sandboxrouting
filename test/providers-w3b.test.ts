@@ -2,9 +2,13 @@
 // OpenPond, GMI Agentbox), driven through the router against local servers that speak each
 // provider's wire format, from its OpenAPI spec, API reference or official SDK source. None has
 // been run against the real service.
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
+import { spawnSync } from "node:child_process";
+import { readFileSync } from "node:fs";
 import { createHash } from "node:crypto";
-import { fakeRun, lifecycle, mock, routerFor } from "./restmock.js";
+import { fakeRun, lifecycle, mock, routerFor, type Reply, type Req, type WsConn } from "./restmock.js";
+import { decode, pb } from "../src/providers/grpc-web.js";
+import { classify } from "../src/core/errors.js";
 import type { ProviderAdapter } from "../src/index.js";
 import { kelnProvider, kelnSize } from "../src/providers/keln.js";
 import { mandalaProvider } from "../src/providers/mandala.js";
@@ -23,24 +27,37 @@ async function refused(adapter: ProviderAdapter, env: Record<string, string>, ki
   await expect(router.create({ timeoutSec: 60 })).rejects.toMatchObject({ attempts: [expect.objectContaining({ provider: adapter.info.id, outcome: "failed", kind })] });
 }
 
-// The `disk` SDK speaks Archil's WebSocket process protocol; the mock runs commands like fakeRun.
-const archilSdk = vi.hoisted(() => ({ opts: [] as unknown[], execs: [] as { id: string; command: string; opts: unknown }[] }));
-vi.mock("disk", () => ({
-  Archil: class {
-    constructor(opts: unknown) {
-      archilSdk.opts.push(opts);
-    }
-    sandboxes = {
-      get: async (id: string) => ({
-        exec: async (command: string, opts: unknown) => {
-          archilSdk.execs.push({ id, command, opts });
-          const x = /exit (\d+)/.exec(command);
-          return x ? { status: "failed", exitCode: Number(x[1]), stdout: "", stderr: "boom\n" } : { status: "completed", exitCode: 0, stdout: `ran: ${command}\n`, stderr: "" };
-        },
-      }),
-    };
-  },
-}));
+/**
+ * Archil's process socket, as the `disk` SDK 1.14.0 speaks it: subprotocols archil.connect.v2 and
+ * archil.token.<token>, protobuf ClientFrame/ServerFrame on channel 1 (start; then started, stdout,
+ * stderr, exit). Commands run like fakeRun, or in a real shell when they cd.
+ */
+const archilProc = { starts: [] as { command: string; cwd: string; env: Record<string, string>; timeout?: number }[] };
+function archilSocket(token: string) {
+  return (r: Req, accept: (p?: string) => WsConn): Reply | undefined => {
+    const offered = String(r.headers["sec-websocket-protocol"] ?? "").split(", ");
+    if (!offered.includes(`archil.token.${token}`)) return { status: 401, json: { error: "bad token" } };
+    const ws = accept("archil.connect.v2");
+    const frame = (body: number[]) => ws.send(Buffer.from([...pb.uint(1, 1), ...body]));
+    ws.onMessage((data) => {
+      const f = decode(data);
+      const start = f.get(2)?.[0];
+      if (!(start instanceof Uint8Array)) return;
+      const st = decode(start);
+      const str = (no: number, m = st) => new TextDecoder().decode((m.get(no)?.[0] as Uint8Array | undefined) ?? new Uint8Array());
+      const env = Object.fromEntries((st.get(4) ?? []).map((e) => { const kv = decode(e as Uint8Array); return [str(1, kv), str(2, kv)]; }));
+      const command = str(1);
+      archilProc.starts.push({ command, cwd: str(2), env, timeout: st.has(5) ? Number(st.get(5)![0]) : undefined });
+      const run = str(2) || Object.keys(env).length ? (() => { const x = spawnSync("sh", ["-c", command], { cwd: str(2) || undefined, env: { ...process.env, ...env }, encoding: "utf8" }); return { stdout: x.stdout, stderr: x.stderr, code: x.status ?? 1 }; })() : fakeRun(command);
+      frame(pb.msg(2, pb.str(1, "proc-1")));
+      if (run.stdout) frame(pb.msg(4, [...pb.uint(1, 0), ...pb.str(2, run.stdout)]));
+      if (run.stderr) frame(pb.msg(5, [...pb.uint(1, 0), ...pb.str(2, run.stderr)]));
+      // exit_code is `optional`: present even when 0 (field 2, varint).
+      frame(pb.msg(7, [...pb.uint(1, run.code ? 2 : 1), 0x10, run.code]));
+    });
+    return undefined;
+  };
+}
 
 describe("sizes", () => {
   it("maps a request to each provider's sizes", () => {
@@ -395,9 +412,10 @@ describe("inngest", () => {
 
 describe("archil", () => {
   const key = "key-test";
-  it("creates over REST, runs commands through the SDK, and stops before deleting", async () => {
-    archilSdk.execs.length = 0;
+  it("creates over REST, runs commands over the process socket, and stops before deleting", async () => {
+    archilProc.starts.length = 0;
     let state = "pending";
+    let wsBase = "";
     const { url, seen } = await mock((r) => {
       if (r.headers.authorization !== `Bearer ${key}`) return { status: 401, raw: "Must provide an Authorization header", type: "text/plain" };
       if (r.method === "POST" && r.path === "/api/sandboxes") {
@@ -418,17 +436,19 @@ describe("archil", () => {
         return (state = "deleted"), { status: 204, raw: "" };
       }
       if (r.method === "PUT" && r.path === "/api/sandboxes/019d-1/ports/8080") return { status: 201, json: { success: true, data: { port: 8080, hostname: "8080-abc.sbx.archil.com" } } };
+      if (r.method === "POST" && r.path === "/api/sandboxes/019d-1/connections") return { status: 201, json: { success: true, data: { endpoint: `${wsBase}/process`, token: "ptok" } } };
       return undefined;
-    });
+    }, archilSocket("ptok"));
+    wsBase = url.replace(/^http/, "ws");
     const env = { ARCHIL_API_KEY: key, ARCHIL_API_URL: url };
     const { router } = routerFor(archilProvider, env);
     const sbx = await router.create({ timeoutSec: 120, image: "python:3.13" });
     expect(await archilProvider.getUrl!(sbx.providerSandboxId, 8080, ctx(env))).toBe("https://8080-abc.sbx.archil.com");
-    const ok = await sbx.commands.run("echo hi", { cwd: "/work" });
+    const ok = await sbx.commands.run("echo hi");
     expect(ok).toMatchObject({ exitCode: 0, stdout: "ran: echo hi\n" });
     expect((await sbx.commands.run("exit 3")).exitCode).toBe(3);
-    expect(archilSdk.execs[0]).toMatchObject({ id: "019d-1", command: "echo hi", opts: { cwd: "/work" } });
-    expect(archilSdk.opts.at(-1)).toEqual({ apiKey: key, region: "aws-us-east-1", baseUrl: url });
+    expect(archilProc.starts[1]).toMatchObject({ command: "exit 3", cwd: "", env: {} });
+    expect(seen).toContain("WS /process");
     await sbx.kill();
     expect(seen.filter((s) => s.startsWith("POST /api/sandboxes/019d-1/stop"))).toHaveLength(1);
     expect(seen).toContain("DELETE /api/sandboxes/019d-1");
@@ -609,5 +629,39 @@ describe("gmi", () => {
   it("reads a 429 live quota as a rate limit", async () => {
     const { url } = await mock(() => ({ status: 429, json: { code: "Resource.QuotaExceeded", message: "instances quota exhausted" } }));
     await refused(gmiProvider, { GMI_SANDBOX_API_KEY: key, GMI_SANDBOX_TEMPLATE: "t", GMI_SANDBOX_API_URL: url }, "rate_limit");
+  });
+});
+
+describe("archil process socket", () => {
+  const key = "key-test";
+  async function api(token = "ptok") {
+    let wsBase = "";
+    const server = await mock((r) => {
+      if (r.headers.authorization !== `Bearer ${key}`) return { status: 401, raw: "Must provide an Authorization header", type: "text/plain" };
+      if (r.method === "GET" && r.path === "/api/sandboxes/sb-9") return { json: { success: true, data: { sandbox_id: "sb-9", name: "x", status: "running" } } };
+      if (r.method === "POST" && r.path === "/api/sandboxes/sb-9/connections") return { status: 201, json: { success: true, data: { endpoint: `${wsBase}/process`, token } } };
+      return undefined;
+    }, archilSocket("ptok"));
+    wsBase = server.url.replace(/^http/, "ws");
+    return { ...server, env: { ARCHIL_API_KEY: key, ARCHIL_API_URL: server.url } };
+  }
+
+  it("needs no SDK and carries cwd, env and the timeout in the start frame", async () => {
+    expect(archilProvider.info.sdkPackage).toBeUndefined();
+    expect(readFileSync(new URL("../src/providers/archil.ts", import.meta.url), "utf8")).not.toMatch(/loadSdk|import\(/);
+    const { env } = await api();
+    archilProc.starts.length = 0;
+    const out = await archilProvider.exec("sb-9", `echo "it's $X" && pwd && echo oops >&2 && exit 3`, { cwd: "/tmp", env: { X: "a b" }, timeoutSec: 7.2 }, ctx(env));
+    expect(out.stdout.split("\n")[0]).toBe("it's a b");
+    expect(out.stdout).toMatch(/\/tmp/);
+    expect(out.stderr.trim()).toBe("oops");
+    expect(out.exitCode).toBe(3);
+    expect(archilProc.starts[0]).toMatchObject({ cwd: "/tmp", env: { X: "a b" }, timeout: 8 });
+  });
+
+  it("reads a refused process token as auth", async () => {
+    const { env } = await api("stale");
+    const err = await archilProvider.exec("sb-9", "true", {}, ctx(env)).catch((e: unknown) => e);
+    expect(classify(err).kind).toBe("auth");
   });
 });
