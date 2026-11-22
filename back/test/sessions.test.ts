@@ -175,7 +175,7 @@ describe("migration 2 on a database with data", () => {
     await migrate(db, MIGRATIONS.slice(0, 1));
     const { accountId, adminToken } = await createAccount(db, "before");
     const ingest = await db.tx(async (q) => (await createKey(q, accountId, "r", "ingest")).token);
-    expect(await migrate(db)).toEqual([2]);
+    expect(await migrate(db, MIGRATIONS.slice(0, 2))).toEqual([2]);
     expect(await defaultAuth.authenticate(adminToken, db)).toMatchObject({ accountId, via: "key", scope: "admin" });
     expect(await defaultAuth.authenticate(ingest, db)).toMatchObject({ accountId, via: "key", scope: "ingest" });
   });

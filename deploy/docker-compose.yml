@@ -38,6 +38,7 @@ services:
       SBR_SWEEP_TOKEN: ${SBR_SWEEP_TOKEN:-}
       GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID:-}
       GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET:-}
+      SBR_SECRETS_KEY: ${SBR_SECRETS_KEY:-}
     ports:
       - "${BACK_PORT:-8787}:8787"
     healthcheck:

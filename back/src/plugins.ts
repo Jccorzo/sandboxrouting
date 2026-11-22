@@ -36,7 +36,7 @@ export interface AuthProvider {
   stillAuthorized(p: Principal, q: import("./db.js").Queryable): Promise<boolean>;
 }
 
-export type Action = "ingest" | "read" | "keys.manage" | "sweep";
+export type Action = "ingest" | "read" | "keys.manage" | "credentials.manage" | "config.manage" | "sweep";
 
 export type Decision = { ok: true } | { ok: false; status: 402 | 403 | 429; reason: string };
 

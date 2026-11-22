@@ -12,6 +12,10 @@
 //   GET  /v1/jobs                   admin        jobs and their moves
 //   GET  /v1/refusals?days=30       admin        refusals, marks in force, failed creates
 //   GET  /v1/keys, POST /v1/keys, POST /v1/keys/:id/revoke   admin
+//   GET  /v1/credentials            admin        the hosted router's providers and what this account saved (hints only)
+//   PUT  /v1/credentials/:provider  admin        {values, expectedVersion} → saved, or 409 with the row as it is
+//   DELETE /v1/credentials/:provider?expectedVersion=n   admin   forgets the values, or 409
+//   GET  /v1/config, PUT /v1/config {config, expectedVersion}   admin   routing config for the hosted router
 //   POST /v1/sweep                  sweep token (all accounts) or admin key (its own account)
 //   GET  /health, /healthz          checks the database (Cloud Run's front end swallows paths ending in z, so it gets /health)
 
@@ -23,12 +27,15 @@ import { IngestError, ingest } from "./ingest.js";
 import { createKey, listKeys, lockAccount, revokeKey, sameSecret } from "./keys.js";
 import { exchangeCode, GitHubError, type GitHubConfig } from "./github.js";
 import { revokeSession, signIn } from "./sessions.js";
+import type { SecretBox } from "./secrets.js";
+import { getConfig, listCredentials, removeCredentials, saveConfig, saveCredentials } from "./vault.js";
+import { catalogEntry, checkCredentials, checkHostedConfig } from "./hosted.js";
 import { resolvePlugins, type Action, type BackPlugins, type Principal, type Scope } from "./plugins.js";
 import * as reads from "./reads.js";
 import { sweep } from "./sweep.js";
 import { deliverUsage } from "./usage.js";
 import { dbNow } from "./derive.js";
-import type { ApiError, AuthConfig, CreatedKey, KeysView, SignedIn } from "./api.js";
+import type { ApiError, AuthConfig, ConnectionResult, CreatedKey, CredentialsView, KeysView, RouterConfigView, SignedIn } from "./api.js";
 
 export interface AppOptions {
   db: Db;
@@ -37,6 +44,8 @@ export interface AppOptions {
   sweepToken?: string;
   /** GitHub sign-in (GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET). Without it the dashboard signs in with admin keys. */
   github?: GitHubConfig;
+  /** Seals the provider keys people save (SBR_KMS_KEY or SBR_SECRETS_KEY). Without it, saving keys is off. */
+  secrets?: SecretBox;
   /** Logs errors the client can't see; default console.error. */
   log?: (msg: string, err?: unknown) => void;
 }
@@ -199,6 +208,71 @@ export function createApp(opts: AppOptions): Hono<Env> {
       case "last-admin-key":
         return fail(c, 409, "last_admin_key", "This is the account's last admin key. Make another admin key before revoking it.", { key: out.key });
     }
+  });
+
+  // ---------------------------------------------------------------- saved provider keys and config
+  /** Runs a write under the account's lock, after re-checking the caller's authority there. */
+  const locked = <T>(p: Principal, fn: (q: Parameters<Parameters<Db["tx"]>[0]>[0]) => Promise<T>) =>
+    db.tx(async (q) => {
+      await lockAccount(q, p.accountId);
+      if (!(await plugins.auth.stillAuthorized(p, q))) return { unauthorized: true as const };
+      return { value: await fn(q) };
+    });
+  const revokedMeanwhile = (c: Context) => fail(c, 401, "unauthorized", "Your key or sign-in was revoked meanwhile.");
+  const version = z.number().int().min(0).max(2 ** 31 - 2);
+
+  app.get("/v1/credentials", guard(["admin"], "read"), async (c) => {
+    const p = c.get("principal");
+    const out = await db.tx(async (q) => listCredentials(q, p.accountId, new Date(await dbNow(q)).toISOString(), Boolean(opts.secrets)), { isolation: "repeatable read", readOnly: true });
+    return c.json(out satisfies CredentialsView);
+  });
+
+  const saveBody = z.object({ values: z.record(z.unknown()), expectedVersion: version }).strict();
+  app.put("/v1/credentials/:provider", bodyLimit({ maxSize: 64 * 1024, onError: (c) => fail(c, 413, "too_large", "at most 64 KiB") }), guard(["admin"], "credentials.manage"), async (c) => {
+    const box = opts.secrets;
+    if (!box) return fail(c, 404, "secrets_off", "Saving provider keys isn't set up on this server (SBR_KMS_KEY or SBR_SECRETS_KEY).");
+    const provider = c.req.param("provider") ?? "";
+    if (!catalogEntry(provider)) return fail(c, 404, "not_found", `${provider} isn't a provider the hosted router runs`);
+    const parsed = saveBody.safeParse(await c.req.json().catch(() => undefined));
+    if (!parsed.success) return fail(c, 400, "invalid", "send { values: { VARIABLE: value }, expectedVersion }");
+    const checked = checkCredentials(provider, parsed.data.values);
+    if (!checked.ok) return fail(c, 400, "invalid", checked.message);
+    const p = c.get("principal");
+    const out = await locked(p, (q) => saveCredentials(q, box, p, provider, checked.values, parsed.data.expectedVersion));
+    if ("unauthorized" in out) return revokedMeanwhile(c);
+    if (out.value.outcome === "stale") return fail(c, 409, "stale", "Someone changed these keys since you loaded them. Here is how they stand now.", { connection: out.value.connection });
+    return c.json({ provider, connection: out.value.connection } satisfies ConnectionResult);
+  });
+
+  app.delete("/v1/credentials/:provider", guard(["admin"], "credentials.manage"), async (c) => {
+    const provider = c.req.param("provider") ?? "";
+    if (!catalogEntry(provider)) return fail(c, 404, "not_found", `${provider} isn't a provider the hosted router runs`);
+    const expected = version.safeParse(Number(c.req.query("expectedVersion") ?? "NaN"));
+    if (!expected.success) return fail(c, 400, "invalid", "send ?expectedVersion=<the version you saw>");
+    const p = c.get("principal");
+    const out = await locked(p, (q) => removeCredentials(q, p, provider, expected.data));
+    if ("unauthorized" in out) return revokedMeanwhile(c);
+    if (out.value.outcome === "stale") return fail(c, 409, "stale", "These keys changed (or were removed) since you loaded them. Here is how they stand now.", { connection: out.value.connection });
+    return c.json({ provider, connection: out.value.connection } satisfies ConnectionResult);
+  });
+
+  app.get("/v1/config", guard(["admin"], "read"), async (c) => {
+    const p = c.get("principal");
+    const out = await db.tx(async (q) => getConfig(q, p.accountId, new Date(await dbNow(q)).toISOString()), { isolation: "repeatable read", readOnly: true });
+    return c.json(out satisfies RouterConfigView);
+  });
+
+  const configBody = z.object({ config: z.unknown(), expectedVersion: version }).strict();
+  app.put("/v1/config", bodyLimit({ maxSize: 128 * 1024, onError: (c) => fail(c, 413, "too_large", "at most 128 KiB") }), guard(["admin"], "config.manage"), async (c) => {
+    const parsed = configBody.safeParse(await c.req.json().catch(() => undefined));
+    if (!parsed.success) return fail(c, 400, "invalid", "send { config, expectedVersion }");
+    const checked = checkHostedConfig(parsed.data.config);
+    if (!checked.ok) return fail(c, 400, "invalid", checked.message);
+    const p = c.get("principal");
+    const out = await locked(p, async (q) => saveConfig(q, p, checked.config, parsed.data.expectedVersion, new Date(await dbNow(q)).toISOString()));
+    if ("unauthorized" in out) return revokedMeanwhile(c);
+    if (out.value.outcome === "stale") return fail(c, 409, "stale", "The config changed since you loaded it. Here is how it stands now.", { config: out.value.view });
+    return c.json(out.value.view satisfies RouterConfigView);
   });
 
   // ---------------------------------------------------------------- sweep

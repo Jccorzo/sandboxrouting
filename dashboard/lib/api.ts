@@ -12,7 +12,7 @@ export type Failure =
 
 export type Outcome<T> = { ok: true; data: T } | { ok: false; failure: Failure };
 
-export async function api<T>(path: string, init: { method?: "GET" | "POST"; body?: unknown; signal?: AbortSignal } = {}): Promise<Outcome<T>> {
+export async function api<T>(path: string, init: { method?: "GET" | "POST" | "PUT" | "DELETE"; body?: unknown; signal?: AbortSignal } = {}): Promise<Outcome<T>> {
   let res: Response;
   try {
     res = await fetch(`/api/back/${path}`, {

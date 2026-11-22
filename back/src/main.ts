@@ -8,6 +8,10 @@
 //   GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET  optional, together: GitHub sign-in for the dashboard
 //                      (a GitHub OAuth app whose callback is <dashboard>/api/auth/github/callback).
 //                      Without them the dashboard signs in with admin keys.
+//   SBR_KMS_KEY        optional: projects/…/cryptoKeys/… — seals the provider keys people save with Cloud KMS
+//   SBR_SECRETS_KEY    optional, without SBR_KMS_KEY: 32 bytes base64 that seal them instead (self-hosting);
+//                      SBR_SECRETS_OLD_KEYS (comma-separated) still open rows sealed before a rotation.
+//                      Neither: saving provider keys is off.
 //   SBR_MIGRATE_ON_START  "0": don't migrate, only check, and refuse to start while a migration is
 //                      pending (for a role that can't change the schema; `cli migrate` runs them)
 //   DATABASE_POOL_MAX  connections this process opens at most (default 10)
@@ -18,6 +22,7 @@ import { serve } from "@hono/node-server";
 import { createApp } from "./app.js";
 import { openDb } from "./db.js";
 import { bootstrap } from "./keys.js";
+import { secretBoxFromEnv } from "./secrets.js";
 import { MigrationError, prepareSchema } from "./migrate.js";
 
 const env = process.env;
@@ -49,7 +54,8 @@ if (Boolean(githubId) !== Boolean(githubSecret)) {
 }
 const github = githubId && githubSecret ? { clientId: githubId, clientSecret: githubSecret } : undefined;
 
-const app = createApp({ db, sweepToken: env["SBR_SWEEP_TOKEN"] || undefined, ...(github ? { github } : {}) });
+const secrets = secretBoxFromEnv(env);
+const app = createApp({ db, sweepToken: env["SBR_SWEEP_TOKEN"] || undefined, ...(github ? { github } : {}), ...(secrets ? { secrets } : {}) });
 const port = Number(env["PORT"] ?? 8787);
 const server = serve({ fetch: app.fetch, port, hostname: env["HOST"] ?? "0.0.0.0" }, (info) => console.log(`back: listening on :${info.port}`));
 

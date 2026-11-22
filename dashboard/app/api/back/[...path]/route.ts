@@ -7,19 +7,26 @@ import { SESSION_COOKIE, callBack } from "@/lib/server";
 
 export const dynamic = "force-dynamic";
 
-const READS = /^(me|usage|providers|sandboxes|jobs|refusals|keys)$/;
-const WRITES = /^(keys|keys\/[0-9a-f-]{36}\/revoke)$/i;
+const ROUTES: Record<Method, RegExp> = {
+  GET: /^(me|usage|providers|sandboxes|jobs|refusals|keys|credentials|config)$/,
+  POST: /^(keys|keys\/[0-9a-f-]{36}\/revoke)$/i,
+  PUT: /^(config|credentials\/[a-z0-9][a-z0-9-]{0,63})$/,
+  DELETE: /^credentials\/[a-z0-9][a-z0-9-]{0,63}$/,
+};
+type Method = "GET" | "POST" | "PUT" | "DELETE";
 
 const json = (status: number, code: string, message: string) => Response.json({ error: { code, message } }, { status, headers: { "cache-control": "no-store" } });
 
-async function forward(req: NextRequest, ctx: { params: Promise<{ path: string[] }> }, method: "GET" | "POST") {
+async function forward(req: NextRequest, ctx: { params: Promise<{ path: string[] }> }, method: Method) {
   const path = (await ctx.params).path.join("/");
-  if (!(method === "GET" ? READS : WRITES).test(path)) return json(404, "not_found", "no such endpoint");
-  if (method === "POST" && req.headers.get("x-requested-with") !== "sbr-dashboard") return json(403, "forbidden", "missing request header");
+  if (!ROUTES[method].test(path)) return json(404, "not_found", "no such endpoint");
+  if (method !== "GET" && req.headers.get("x-requested-with") !== "sbr-dashboard") return json(403, "forbidden", "missing request header");
   const token = (await cookies()).get(SESSION_COOKIE)?.value;
   if (!token) return json(401, "unauthorized", "sign in again");
-  const query = req.nextUrl.search;
-  const res = await callBack(`/v1/${path}${method === "GET" ? query : ""}`, token, method === "POST" ? { method, body: await req.text() } : {});
+  // Queries go with reads and removes (DELETE ?expectedVersion=n); bodies with POST and PUT.
+  const query = method === "GET" || method === "DELETE" ? req.nextUrl.search : "";
+  const body = method === "POST" || method === "PUT" ? await req.text() : undefined;
+  const res = await callBack(`/v1/${path}${query}`, token, { ...(method === "GET" ? {} : { method }), ...(body === undefined ? {} : { body }) });
   return new Response(res.body, { status: res.status, headers: { "content-type": "application/json", "cache-control": "no-store" } });
 }
 
@@ -29,4 +36,12 @@ export function GET(req: NextRequest, ctx: { params: Promise<{ path: string[] }>
 
 export function POST(req: NextRequest, ctx: { params: Promise<{ path: string[] }> }) {
   return forward(req, ctx, "POST");
+}
+
+export function PUT(req: NextRequest, ctx: { params: Promise<{ path: string[] }> }) {
+  return forward(req, ctx, "PUT");
+}
+
+export function DELETE(req: NextRequest, ctx: { params: Promise<{ path: string[] }> }) {
+  return forward(req, ctx, "DELETE");
 }

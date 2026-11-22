@@ -3,8 +3,10 @@
 // health, the circuit breaker) is computed by back with the database's clock; the dashboard
 // computes none of them.
 
+import type { CatalogEntry, CatalogField } from "../../src/hosted/catalog-types.js";
 import type { Availability, EffectiveJobState, EffectiveState, FreeStatus, ProviderHealth, QuotaState } from "./router.js";
 
+export type { CatalogEntry, CatalogField };
 export type { Availability, EffectiveJobState, EffectiveState, FreeStatus, ProviderHealth, QuotaState };
 
 /** Every answer carries the database time it was computed at (ISO). */
@@ -197,5 +199,33 @@ export interface CreatedKey {
 
 /** Errors are `{ error: { code, message } }`, with the HTTP status saying the class. */
 export interface ApiError {
-  error: { code: string; message: string; key?: KeyView };
+  error: { code: string; message: string; key?: KeyView; connection?: ConnectionView; config?: RouterConfigView };
+}
+
+/** A provider's saved credentials as a list may show them: never a secret, only its hints. */
+export type ConnectionView =
+  | { state: "none"; version: 0 }
+  | { state: "active"; version: number; hints: Record<string, string>; updatedAt: string }
+  | { state: "removed"; version: number; updatedAt: string };
+
+/** GET /v1/credentials: every provider the hosted router runs, and what this account saved for each. */
+export interface CredentialsView extends Timed {
+  /** Saving keys is set up on this server (SBR_KMS_KEY or SBR_SECRETS_KEY). */
+  enabled: boolean;
+  providers: (CatalogEntry & { connection: ConnectionView })[];
+}
+
+/** PUT/DELETE /v1/credentials/:provider: the row as it is now (on 409 too, so the caller can show it). */
+export interface ConnectionResult {
+  provider: string;
+  connection: ConnectionView;
+}
+
+/** GET /v1/config: the account's routing config for the hosted router, as saved (version 0: never). */
+export interface RouterConfigView extends Timed {
+  config: Record<string, unknown>;
+  version: number;
+  updatedAt?: string;
+  /** The routing strategies a config may name (routing.strategy). */
+  strategies: { name: string; description: string }[];
 }

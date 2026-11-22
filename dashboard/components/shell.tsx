@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
-import { Activity, Boxes, ChartColumnBig, KeyRound, Layers, LogOut, Route, ShieldAlert, Loader2 } from "lucide-react";
+import { Activity, Boxes, ChartColumnBig, KeyRound, Layers, LogOut, Plug, Route, ShieldAlert, SlidersHorizontal, Loader2 } from "lucide-react";
 import type { Me } from "@sandboxrouting/back/api";
 import { Mark } from "./mark";
 import { ProviderColors } from "./provider-colors";
@@ -17,6 +17,8 @@ const NAV = [
   { href: "/refusals", label: "Refusals", icon: ShieldAlert },
   { href: "/sandboxes", label: "Sandboxes", icon: Boxes },
   { href: "/jobs", label: "Jobs", icon: Route },
+  { href: "/connections", label: "Provider keys", icon: Plug },
+  { href: "/routing", label: "Routing", icon: SlidersHorizontal },
   { href: "/keys", label: "API keys", icon: KeyRound },
 ] as const;
 
