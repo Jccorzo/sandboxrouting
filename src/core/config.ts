@@ -129,6 +129,21 @@ export const configSchema = z
     providers: z.record(providerConfigSchema).default({}),
     /** Bearer token required by `sbr serve`. */
     serverToken: z.string().optional(),
+    /**
+     * Send ledger events (sandbox lifecycles, marks, health, job moves) to a sandboxrouting back
+     * end for its dashboard. Off unless `url` and `token` are set (also SBR_REPORT_URL and
+     * SBR_REPORT_TOKEN). Only ids, providers, sizes, times, states and prices leave the machine,
+     * plus the metadata keys listed here. See src/report/.
+     */
+    report: z
+      .object({
+        url: z.string().url().optional(),
+        token: z.string().min(1).optional(),
+        metadataKeys: z.array(z.string().min(1).max(128)).max(32).default([]),
+        enabled: z.boolean().default(true),
+      })
+      .strict()
+      .optional(),
   })
   .strict();
 
@@ -169,5 +184,11 @@ export async function loadConfig(env: Record<string, string | undefined> = proce
   const config = parseConfig(raw);
   if (env["SBR_ALLOW_PAID"] === "1" || env["SBR_ALLOW_PAID"] === "true") config.allowPaid = true;
   if (env["SBR_SERVER_TOKEN"]) config.serverToken = env["SBR_SERVER_TOKEN"];
+  if (env["SBR_REPORT_URL"] || env["SBR_REPORT_TOKEN"] || env["SBR_REPORT"]) {
+    const report = (config.report ??= { metadataKeys: [], enabled: true });
+    if (env["SBR_REPORT_URL"]) report.url = env["SBR_REPORT_URL"];
+    if (env["SBR_REPORT_TOKEN"]) report.token = env["SBR_REPORT_TOKEN"];
+    if (env["SBR_REPORT"] === "0" || env["SBR_REPORT"] === "false") report.enabled = false;
+  }
   return config;
 }
