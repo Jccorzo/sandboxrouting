@@ -31,7 +31,7 @@ function Step({ title, children, code }: { title: string; children: React.ReactN
 export default function Quickstart() {
   // The example config is the repository's own file, read at build time.
   const example = readFileSync(path.join(repoRoot(), "sandboxrouting.example.json"), "utf8");
-  const modal = provider("modal");
+  const daytona = provider("daytona");
   const e2b = provider("e2b");
   return (
     <>
@@ -46,7 +46,7 @@ export default function Quickstart() {
       </header>
 
       <div className="wrap mt-20 space-y-[clamp(72px,9vw,140px)]">
-        <Step title="Install it" code={<CodeBlock lang="bash" code={installCommand(modal, e2b)} />}>
+        <Step title="Install it" code={<CodeBlock lang="bash" code={installCommand(daytona, e2b)} />}>
           <p>
             The router, plus the SDK of any provider here that still needs one. A few providers&rsquo; SDKs build native code or run install scripts,
             so they stay optional; a provider whose key is set but whose SDK is missing is skipped with an install hint.
@@ -55,10 +55,10 @@ export default function Quickstart() {
 
         <Step
           title="Set the keys you have"
-          code={<CodeBlock lang="bash" code={[...modal.env, ...e2b.env].map((e) => `export ${e}=…`).join("\n")} />}
+          code={<CodeBlock lang="bash" code={[...daytona.env, ...e2b.env].map((e) => `export ${e}=…`).join("\n")} />}
         >
           <p>
-            Keys come from the environment. {modal.name} gives {modal.freeLabel} and {e2b.name} {e2b.freeLabel}; each provider&rsquo;s page lists
+            Keys come from the environment. {daytona.name} gives {daytona.freeLabel} and {e2b.name} {e2b.freeLabel}; each provider&rsquo;s page lists
             its keys. Local Docker needs none and goes after the free tiers.
           </p>
           <p>

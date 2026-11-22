@@ -358,7 +358,7 @@ Notes:
 | `pilldrops` | `PILLDROPS_API_KEY` | REST pilldrops.com/v1 |
 | `vers` | `VERS_API_KEY` | REST api.vers.sh/api/v1 |
 | `oblien` | `OBLIEN_CLIENT_ID`, `OBLIEN_CLIENT_SECRET` | REST api.oblien.com/v1 + the vm.oblien.com runtime gateway (short-lived JWT) |
-| `runta` | `RUNTA_API_KEY` | REST api.runta.com/v2, exec through SDK `@runta/runta-sdk` (WebSocket; installed with sandboxrouting) |
+| `runta` | `RUNTA_API_KEY` | REST api.runta.com/v2, exec through SDK `@runta/runta-sdk` (WebSocket; `npm i @runta/runta-sdk`, about 9 MB) |
 | `stateset` | `STATESET_API_KEY` | REST api.sandbox.stateset.app/api/v1 |
 | `saas-sandbox` | `AAS_API_KEY` | REST sandbox-as-a-service.com/v1 |
 | `sandbox0` | `SANDBOX0_TOKEN` | REST api.sandbox0.ai/api/v1 |
@@ -397,9 +397,9 @@ Notes:
 
 `npm install sandboxrouting` is all most providers need: the adapters speak each provider's
 HTTP API themselves (E2B and the services that speak its API, Daytona, Vercel and every REST
-provider above), and the two SDKs that have no HTTP equivalent and install cleanly
-(`@runta/runta-sdk`, `@watasu/sdk`) are dependencies. The providers still marked "SDK" in the
-table load an SDK that is an optional peer dependency, because it builds native code or runs an
+provider above), and Watasu's small SDK, which has no HTTP equivalent, is a dependency. The
+providers still marked "SDK" in the table load an SDK that is an optional peer dependency,
+because it is large for one provider (`@runta/runta-sdk`), builds native code or runs an
 install script (`modal`, `@boxd-sh/sdk`, `@northflank/js-client`, `@namespacelabs/sdk`,
 `morphcloud`, `@boxlite-ai/boxlite`), is large (`@beamcloud/beam-js`), needs a newer Node
 (`disk`), or hasn't been replaced by HTTP calls yet. Install one only for a provider you use,

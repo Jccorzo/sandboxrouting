@@ -72,7 +72,6 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.32.2",
-    "@runta/runta-sdk": "^0.2.0",
     "@watasu/sdk": "^0.1.77",
     "zod": "^3.25.76"
   },
@@ -89,6 +88,7 @@
     "@northflank/js-client": "*",
     "@parcha/agentrun-computer": "*",
     "@runloop/api-client": "*",
+    "@runta/runta-sdk": "*",
     "@tenkicloud/sandbox": "*",
     "@upstash/box": "*",
     "disk": "*",
@@ -134,6 +134,9 @@
     "@runloop/api-client": {
       "optional": true
     },
+    "@runta/runta-sdk": {
+      "optional": true
+    },
     "@tenkicloud/sandbox": {
       "optional": true
     },
@@ -170,6 +173,7 @@
     "@northflank/js-client": "^0.9.5",
     "@parcha/agentrun-computer": "0.1.0-beta.51",
     "@runloop/api-client": "^3.0.0",
+    "@runta/runta-sdk": "^0.2.0",
     "@tenkicloud/sandbox": "^1.5.1",
     "@types/node": "^20.19.0",
     "@upstash/box": "^0.7.10",

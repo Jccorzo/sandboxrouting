@@ -39,7 +39,7 @@ export function Calls() {
           <Exchange i={1} say="First, install it and set the keys you have.">
             <CodeBlock
               lang="bash"
-              code={`${installCommand(provider("modal"), provider("e2b"))}\nexport MODAL_TOKEN_ID=… MODAL_TOKEN_SECRET=… E2B_API_KEY=…\nnpx sbr providers`}
+              code={`${installCommand(provider("daytona"), provider("e2b"))}\nexport DAYTONA_API_KEY=… E2B_API_KEY=…\nnpx sbr providers`}
             />
             <div data-ui className="bg-tone-1 sm:ml-14">
               <table className="w-full text-left text-[13px]">
@@ -52,7 +52,7 @@ export function Calls() {
                   </tr>
                 </thead>
                 <tbody>
-                  {["modal", "e2b", "docker"].map((id) => {
+                  {["daytona", "e2b", "docker"].map((id) => {
                     const p = provider(id);
                     return (
                       <tr key={id} className="border-t border-tone-2">

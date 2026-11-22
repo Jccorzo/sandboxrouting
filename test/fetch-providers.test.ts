@@ -52,7 +52,8 @@ describe("no provider SDK to install", () => {
     for (const p of peers) expect(pkg.peerDependenciesMeta[p]?.optional, p).toBe(true);
     // Bundled ones are regular dependencies, not peers too.
     for (const sdk of loaded.filter((s) => sdkInstall(s) === "bundled")) expect(pkg.peerDependencies[sdk], sdk).toBeUndefined();
-    expect(sdkInstall("@runta/runta-sdk")).toBe("bundled");
+    expect(sdkInstall("@watasu/sdk")).toBe("bundled");
+    expect(sdkInstall("@runta/runta-sdk")).toBe("optional");
     expect(sdkInstall("modal")).toBe("optional");
     expect(sdkInstall("e2b")).toBeUndefined();
   });
