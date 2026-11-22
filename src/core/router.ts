@@ -679,15 +679,27 @@ export class SandboxRouter {
 export async function createRouter(opts: Partial<RouterOptions> = {}): Promise<SandboxRouter> {
   const { loadConfig } = await import("./config.js");
   const { builtinProviders } = await import("../providers/index.js");
+  const { reportingLedger } = await import("../report/reporter.js");
   const env = opts.env ?? process.env;
   const home = defaultHome(env);
-  return new SandboxRouter({
-    config: opts.config ?? (await loadConfig(env)),
-    ledger: opts.ledger ?? new FileLedger(join(home, "ledger.json")),
+  const config = parseConfig(opts.config ?? (await loadConfig(env)));
+  // With `report` configured, every ledger write is also reported to a back end (src/report/).
+  let router: SandboxRouter | undefined;
+  const ledger = reportingLedger(opts.ledger ?? new FileLedger(join(home, "ledger.json")), {
+    config,
+    env,
+    home,
+    providers: () => router?.providers() ?? [],
+    ...(opts.now ? { now: opts.now } : {}),
+  });
+  router = new SandboxRouter({
+    config,
+    ledger,
     env,
     providers: opts.providers ?? builtinProviders(),
     now: opts.now,
     strategies: opts.strategies,
     checkpoints: opts.checkpoints ?? new FileCheckpointStore(join(home, "checkpoints"), opts.now),
   });
+  return router;
 }
