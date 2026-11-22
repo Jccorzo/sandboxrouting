@@ -5,7 +5,18 @@ version: 1
 repository: github.com/jccorzo/sandboxrouting
 repository_url: https://api.hushrun.com/l/jccorzot/sandboxrouting
 
+# Two projects share the repository. Each check names its scope (`hushrun run --scope …`), so a
+# change to the site doesn't re-run the router's checks. The site's scope includes the router's
+# sources and docs, because the site is generated from them.
+scopes:
+  router:
+    include: ["**"]
+    exclude: ["web/**"]
+  web:
+    include: ["web/**", "src/**", "README.md", "docs/**", "sandboxrouting.example.json", "package.json", "package-lock.json", "hushrun.yaml", ".github/**"]
+
 checks:
+  # The router (package.json at the root, --scope router).
   # Vitest's test files are the unit: a file that already passed on the exact files it read
   # doesn't run again (vitest.config.ts loads hushrun's plugin when hushrun asks for it).
   test:
@@ -13,6 +24,13 @@ checks:
   # Whole-project checks: any change re-runs them.
   lint: {}
   typecheck: {}
+
+  # The site (web/package.json, --scope web): lint, typecheck, unit tests and the static build.
+  web-test:
+    tests: reuse
+  web-lint: {}
+  web-typecheck: {}
+  web-build: {}
 
 transparency_log:   # the server's log key
   origin: api.hushrun.com/l/jccorzot/sandboxrouting

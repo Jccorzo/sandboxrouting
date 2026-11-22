@@ -42,9 +42,9 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "prepack": "npm run build",
-    "typecheck": "hushrun run -- tsc -p tsconfig.json --noEmit",
-    "lint": "hushrun run -- eslint .",
-    "test": "hushrun run -- vitest run",
+    "typecheck": "hushrun run --scope router -- tsc -p tsconfig.json --noEmit",
+    "lint": "hushrun run --scope router -- eslint .",
+    "test": "hushrun run --scope router -- vitest run",
     "dev:cli": "node --import tsx src/cli.ts",
     "simulate": "node --import tsx bench/simulate.ts",
     "prepare": "hushrun hook install || exit 0"

@@ -28,3 +28,8 @@ jobs:
       - run: npm run lint
       - run: npm run typecheck
       - run: npm test
+      # The site (web/): generated from the router, so it runs after the router's checks.
+      - run: npm run lint --workspace web
+      - run: npm run typecheck --workspace web
+      - run: npm test --workspace web
+      - run: npm run build --workspace web
