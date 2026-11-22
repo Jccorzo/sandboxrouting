@@ -90,4 +90,10 @@ jobs:
             "$archive"
           tar xzf "$archive" mcp-publisher
           ./mcp-publisher login dns --domain sandboxrouting.com
+          # The registry checks that npm has this version, and a fresh publish takes minutes to appear.
+          for i in $(seq 1 40); do
+            [ "$(npm view "sandboxrouting@$v" version 2>/dev/null)" = "$v" ] && break
+            [ "$i" = 40 ] && { echo "npm still doesn't list sandboxrouting@$v after 10 minutes"; exit 1; }
+            sleep 15
+          done
           ./mcp-publisher publish
