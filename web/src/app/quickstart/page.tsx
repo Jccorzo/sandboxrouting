@@ -3,7 +3,7 @@ import path from "node:path";
 import Link from "next/link";
 import { CodeBlock } from "@/components/site/code-block";
 import { JsonLd } from "@/components/site/json-ld";
-import { provider, site } from "@/lib/data";
+import { installCommand, provider, site } from "@/lib/data";
 import { repoRoot } from "@/lib/docs";
 import { breadcrumbLd, pageMetadata } from "@/lib/seo";
 
@@ -41,16 +41,15 @@ export default function Quickstart() {
           A sandbox in four lines
         </h1>
         <p data-reveal className="mt-6 max-w-[58ch] text-[19px] leading-relaxed">
-          Node 20 or newer. Each provider&rsquo;s SDK is an optional peer dependency, loaded only when that provider is used, so you install the router
-          plus the providers you have keys for.
+          Node 20 or newer. The router speaks most providers&rsquo; HTTP APIs itself, so installing it is usually all there is to install.
         </p>
       </header>
 
       <div className="wrap mt-20 space-y-[clamp(72px,9vw,140px)]">
-        <Step title="Install it" code={<CodeBlock lang="bash" code={`npm i sandboxrouting ${modal.sdkPackage} ${e2b.sdkPackage}`} />}>
+        <Step title="Install it" code={<CodeBlock lang="bash" code={installCommand(modal, e2b)} />}>
           <p>
-            The router plus two providers&rsquo; SDKs. Providers that speak REST need nothing extra; a provider whose key is set but whose SDK is
-            missing is skipped with an install hint.
+            The router, plus the SDK of any provider here that still needs one. A few providers&rsquo; SDKs build native code or run install scripts,
+            so they stay optional; a provider whose key is set but whose SDK is missing is skipped with an install hint.
           </p>
         </Step>
 

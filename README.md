@@ -255,8 +255,9 @@ Notes:
   adapter reads `LUXOR_API_KEY` / `LUXOR_AUTH_TOKEN` / `LUXOR_API_ENDPOINT` as the SDK does, and
   the old `TENKI_*` names still work.
 - Runta, Watasu and Archil run commands only over a WebSocket protocol their SDKs speak, so
-  their adapters load the SDK for `exec` (`@runta/runta-sdk`, `@watasu/sdk`, `disk`; Archil's
-  needs Node 22.19 or newer) and use REST for everything else. Install the one you use. Reaching
+  their adapters load the SDK for `exec` and use REST for everything else. `@runta/runta-sdk`
+  and `@watasu/sdk` install with sandboxrouting; Archil's, `disk`, needs Node 22.19 or newer, so
+  it stays an optional install (`npm install disk`). Reaching
   a Watasu sandbox's data plane resets its deadline, so the adapter passes the time it has left
   and the router also deletes it at its deadline.
 - Vers's newer docs create computers through a v2 operation API whose exec and file routes
@@ -285,10 +286,10 @@ Notes:
 
 | id | Key(s) | How the adapter connects |
 |---|---|---|
-| `e2b` | `E2B_API_KEY` | SDK `e2b` |
-| `daytona` | `DAYTONA_API_KEY` | SDK `@daytona/sdk` |
+| `e2b` | `E2B_API_KEY` | REST api.e2b.app + envd in the sandbox (HTTP and Connect RPC, no SDK) |
+| `daytona` | `DAYTONA_API_KEY` | REST app.daytona.io/api + the sandbox's toolbox API (no SDK) |
 | `modal` | `MODAL_TOKEN_ID`, `MODAL_TOKEN_SECRET` | SDK `modal` (gRPC) |
-| `vercel` | `VERCEL_TOKEN`, `VERCEL_TEAM_ID`, `VERCEL_PROJECT_ID` (or `VERCEL_OIDC_TOKEN`) | SDK `@vercel/sandbox` |
+| `vercel` | `VERCEL_TOKEN`, `VERCEL_TEAM_ID`, `VERCEL_PROJECT_ID` (or `VERCEL_OIDC_TOKEN`) | REST vercel.com/api/v2/sandboxes (no SDK) |
 | `runloop` | `RUNLOOP_API_KEY` | SDK `@runloop/api-client` |
 | `freestyle` | `FREESTYLE_API_KEY` | SDK `freestyle` |
 | `blaxel` | `BL_API_KEY`, `BL_WORKSPACE` | SDK `@blaxel/core` |
@@ -313,7 +314,7 @@ Notes:
 | `boxcompute` | `BOXCOMPUTE_API_KEY` | REST api.boxcompute.ai/api/v2 |
 | `lizard` | `LIZARD_API_KEY`, `LIZARD_PROJECT_ID` | REST lizard.build/api |
 | `munito` | `MUNITO_API_KEY` | REST api.munito.ai/sandboxes/v1 |
-| `novita` | `NOVITA_API_KEY` (`NOVITA_DOMAIN` for another region) | SDK `e2b`, pointed at us-phx-1.sandbox.novita.ai |
+| `novita` | `NOVITA_API_KEY` (`NOVITA_DOMAIN` for another region) | E2B's API (the `e2b` adapter's code), at us-phx-1.sandbox.novita.ai |
 | `smol` | `SMOL_CLOUD_TOKEN` | REST api.smolmachines.com/v1 |
 | `isorun` | `ISORUN_API_KEY` | REST run-<region>.isorun.ai/v1 (region from the key) |
 | `instavm` | `INSTAVM_API_KEY` | REST api.instavm.io |
@@ -357,23 +358,23 @@ Notes:
 | `pilldrops` | `PILLDROPS_API_KEY` | REST pilldrops.com/v1 |
 | `vers` | `VERS_API_KEY` | REST api.vers.sh/api/v1 |
 | `oblien` | `OBLIEN_CLIENT_ID`, `OBLIEN_CLIENT_SECRET` | REST api.oblien.com/v1 + the vm.oblien.com runtime gateway (short-lived JWT) |
-| `runta` | `RUNTA_API_KEY` | REST api.runta.com/v2, exec through SDK `@runta/runta-sdk` (WebSocket) |
+| `runta` | `RUNTA_API_KEY` | REST api.runta.com/v2, exec through SDK `@runta/runta-sdk` (WebSocket; installed with sandboxrouting) |
 | `stateset` | `STATESET_API_KEY` | REST api.sandbox.stateset.app/api/v1 |
 | `saas-sandbox` | `AAS_API_KEY` | REST sandbox-as-a-service.com/v1 |
 | `sandbox0` | `SANDBOX0_TOKEN` | REST api.sandbox0.ai/api/v1 |
-| `watasu` | `WATASU_API_KEY` (`options.team` for a shared team) | REST api.watasu.io/v1, exec through SDK `@watasu/sdk` (WebSocket) |
+| `watasu` | `WATASU_API_KEY` (`options.team` for a shared team) | REST api.watasu.io/v1, exec through SDK `@watasu/sdk` (WebSocket; installed with sandboxrouting) |
 | `langsmith` | `LANGSMITH_API_KEY` (`LANGSMITH_ENDPOINT` for EU, `LANGSMITH_WORKSPACE_ID` for org keys) | REST api.smith.langchain.com/api/v2/sandboxes + each sandbox's data plane |
 | `miosa` | `MIOSA_API_KEY` | REST api.miosa.ai/api/v1 |
 | `railway` | `RAILWAY_TOKEN` (project token), or `RAILWAY_API_TOKEN` + `RAILWAY_ENVIRONMENT_ID` | GraphQL backboard.railway.com/graphql/v2 |
 | `agentbay` | `AGENTBAY_API_KEY` (`AGENTBAY_REGION`, `AGENTBAY_IMAGE_ID` optional) | REST (OpenAPI RPC) agentbay.&lt;region&gt;.aliyuncs.com |
-| `tencent` | `TENCENT_AGS_API_KEY`, `TENCENT_AGS_TOOL` (`TENCENT_AGS_REGION` optional) | SDK `e2b`, at &lt;region&gt;.tencentags.com |
+| `tencent` | `TENCENT_AGS_API_KEY`, `TENCENT_AGS_TOOL` (`TENCENT_AGS_REGION` optional) | E2B's API (the `e2b` adapter's code), at &lt;region&gt;.tencentags.com |
 | `workpaper` | `WORKPAPER_API_KEY` (from `workpaper keys create`) | REST api.workpaper.co/v1/computers |
 | `rayrun` | `RAYRUN_TOKEN` (console API token) | REST api.rayrunos.com/v1 |
 | `tama` | `TAMA_TOKEN` | gRPC-Web gateway.tama.computer (api.v1.ApiService), hand-encoded protobuf |
 | `tangle` | `TANGLE_API_KEY` | REST sandbox.tangle.tools/e2b (its plain-HTTP routes) |
 | `nirvana` | `NIRVANA_API_KEY` (`sandbox` edit permission), `NIRVANA_SANDBOX_CLUSTER_ID` (a `ready` cluster) | REST api.nirvanalabs.io/v1/sandboxes (OpenSandbox) + execd through the cluster's gateway |
 | `agental` | `AGENTAL_API_KEY` | REST agental.io/v1 |
-| `volcengine` | `VOLCENGINE_E2B_API_KEY`, `VOLCENGINE_E2B_TEMPLATE_ID` (`VOLCENGINE_E2B_REGION` optional) | SDK `e2b`, at api.vefaas-e2b.sandbox-&lt;region&gt;.volcapig.com |
+| `volcengine` | `VOLCENGINE_E2B_API_KEY`, `VOLCENGINE_E2B_TEMPLATE_ID` (`VOLCENGINE_E2B_REGION` optional) | E2B's API (the `e2b` adapter's code), at api.vefaas-e2b.sandbox-&lt;region&gt;.volcapig.com |
 | `openreward` | `OPENREWARD_API_KEY`, `OPENREWARD_ENVIRONMENT` (an environment you made, `user/env`) | session API at sessions.openreward.ai (server-sent events), as the `openreward` SDK speaks it |
 | `baseten` | `BASETEN_API_KEY` (`BASETEN_TEAM_ID` optional) | REST api.baseten.co/v1/sandboxes with a 2 h sandbox token from /v1/token, + each sandbox's runtime API |
 | `chalk` | `CHALK_CLIENT_ID`, `CHALK_CLIENT_SECRET` (`CHALK_ENVIRONMENT`, `CHALK_API_SERVER` optional) | Connect (JSON) chalk.sandbox.v2 services at api.chalk.ai, token from /v1/oauth/token |
@@ -394,9 +395,16 @@ Notes:
 | `azure-sandboxes` | `AZURE_SUBSCRIPTION_ID`, `AZURE_RESOURCE_GROUP`, `AZURE_SANDBOX_GROUP`, `AZURE_REGION` + `AZURE_ACCESS_TOKEN` or `AZURE_TENANT_ID`/`AZURE_CLIENT_ID`/`AZURE_CLIENT_SECRET` | REST management.{region}.azuredevcompute.io |
 | `docker` | none (`SBR_DOCKER=0` turns it off) | `docker` CLI |
 
-Provider SDKs are optional peer dependencies, loaded only when that provider is used:
-`npm install sandboxrouting e2b modal` installs the router plus two providers. A provider
-whose key is set but whose SDK is missing is skipped with an install hint.
+`npm install sandboxrouting` is all most providers need: the adapters speak each provider's
+HTTP API themselves (E2B and the services that speak its API, Daytona, Vercel and every REST
+provider above), and the two SDKs that have no HTTP equivalent and install cleanly
+(`@runta/runta-sdk`, `@watasu/sdk`) are dependencies. The providers still marked "SDK" in the
+table load an SDK that is an optional peer dependency, because it builds native code or runs an
+install script (`modal`, `@boxd-sh/sdk`, `@northflank/js-client`, `@namespacelabs/sdk`,
+`morphcloud`, `@boxlite-ai/boxlite`), is large (`@beamcloud/beam-js`), needs a newer Node
+(`disk`), or hasn't been replaced by HTTP calls yet. Install one only for a provider you use,
+e.g. `npm install sandboxrouting modal`; a provider whose key is set but whose SDK is missing
+is skipped with an install hint.
 
 ## How a provider is chosen
 

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { CodeBlock } from "@/components/site/code-block";
 import { Glyph } from "@/components/site/glyph";
-import { lapse, provider, site } from "@/lib/data";
+import { installCommand, lapse, provider, site } from "@/lib/data";
 import { cn } from "@/lib/utils";
 
 const KIND_LABEL: Record<string, string> = { quota: "free tier marked used up", rate_limit: "rate limited", auth: "key refused" };
@@ -39,7 +39,7 @@ export function Calls() {
           <Exchange i={1} say="First, install it and set the keys you have.">
             <CodeBlock
               lang="bash"
-              code={`npm i sandboxrouting modal e2b\nexport MODAL_TOKEN_ID=… MODAL_TOKEN_SECRET=… E2B_API_KEY=…\nnpx sbr providers`}
+              code={`${installCommand(provider("modal"), provider("e2b"))}\nexport MODAL_TOKEN_ID=… MODAL_TOKEN_SECRET=… E2B_API_KEY=…\nnpx sbr providers`}
             />
             <div data-ui className="bg-tone-1 sm:ml-14">
               <table className="w-full text-left text-[13px]">

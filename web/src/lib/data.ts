@@ -18,6 +18,12 @@ export function provider(id: string): ProviderDoc {
   return p;
 }
 
+/** The npm command that installs the router and whatever these providers need besides it. */
+export function installCommand(...providers: ProviderDoc[]): string {
+  const extra = providers.flatMap((p) => (p.sdkInstall === "optional" && p.sdkPackage ? [p.sdkPackage] : []));
+  return ["npm i sandboxrouting", ...new Set(extra)].join(" ");
+}
+
 export function maybeProvider(id: string): ProviderDoc | undefined {
   return byId.get(id);
 }
