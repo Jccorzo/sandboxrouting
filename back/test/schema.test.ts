@@ -3,7 +3,9 @@
 // produce.
 import { afterEach, describe, expect, it } from "vitest";
 import { closeAll, emptyDb, freshDb } from "./helpers.js";
-import { MIGRATIONS, MigrationError, migrate } from "../src/migrate.js";
+import { randomBytes } from "node:crypto";
+import { MIGRATIONS, MigrationError, checkMigrations, migrate, prepareSchema } from "../src/migrate.js";
+import { pgDb } from "../src/db.js";
 import type { Db } from "../src/db.js";
 import { BILLINGS, ERROR_KINDS, FREE_TIER_KINDS, HEALTH_OPS, JOB_STATES, MARK_KINDS, MIGRATION_REASONS, SANDBOX_STATES, STOP_REASONS } from "../src/router.js";
 
@@ -40,6 +42,60 @@ describe("migrations", () => {
     const db = await emptyDb();
     const [a, b] = await Promise.all([migrate(db), migrate(db)]);
     expect([...a, ...b].sort()).toEqual(MIGRATIONS.map((m) => m.version));
+  });
+});
+
+describe("a back that doesn't migrate (SBR_MIGRATE_ON_START=0)", () => {
+  const off = { SBR_MIGRATE_ON_START: "0" };
+
+  it("sees every migration as pending on an empty database, and changes nothing", async () => {
+    const db = await emptyDb();
+    expect(await checkMigrations(db)).toEqual(MIGRATIONS.map((m) => m.version));
+    expect((await db.query<{ t: string | null }>("SELECT to_regclass('schema_migrations')::text AS t")).rows[0]?.t).toBeNull();
+    await expect(prepareSchema(db, off)).rejects.toThrow(/not run yet/);
+  });
+
+  it("starts on a database that is up to date, and refuses one with a migration left", async () => {
+    const db = await freshDb();
+    expect(await prepareSchema(db, off)).toEqual([]);
+    const next = [...MIGRATIONS, { version: 2, name: "add-column", sql: "ALTER TABLE accounts ADD COLUMN note text" }];
+    expect(await checkMigrations(db, next)).toEqual([2]);
+  });
+
+  it("refuses, as migrate does, a migration it doesn't know or one that was edited", async () => {
+    const db = await freshDb();
+    const edited = MIGRATIONS.map((m) => ({ ...m, sql: `${m.sql}\n-- edited` }));
+    await expect(checkMigrations(db, edited)).rejects.toThrow(/differs/);
+    await db.query("INSERT INTO schema_migrations (version, name, checksum) VALUES (999, 'from-the-future', 'x')");
+    await expect(checkMigrations(db)).rejects.toBeInstanceOf(MigrationError);
+  });
+
+  it("works as a role that can't change the schema, where migrate can't", async () => {
+    const db = await freshDb();
+    const role = `sbr_app_${randomBytes(4).toString("hex")}`;
+    await db.exec(`CREATE ROLE ${role} LOGIN PASSWORD '${role}';
+      REVOKE CREATE ON SCHEMA public FROM PUBLIC;
+      GRANT USAGE ON SCHEMA public TO ${role};
+      GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO ${role};`);
+    const url = process.env["TEST_DATABASE_URL"];
+    let app: Db = db;
+    if (url) {
+      const u = new URL(url);
+      u.username = role;
+      u.password = role;
+      u.pathname = `/${(await db.query<{ d: string }>("SELECT current_database() AS d")).rows[0]!.d}`;
+      app = pgDb(u.toString(), 1);
+    } else {
+      await db.exec(`SET ROLE ${role}`); // PGlite: one connection, so the session becomes the role
+    }
+    try {
+      expect(await prepareSchema(app, off)).toEqual([]);
+      await expect(migrate(app)).rejects.toThrow(/permission denied/);
+    } finally {
+      if (url) await app.close();
+      else await db.exec("RESET ROLE");
+      await db.exec(`DROP OWNED BY ${role}; DROP ROLE ${role}`);
+    }
   });
 });
 

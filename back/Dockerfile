@@ -4,7 +4,9 @@
 #   docker build -f back/Dockerfile -t sandboxrouting-back .
 #
 # Configured only by environment variables: DATABASE_URL (required), PORT, SBR_ADMIN_TOKEN,
-# SBR_INGEST_TOKEN, SBR_SWEEP_TOKEN. See back/src/main.ts.
+# SBR_INGEST_TOKEN, SBR_SWEEP_TOKEN, SBR_MIGRATE_ON_START, DATABASE_POOL_MAX. See back/src/main.ts.
+# With SBR_MIGRATE_ON_START=0 (a role that can't change the schema), run the migrations first with
+#   docker run ... node back/dist/cli.js migrate      (as the database's owner)
 
 FROM node:22-alpine AS build
 WORKDIR /repo
