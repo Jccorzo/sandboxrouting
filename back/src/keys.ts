@@ -19,8 +19,11 @@ export function hashToken(token: string): Buffer {
   return createHash("sha256").update(token).digest();
 }
 
-/** The part of a key a list shows: enough to tell keys apart, useless to an attacker. */
-export const displayPrefix = (token: string) => token.slice(0, KEY_PREFIX.length + 6);
+/**
+ * The part of a key a list shows: enough to tell keys apart, useless to an attacker. A key made
+ * here shows 6 of its 43 random characters; a token from the environment, of unknown shape, 4.
+ */
+export const displayPrefix = (token: string) => (token.startsWith(KEY_PREFIX) ? token.slice(0, KEY_PREFIX.length + 6) : token.slice(0, 4));
 
 /** Constant-time comparison for shared secrets such as the sweep token. */
 export function sameSecret(a: string, b: string): boolean {

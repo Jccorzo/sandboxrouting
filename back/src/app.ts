@@ -126,7 +126,7 @@ export function createApp(opts: AppOptions): Hono<Env> {
       if (!(await plugins.auth.stillAuthorized(p, q))) return undefined;
       return createKey(q, p.accountId, parsed.data.name, parsed.data.scope);
     });
-    if (!out) return fail(c, 401, "unauthorized", "this key was revoked meanwhile");
+    if (!out) return fail(c, 401, "unauthorized", "This key was revoked meanwhile.");
     return c.json(out satisfies CreatedKey, 201);
   });
 
@@ -139,16 +139,16 @@ export function createApp(opts: AppOptions): Hono<Env> {
       if (!(await plugins.auth.stillAuthorized(p, q))) return "unauthorized" as const;
       return revokeKey(q, p.accountId, id);
     });
-    if (out === "unauthorized") return fail(c, 401, "unauthorized", "this key was revoked meanwhile");
+    if (out === "unauthorized") return fail(c, 401, "unauthorized", "This key was revoked meanwhile.");
     switch (out.outcome) {
       case "revoked":
         return c.json({ key: out.key });
       case "not-found":
         return fail(c, 404, "not_found", "no such key");
       case "already-revoked":
-        return fail(c, 409, "already_revoked", "this key was already revoked", { key: out.key });
+        return fail(c, 409, "already_revoked", "This key was already revoked.", { key: out.key });
       case "last-admin-key":
-        return fail(c, 409, "last_admin_key", "this is the account's last admin key; make another before revoking it", { key: out.key });
+        return fail(c, 409, "last_admin_key", "This is the account's last admin key. Make another admin key before revoking it.", { key: out.key });
     }
   });
 
