@@ -1,5 +1,6 @@
 // E2B: Firecracker microVMs. Free: $100 one-time credit (Hobby), 10 concurrent, 1 h max run.
-// SDK: npm `e2b`. REST: https://api.e2b.app (X-API-Key). MCP: @e2b/mcp-server.
+// Spoken over HTTP (e2b-compatible.ts), no SDK. REST: https://api.e2b.app (X-API-Key), OpenAPI
+// https://docs.e2b.dev/openapi-public.yaml. Official SDK: npm `e2b`. MCP: @e2b/mcp-server.
 
 import { e2bCompatible } from "./e2b-compatible.js";
 

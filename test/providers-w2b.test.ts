@@ -4,6 +4,8 @@
 // is called. None has been run against the real service.
 import { describe, expect, it, vi } from "vitest";
 import { fakeRun, lifecycle, mock, routerFor } from "./restmock.js";
+import { e2bMock } from "./e2bmock.js";
+import { e2bCompatible } from "../src/providers/e2b-compatible.js";
 import { NoProviderAvailableError } from "../src/index.js";
 import { agentbayProvider } from "../src/providers/agentbay.js";
 import { railwayProvider } from "../src/providers/railway.js";
@@ -166,75 +168,46 @@ describe("railway", () => {
   });
 });
 
-// A stand-in for the `e2b` SDK: it records every call and keeps sandboxes in memory.
-const e2b = vi.hoisted(() => {
-  const calls: { op: string; args: unknown[] }[] = [];
-  const boxes = new Map<string, Map<string, Uint8Array>>();
-  let n = 0;
-  class Sandbox {
-    constructor(public sandboxId: string) {}
-    static async create(...args: unknown[]) {
-      calls.push({ op: "create", args });
-      const id = `e-${++n}`;
-      boxes.set(id, new Map());
-      return new Sandbox(id);
-    }
-    static async connect(id: string, opts: unknown) {
-      calls.push({ op: "connect", args: [id, opts] });
-      if (!boxes.has(id)) throw Object.assign(new Error(`sandbox ${id} not found`), { status: 404 });
-      return new Sandbox(id);
-    }
-    static async kill(id: string, opts: unknown) {
-      calls.push({ op: "kill", args: [id, opts] });
-      return boxes.delete(id);
-    }
-    static list(opts: unknown) {
-      calls.push({ op: "list", args: [opts] });
-      let done = false;
-      return {
-        get hasNext() {
-          return !done;
-        },
-        async nextItems() {
-          done = true;
-          return [...boxes.keys()].map((sandboxId) => ({ sandboxId }));
-        },
-      };
-    }
-    commands = {
-      run: async (cmd: string) => {
-        const r = fakeRun(cmd);
-        if (r.code) throw Object.assign(new Error("exit"), { exitCode: r.code, stdout: r.stdout, stderr: r.stderr });
-        return { stdout: r.stdout, stderr: r.stderr, exitCode: 0 };
-      },
-    };
-    files = {
-      write: async (path: string, data: ArrayBuffer) => void boxes.get(this.sandboxId)!.set(path, new Uint8Array(data)),
-      read: async (path: string) => boxes.get(this.sandboxId)!.get(path) ?? new Uint8Array(),
-      list: async () => [],
-    };
+/** The URLs `run` fetches, answering each with a 503. */
+async function fetchedUrls(run: () => Promise<unknown>): Promise<string[]> {
+  const urls: string[] = [];
+  const spy = vi.spyOn(globalThis, "fetch").mockImplementation(async (u) => {
+    urls.push(String(u));
+    return new Response("{}", { status: 503 });
+  });
+  try {
+    await run().catch(() => undefined);
+  } finally {
+    spy.mockRestore();
   }
-  return { calls, boxes, Sandbox };
-});
-vi.mock("e2b", () => ({ Sandbox: e2b.Sandbox }));
+  return urls;
+}
 
 describe("tencent (E2B API)", () => {
-  it("creates from the sandbox tool on the region's tencentags.com domain", async () => {
-    e2b.calls.length = 0;
-    const { router } = routerFor(tencentProvider, { TENCENT_AGS_API_KEY: "ags_test", TENCENT_AGS_TOOL: "my-tool", TENCENT_AGS_REGION: "ap-shanghai" });
+  it("creates from the sandbox tool with the console's key", async () => {
+    const api = await e2bMock({ key: "ags_test" });
+    const { router } = routerFor(tencentProvider, { TENCENT_AGS_API_KEY: "ags_test", TENCENT_AGS_TOOL: "my-tool", TENCENT_AGS_API_URL: api.url, E2B_SANDBOX_URL: api.url });
     await lifecycle(router, { files: true });
-    const create = e2b.calls.find((c) => c.op === "create")!;
-    expect(create.args[0]).toBe("my-tool");
-    expect(create.args[1]).toMatchObject({ apiKey: "ags_test", domain: "ap-shanghai.tencentags.com", timeoutMs: 120_000 });
-    expect(e2b.calls.find((c) => c.op === "kill")!.args[1]).toMatchObject({ apiKey: "ags_test", domain: "ap-shanghai.tencentags.com" });
+    const create = api.bodies.find((b) => b.route === "POST /v2/sandboxes")!;
+    expect(create.body).toMatchObject({ templateID: "my-tool", timeout: 120 });
+    expect(api.seen).toContain("DELETE /sandboxes/sbx-1");
   });
 
-  it("reconnects from another process and defaults to Guangzhou", async () => {
-    const ctx = { env: { TENCENT_AGS_API_KEY: "ags_test", TENCENT_AGS_TOOL: "my-tool" }, options: {} };
-    e2b.boxes.set("other-1", new Map());
-    e2b.calls.length = 0;
-    expect((await tencentProvider.exec("other-1", "echo hi", {}, ctx)).stdout).toContain("echo hi");
-    expect(e2b.calls[0]).toMatchObject({ op: "connect", args: ["other-1", { domain: "ap-guangzhou.tencentags.com" }] });
+  it("reaches the region's tencentags.com API, Guangzhou by default", async () => {
+    const spec = { cpu: 2, memoryMiB: 1000, timeoutSec: 60, env: {}, metadata: {} };
+    const env = { TENCENT_AGS_API_KEY: "ags_test", TENCENT_AGS_TOOL: "my-tool" };
+    expect(await fetchedUrls(() => tencentProvider.create(spec, { env: { ...env, TENCENT_AGS_REGION: "ap-shanghai" }, options: {} }))).toEqual(["https://api.ap-shanghai.tencentags.com/v2/sandboxes"]);
+    expect(await fetchedUrls(() => tencentProvider.create(spec, { env, options: {} }))).toEqual(["https://api.ap-guangzhou.tencentags.com/v2/sandboxes"]);
+  });
+
+  it("reconnects to a sandbox another process made", async () => {
+    const api = await e2bMock({ key: "ags_test" });
+    const ctx = { env: { TENCENT_AGS_API_KEY: "ags_test", TENCENT_AGS_TOOL: "my-tool", TENCENT_AGS_API_URL: api.url, E2B_SANDBOX_URL: api.url }, options: {} };
+    // Made through another copy of the adapter, so this one has no handle and has to connect.
+    const other = e2bCompatible({ info: tencentProvider.info, connection: () => ({ apiKey: "ags_test", apiUrl: api.url }) });
+    const { providerSandboxId } = await other.create({ cpu: 2, memoryMiB: 1000, timeoutSec: 60, env: {}, metadata: {} }, ctx);
+    expect((await tencentProvider.exec(providerSandboxId, "echo hi", {}, ctx)).stdout).toContain("echo hi");
+    expect(api.seen).toContain(`POST /v2/sandboxes/${providerSandboxId}/connect`);
     expect(tencentProvider.pause).toBeUndefined();
     expect(tencentProvider.listAlive).toBeUndefined();
   });
@@ -242,23 +215,36 @@ describe("tencent (E2B API)", () => {
 
 describe("volcengine (E2B API)", () => {
   const env = { VOLCENGINE_E2B_API_KEY: "e2b_apikey_test", VOLCENGINE_E2B_TEMPLATE_ID: "tpl-1", VOLCENGINE_E2B_REGION: "cn-shanghai" };
+  const spec = (metadata: Record<string, string>) => ({ cpu: 2, memoryMiB: 4096, timeoutSec: 60, env: {}, metadata });
 
-  it("creates from the template at the region's control plane and lists by template", async () => {
-    e2b.calls.length = 0;
-    const { router } = routerFor(volcengineProvider, env);
+  it("creates from the template and lists by template", async () => {
+    const api = await e2bMock({ key: "e2b_apikey_test" });
+    const local = { ...env, VOLCENGINE_E2B_API_URL: api.url, E2B_SANDBOX_URL: api.url };
+    const { router } = routerFor(volcengineProvider, local);
     await lifecycle(router, { files: true });
-    const create = e2b.calls.find((c) => c.op === "create")!;
-    expect(create.args[0]).toBe("tpl-1");
-    expect(create.args[1]).toMatchObject({ apiKey: "e2b_apikey_test", apiUrl: "https://api.vefaas-e2b.sandbox-cn-shanghai.volcapig.com" });
-    await volcengineProvider.listAlive!({ env, options: {} });
-    expect(e2b.calls.find((c) => c.op === "list")!.args[0]).toMatchObject({ query: { state: ["running", "paused"], metadata: { vefaas_function_id: "tpl-1" } } });
+    const create = api.bodies.find((b) => b.route === "POST /v2/sandboxes")!;
+    expect(create.body).toMatchObject({ templateID: "tpl-1" });
+    // Two sandboxes of the template and one of another: only the template's are listed.
+    const ctx = { env: local, options: {} };
+    const a = await volcengineProvider.create(spec({ vefaas_function_id: "tpl-1" }), ctx);
+    const b = await volcengineProvider.create(spec({ vefaas_function_id: "tpl-1" }), ctx);
+    await volcengineProvider.create(spec({ vefaas_function_id: "other" }), ctx);
+    expect((await volcengineProvider.listAlive!(ctx)).sort()).toEqual([a.providerSandboxId, b.providerSandboxId].sort());
+    const list = api.bodies.find((x) => x.route === "GET /v2/sandboxes")!;
+    expect(list.query.get("state")).toBe("running,paused");
+    expect(list.query.get("metadata")).toBe("vefaas_function_id=tpl-1");
+  });
+
+  it("reaches the region's control plane", async () => {
+    const urls = await fetchedUrls(() => volcengineProvider.create(spec({}), { env, options: {} }));
+    expect(urls).toEqual(["https://api.vefaas-e2b.sandbox-cn-shanghai.volcapig.com/v2/sandboxes"]);
   });
 
   it("never calls connect, which veFaaS lacks, and offers no pause", async () => {
-    e2b.boxes.set("other-2", new Map());
-    e2b.calls.length = 0;
-    await expect(volcengineProvider.exec("other-2", "echo hi", {}, { env, options: {} })).rejects.toThrow(/only the process that created it/);
-    expect(e2b.calls.some((c) => c.op === "connect")).toBe(false);
+    const urls = await fetchedUrls(async () => {
+      await expect(volcengineProvider.exec("other-2", "echo hi", {}, { env, options: {} })).rejects.toThrow(/only the process that created it/);
+    });
+    expect(urls).toEqual([]);
     expect(volcengineProvider.pause).toBeUndefined();
   });
 });

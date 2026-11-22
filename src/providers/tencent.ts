@@ -2,9 +2,9 @@
 // sandbox, each with its own kernel. No free compute: 0.000081 CNY per vCPU-second and
 // 0.000025 CNY per GiB-second while running, plus 15 GiB of system disk free per running
 // instance. Converted at 7.1 CNY per USD.
-// It speaks E2B's API: the stock `e2b` SDK with E2B_DOMAIN=<region>.tencentags.com and an API
-// key made in the console. A sandbox is started from a "sandbox tool" made in the console
-// first; the tool's name is the E2B template and fixes the size (Code Interpreter: 2 vCPU,
+// It speaks E2B's API (the stock `e2b` SDK works with E2B_DOMAIN=<region>.tencentags.com), which
+// e2b-compatible.ts calls over HTTP with an API key made in the console. A sandbox is started
+// from a "sandbox tool" made in the console first; the tool's name is the E2B template and fixes the size (Code Interpreter: 2 vCPU,
 // 1000 MiB). Quotas per account and region: 50 instances, 50 vCPU, 100 GiB, 20 paused.
 // Docs: https://cloud.tencent.com/document/product/1814/123816 (quick start, E2B migration),
 // https://cloud.tencent.com/document/product/1814/133249 (billing),

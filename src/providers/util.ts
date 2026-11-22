@@ -1,6 +1,7 @@
 // Small helpers adapters share: lazy SDK loading, HTTP with errors the router can classify,
 // and shell wrapping for providers that take argv.
 
+import { readFileSync } from "node:fs";
 import { SandboxRouterError, type ErrorKind } from "../core/errors.js";
 import type { ProviderAdapter } from "../core/types.js";
 
@@ -9,7 +10,26 @@ export function defineProvider<T extends ProviderAdapter>(adapter: T): T {
   return adapter;
 }
 
-/** Loads an optional SDK, with an install hint when it is missing. */
+/**
+ * How a provider SDK reaches the user's machine, read from sandboxrouting's own package.json, the
+ * one place that says: `bundled` (a dependency, installed with sandboxrouting) or `optional` (an
+ * optional peer dependency the user installs next to it). Undefined for a package that isn't ours
+ * to install (Cloudflare's runs in the bridge Worker). Install hints and the site both ask this.
+ */
+export function sdkInstall(pkg: string): "bundled" | "optional" | undefined {
+  // src/providers/util.ts and dist/providers/util.js both sit two levels below package.json.
+  manifest ??= JSON.parse(readFileSync(new URL("../../package.json", import.meta.url), "utf8")) as Manifest;
+  if (manifest.dependencies?.[pkg]) return "bundled";
+  if (manifest.peerDependencies?.[pkg]) return "optional";
+  return undefined;
+}
+interface Manifest {
+  dependencies?: Record<string, string>;
+  peerDependencies?: Record<string, string>;
+}
+let manifest: Manifest | undefined;
+
+/** Loads a provider SDK, with an install hint when it is missing. */
 // Optional SDKs are peer dependencies that may not be installed, so their types can't be imported here.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function loadSdk<T = any>(pkg: string, provider: string): Promise<T> {
@@ -17,7 +37,9 @@ export async function loadSdk<T = any>(pkg: string, provider: string): Promise<T
     return (await import(pkg)) as T;
   } catch (err) {
     if ((err as NodeJS.ErrnoException).code === "ERR_MODULE_NOT_FOUND" || /Cannot find (module|package)/.test(String(err))) {
-      throw new SandboxRouterError("auth", `${provider} needs its SDK: npm install ${pkg}`, provider, { cause: err });
+      // A bundled SDK is missing only from a broken install.
+      const hint = sdkInstall(pkg) === "bundled" ? "it ships with sandboxrouting, so reinstall sandboxrouting" : `npm install ${pkg}`;
+      throw new SandboxRouterError("auth", `${provider} needs its SDK: ${hint}`, provider, { cause: err });
     }
     throw err;
   }

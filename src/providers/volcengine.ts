@@ -2,10 +2,10 @@
 // vCPU-second and 0.0000102 CNY per GB-second, plus 0.8 CNY per GB of outbound traffic.
 // Converted at 7.1 CNY per USD.
 // A template made in the AgentKit console with "E2B protocol compatible" turned on is driven by
-// the stock `e2b` SDK: E2B_API_URL=https://api.vefaas-e2b.sandbox-<region>.volcapig.com
+// E2B's API (e2b-compatible.ts, over HTTP; the stock `e2b` SDK works too): E2B_API_URL=https://api.vefaas-e2b.sandbox-<region>.volcapig.com
 // (cn-beijing or cn-shanghai), an `e2b_apikey_…` key and the template's id. The template fixes
 // the image and size. veFaaS has no `/v2/sandboxes/{id}/connect`, so a sandbox is reachable
-// only from the process that created it, and a paused one can't be resumed through the SDK.
+// only from the process that created it, and a paused one can't be resumed.
 // Listing needs the template id, sent as the `vefaas_function_id` metadata filter.
 // Docs: https://docs.volcengine.com/docs/agentkit/e2b-sdk-cli-integration-practice (E2B setup,
 // limits), https://docs.volcengine.com/docs/agentkit/billing-items (prices),

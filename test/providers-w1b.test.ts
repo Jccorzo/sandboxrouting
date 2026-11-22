@@ -1,9 +1,10 @@
 // The adapters added by w1b on 2026-11-21 (novita, isorun, smol, prized, instavm, zipbox), driven
 // through the router against local servers that speak each provider's wire format, taken from its
-// OpenAPI spec, docs or official SDK. Novita speaks E2B's API, so its test replaces the e2b SDK.
+// OpenAPI spec, docs or official SDK. Novita speaks E2B's API, so its test uses the E2B mock.
 // None has been run against the real service.
 import { describe, expect, it, vi } from "vitest";
 import { deletedAtDeadline, fakeRun, lifecycle, mock, routerFor } from "./restmock.js";
+import { e2bMock } from "./e2bmock.js";
 import { classify } from "../src/core/errors.js";
 import { isorunBase, isorunProvider } from "../src/providers/isorun.js";
 import { smolProvider } from "../src/providers/smol.js";
@@ -12,44 +13,6 @@ import { instavmProvider, instavmSize } from "../src/providers/instavm.js";
 import { zipboxNames, zipboxProvider, zipboxTier } from "../src/providers/zipbox.js";
 import { NOVITA_DEFAULT_DOMAIN, novitaProvider } from "../src/providers/novita.js";
 import type { ProviderAdapter, ProviderContext } from "../src/index.js";
-
-const e2b = vi.hoisted(() => ({ calls: [] as { op: string; opts: Record<string, unknown> }[], killed: [] as string[], files: new Map<string, Uint8Array>() }));
-
-vi.mock("e2b", () => {
-  const run = (cmd: string) => {
-    const m = /exit (\d+)/.exec(cmd);
-    return m ? { stdout: "", stderr: "boom\n", exitCode: Number(m[1]) } : { stdout: `ran: ${cmd}\n`, stderr: "", exitCode: 0 };
-  };
-  const sandbox = (id: string) => ({
-    sandboxId: id,
-    commands: {
-      run: async (cmd: string) => {
-        const r = run(cmd);
-        if (r.exitCode !== 0) throw Object.assign(new Error("exit"), r);
-        return r;
-      },
-    },
-    files: {
-      read: async (p: string) => e2b.files.get(p) ?? new Uint8Array(),
-      write: async (p: string, d: ArrayBuffer) => void e2b.files.set(p, new Uint8Array(d)),
-      list: async () => [],
-    },
-    getHost: (port: number) => `${port}-${id}.example`,
-    setTimeout: async () => undefined,
-    pause: async () => undefined,
-  });
-  return {
-    Sandbox: {
-      create: async (...args: unknown[]) => {
-        e2b.calls.push({ op: "create", opts: args[args.length - 1] as Record<string, unknown> });
-        return sandbox("nv-1");
-      },
-      connect: async (id: string, opts: Record<string, unknown>) => (e2b.calls.push({ op: "connect", opts }), sandbox(id)),
-      kill: async (id: string, opts: Record<string, unknown>) => (e2b.calls.push({ op: "kill", opts }), e2b.killed.push(id), true),
-      list: () => ({ hasNext: false, nextItems: async () => [] }),
-    },
-  };
-});
 
 const ctx = (env: Record<string, string>, options: Record<string, unknown> = {}): ProviderContext => ({ env, options });
 /** What the router makes of the error a call throws. */
@@ -66,22 +29,31 @@ const quotaMarked = async (router: ReturnType<typeof routerFor>["router"], provi
   (await router.ledger.read()).marks.some((m) => m.provider === provider && m.kind === "quota");
 
 describe("novita", () => {
-  it("is the e2b adapter pointed at Novita's domain, with Novita's key", async () => {
-    e2b.calls.length = 0;
-    const { router } = routerFor(novitaProvider, { NOVITA_API_KEY: "sk_nv" });
+  it("is the e2b adapter pointed at Novita's API, with Novita's key", async () => {
+    const api = await e2bMock({ key: "sk_nv" });
+    const { router } = routerFor(novitaProvider, { NOVITA_API_KEY: "sk_nv", NOVITA_API_URL: api.url, E2B_SANDBOX_URL: api.url });
     await lifecycle(router, { files: true });
-    const create = e2b.calls.find((c) => c.op === "create")!;
-    expect(create.opts).toMatchObject({ apiKey: "sk_nv", domain: NOVITA_DEFAULT_DOMAIN, timeoutMs: 120_000 });
-    // An unset API URL is left to the SDK, which builds https://api.<domain>.
-    expect(create.opts).not.toHaveProperty("apiUrl");
-    expect(e2b.calls.find((c) => c.op === "kill")!.opts).toMatchObject({ apiKey: "sk_nv", domain: NOVITA_DEFAULT_DOMAIN });
-    expect(e2b.killed).toContain("nv-1");
+    const create = api.bodies.find((b) => b.route === "POST /v2/sandboxes")!;
+    expect(create.headers["x-api-key"]).toBe("sk_nv");
+    expect(create.body).toMatchObject({ templateID: "base", timeout: 120 });
+    expect(api.seen).toContain("DELETE /sandboxes/sbx-1");
+    expect(api.boxes.size).toBe(0);
   });
 
-  it("takes another region's domain from NOVITA_DOMAIN", async () => {
-    e2b.calls.length = 0;
-    await novitaProvider.create({ cpu: 2, memoryMiB: 4096, timeoutSec: 60, env: {}, metadata: {} }, ctx({ NOVITA_API_KEY: "k", NOVITA_DOMAIN: "eu.sandbox.novita.ai" }));
-    expect(e2b.calls[0]!.opts).toMatchObject({ domain: "eu.sandbox.novita.ai" });
+  it("builds the API URL from Novita's domain, or NOVITA_DOMAIN's", async () => {
+    const urls: string[] = [];
+    const spy = vi.spyOn(globalThis, "fetch").mockImplementation(async (u) => {
+      urls.push(String(u));
+      return new Response("{}", { status: 503 });
+    });
+    try {
+      const spec = { cpu: 2, memoryMiB: 4096, timeoutSec: 60, env: {}, metadata: {} };
+      await novitaProvider.create(spec, ctx({ NOVITA_API_KEY: "k" })).catch(() => undefined);
+      await novitaProvider.create(spec, ctx({ NOVITA_API_KEY: "k", NOVITA_DOMAIN: "eu.sandbox.novita.ai" })).catch(() => undefined);
+    } finally {
+      spy.mockRestore();
+    }
+    expect(urls).toEqual([`https://api.${NOVITA_DEFAULT_DOMAIN}/v2/sandboxes`, "https://api.eu.sandbox.novita.ai/v2/sandboxes"]);
   });
 });
 
