@@ -1,0 +1,35 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "com.sandboxrouting/sandboxrouting",
+  "title": "sandboxrouting",
+  "description": "One MCP server for 108 cloud sandbox providers: free tiers first, failover, jobs that move boxes.",
+  "websiteUrl": "https://sandboxrouting.com",
+  "repository": {
+    "url": "https://github.com/Jccorzo/sandboxrouting",
+    "source": "github"
+  },
+  "version": "0.1.0",
+  "packages": [
+    {
+      "registryType": "npm",
+      "identifier": "sandboxrouting",
+      "version": "0.1.0",
+      "transport": {
+        "type": "stdio"
+      },
+      "packageArguments": [
+        {
+          "type": "positional",
+          "value": "mcp"
+        }
+      ],
+      "environmentVariables": [
+        {
+          "name": "SBR_HOME",
+          "description": "Where the router keeps its ledger (default ~/.sandboxrouting). Provider keys are read from each provider's usual variables, e.g. E2B_API_KEY, MODAL_TOKEN_ID.",
+          "isRequired": false
+        }
+      ]
+    }
+  ]
+}

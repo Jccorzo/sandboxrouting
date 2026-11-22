@@ -1,0 +1,93 @@
+# Publishes a release when a version tag (v0.1.0, v0.2.0, ...) is pushed: the package to npm
+# with npm trusted publishing (no token; npm attaches provenance), then the MCP server to the
+# MCP Registry. Each step checks whether its target already has this version and skips if so,
+# so re-running a failed release finishes what the first run didn't instead of failing on the
+# part that already went out.
+#
+# One-time setup:
+# - npm: after the first manual publish, add a trusted publisher on npmjs.com for this package
+#   (repository Jccorzo/sandboxrouting, workflow release.yml).
+# - MCP Registry: the name com.sandboxrouting/* is verified by a TXT record on sandboxrouting.com.
+#   Store the Ed25519 private key (hex) as the MCP_DNS_PRIVATE_KEY secret. Without the secret the
+#   registry step is skipped.
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+  id-token: write # npm trusted publishing and hushrun's keyless signing
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    env:
+      MCP_PUBLISHER_VERSION: v1.8.11
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+          cache: npm
+      # Trusted publishing needs npm 11.5.1 or later.
+      - run: npm install -g npm@^11.5.1
+
+      - name: Tag, package.json and server.json agree on the version
+        run: |
+          set -euo pipefail
+          v="$(node -p 'require("./package.json").version')"
+          test "v$v" = "$GITHUB_REF_NAME" || { echo "tag $GITHUB_REF_NAME but package.json says $v"; exit 1; }
+          node -e '
+            const p = require("./package.json"), s = require("./server.json");
+            const bad = [s.version, ...s.packages.map((x) => x.version)].filter((x) => x !== p.version);
+            if (bad.length || s.name !== p.mcpName) { console.error("server.json is out of step with package.json"); process.exit(1); }'
+
+      - run: npm ci
+      # The same checks as CI, through hushrun: what already passed on this exact code is skipped.
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+
+      - name: Publish to npm
+        run: |
+          set -euo pipefail
+          v="$(node -p 'require("./package.json").version')"
+          if npm view "sandboxrouting@$v" version >/dev/null 2>&1; then
+            echo "sandboxrouting@$v is already on npm; skipping"
+          else
+            npm publish --access public
+          fi
+
+      # Verifies mcp-publisher's signature before it runs with the registry key.
+      - uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+
+      - name: Publish to the MCP Registry
+        env:
+          MCP_PRIVATE_KEY: ${{ secrets.MCP_DNS_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          if [ -z "${MCP_PRIVATE_KEY}" ]; then echo "MCP_DNS_PRIVATE_KEY is not set; skipping"; exit 0; fi
+          v="$(node -p 'require("./package.json").version')"
+          code="$(curl -sL -o /dev/null -w '%{http_code}' \
+            "https://registry.modelcontextprotocol.io/v0.1/servers/com.sandboxrouting%2Fsandboxrouting/versions/$v")"
+          if [ "$code" = 200 ]; then echo "version $v is already in the MCP Registry; skipping"; exit 0; fi
+          if [ "$code" != 404 ]; then echo "MCP Registry answered $code; not publishing blind"; exit 1; fi
+          archive="mcp-publisher_linux_amd64.tar.gz"
+          base="https://github.com/modelcontextprotocol/registry/releases/download/${MCP_PUBLISHER_VERSION}"
+          curl -fsSL -o "$archive" "$base/$archive"
+          curl -fsSL -o "$archive.sigstore.json" "$base/$archive.sigstore.json"
+          cosign verify-blob \
+            --bundle "$archive.sigstore.json" \
+            --certificate-identity "https://github.com/modelcontextprotocol/registry/.github/workflows/release.yml@refs/tags/${MCP_PUBLISHER_VERSION}" \
+            --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+            "$archive"
+          tar xzf "$archive" mcp-publisher
+          ./mcp-publisher login dns --domain sandboxrouting.com
+          ./mcp-publisher publish
