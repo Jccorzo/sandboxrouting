@@ -4,7 +4,8 @@ import globals from "globals";
 import tseslint from "typescript-eslint";
 
 export default tseslint.config(
-  { ignores: ["dist/**", "node_modules/**", ".claude/**", "templates/**/node_modules/**"] },
+  // web/ is its own workspace with its own lint (Next.js rules): see web/eslint.config.mjs.
+  { ignores: ["dist/**", "node_modules/**", ".claude/**", "templates/**/node_modules/**", "web/**"] },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
