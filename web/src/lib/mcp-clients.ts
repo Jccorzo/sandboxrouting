@@ -12,8 +12,6 @@ export interface McpClient {
 
 export const MCP_COMMAND = { command: "npx", args: ["-y", "sandboxrouting", "mcp"] } as const;
 export const MCP_ONE_LINE = "npx -y sandboxrouting mcp";
-/** Until the package's first npm release, a clone's build runs the same server. */
-export const MCP_FROM_CLONE = "node /path/to/sandboxrouting/dist/cli.js mcp";
 
 const json = (v: unknown) => JSON.stringify(v, null, 2);
 const ENV_EXAMPLE = { MODAL_TOKEN_ID: "…", MODAL_TOKEN_SECRET: "…", E2B_API_KEY: "…" };

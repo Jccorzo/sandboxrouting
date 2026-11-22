@@ -1,7 +1,6 @@
 import { InstallDialog } from "@/components/home/install-dialog";
 import { CodeBlock } from "@/components/site/code-block";
 import { JsonLd } from "@/components/site/json-ld";
-import { NpmNote } from "@/components/site/npm-note";
 import { site } from "@/lib/data";
 import { MCP_CLIENTS, MCP_ONE_LINE } from "@/lib/mcp-clients";
 import { breadcrumbLd, pageMetadata } from "@/lib/seo";
@@ -27,9 +26,6 @@ export default function McpPage() {
             sandboxes, run commands, move files and run jobs that survive a box dying, routed free tiers first across {site.counts.total} providers.
             It shares one ledger with the CLI and the REST server, so they agree on what is live and what is spent.
           </p>
-          <div data-reveal className="mt-8 max-w-[62ch]">
-            <NpmNote mcp />
-          </div>
         </div>
         <div className="flex items-start bg-ink p-4 sm:p-10 lg:col-span-5">
           <InstallDialog clients={MCP_CLIENTS.map((c) => c.id).slice(0, 2)} />

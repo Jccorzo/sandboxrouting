@@ -3,7 +3,6 @@ import path from "node:path";
 import Link from "next/link";
 import { CodeBlock } from "@/components/site/code-block";
 import { JsonLd } from "@/components/site/json-ld";
-import { NpmNote } from "@/components/site/npm-note";
 import { provider, site } from "@/lib/data";
 import { repoRoot } from "@/lib/docs";
 import { breadcrumbLd, pageMetadata } from "@/lib/seo";
@@ -45,9 +44,6 @@ export default function Quickstart() {
           Node 20 or newer. Each provider&rsquo;s SDK is an optional peer dependency, loaded only when that provider is used, so you install the router
           plus the providers you have keys for.
         </p>
-        <div data-reveal className="mt-8 max-w-[70ch]">
-          <NpmNote />
-        </div>
       </header>
 
       <div className="wrap mt-20 space-y-[clamp(72px,9vw,140px)]">
