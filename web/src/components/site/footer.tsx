@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { date, site } from "@/lib/data";
-import { DASHBOARD_URL } from "@/lib/dashboard";
-import { REPO_URL } from "@/lib/links";
+import { DASHBOARD_URL, REPO_URL } from "@/lib/urls";
 import { Mark } from "./mark";
 
 export const TRADEMARK_NOTE = "The sandboxrouting name and logo are not covered by the MIT license.";

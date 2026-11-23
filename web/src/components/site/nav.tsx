@@ -3,8 +3,9 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
-import { DASHBOARD_URL } from "@/lib/dashboard";
+import { DASHBOARD_URL } from "@/lib/urls";
 import { cn } from "@/lib/utils";
+import { GitHubLink } from "./github-link";
 import { Mark } from "./mark";
 
 const LINKS = [
@@ -43,6 +44,7 @@ export function Nav() {
               {l.label}
             </Link>
           ))}
+          <GitHubLink className="inline-flex" />
           <a href={DASHBOARD_URL} className="text-[15px] font-medium text-ink transition-colors hover:text-green-ink">
             Sign in
           </a>
@@ -50,15 +52,18 @@ export function Nav() {
             Quickstart
           </Link>
         </nav>
-        <button
-          type="button"
-          className="inline-flex h-10 items-center px-3 text-[15px] font-medium md:hidden bg-tone-1"
-          aria-expanded={open}
-          aria-controls="mobile-menu"
-          onClick={() => setOpen((v) => !v)}
-        >
-          {open ? "Close" : "Menu"}
-        </button>
+        <div className="flex items-center gap-5 md:hidden">
+          <GitHubLink className="inline-flex" />
+          <button
+            type="button"
+            className="inline-flex h-10 items-center px-3 text-[15px] font-medium bg-tone-1"
+            aria-expanded={open}
+            aria-controls="mobile-menu"
+            onClick={() => setOpen((v) => !v)}
+          >
+            {open ? "Close" : "Menu"}
+          </button>
+        </div>
       </div>
       {open ? (
         <nav id="mobile-menu" aria-label="Main" className="absolute inset-x-0 top-[72px] bg-ground pb-6 md:hidden">

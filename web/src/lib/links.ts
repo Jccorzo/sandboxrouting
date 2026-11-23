@@ -7,8 +7,9 @@
 //   src/server/http.ts         the file on GitHub (anything else in the repository)
 
 import { posix } from "node:path";
+import { REPO_URL } from "./urls";
 
-export const REPO_URL = "https://github.com/Jccorzo/sandboxrouting";
+export { REPO_URL };
 export const REPO_BRANCH = "main";
 
 export interface LinkContext {
