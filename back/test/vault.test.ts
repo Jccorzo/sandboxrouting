@@ -14,6 +14,19 @@ const box = () => new LocalSecretBox(KEY);
 const SECRET = "e2b_live_0123456789abcdef";
 
 describe("secret boxes", () => {
+  it("asks Cloud Run's metadata server for its service account's token at the documented path", async () => {
+    const asked: { url: string; flavor: string | null }[] = [];
+    const f = (async (url: string | URL | Request, init?: RequestInit) => {
+      if (String(url).startsWith("http://metadata.google.internal/")) {
+        asked.push({ url: String(url), flavor: new Headers(init?.headers).get("metadata-flavor") });
+        return Response.json({ access_token: "tok", expires_in: 3600 });
+      }
+      return Response.json({ ciphertext: Buffer.from("w").toString("base64") });
+    }) as typeof fetch;
+    await new KmsSecretBox("projects/p/locations/l/keyRings/r/cryptoKeys/k", { fetch: f }).wrap(Buffer.alloc(32), Buffer.from("aad"));
+    expect(asked).toEqual([{ url: "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token", flavor: "Google" }]);
+  });
+
   it("opens only with the same account, provider and version", async () => {
     const b = box();
     const sealed = await seal(b, "hello", credentialAad("acct", "e2b", 1));

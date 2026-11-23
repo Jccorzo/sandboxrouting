@@ -124,7 +124,7 @@ export class KmsSecretBox implements SecretBox {
   private async accessToken(): Promise<string> {
     if (this.opts.accessToken) return this.opts.accessToken();
     if (this.token && this.token.until > Date.now()) return this.token.value;
-    const res = await this.f("http://metadata.google.internal/computeMetadata/v1/instance/service-account/default/token", {
+    const res = await this.f("http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token", {
       headers: { "metadata-flavor": "Google" },
       signal: AbortSignal.timeout(5_000),
     });
