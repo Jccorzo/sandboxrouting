@@ -3,6 +3,8 @@
 // database), an account with keys, and events made by the router's real reporter.
 
 import { randomBytes } from "node:crypto";
+import { readFile } from "node:fs/promises";
+import { inject } from "vitest";
 import pg from "pg";
 import { createApp, type AppOptions } from "../src/app.js";
 import { pgDb, pgliteDb, type Db } from "../src/db.js";
@@ -18,14 +20,19 @@ import type { IngestResponse, WireEvent } from "../src/router.js";
 
 const opened: (() => Promise<void>)[] = [];
 
+/** Each test gets its own copy of a database global-setup.ts made once for the run. */
+async function pgliteCopy(which: "blank" | "migrated"): Promise<Db> {
+  const paths = inject("pgliteTemplates");
+  const db = await pgliteDb(undefined, paths ? { loadDataDir: new Blob([await readFile(paths[which])]) } : {});
+  if (!paths && which === "migrated") await migrate(db);
+  opened.push(() => db.close());
+  return db;
+}
+
 /** An empty database, migrations not yet run. */
 export async function emptyDb(): Promise<Db> {
   const url = process.env["TEST_DATABASE_URL"];
-  if (!url) {
-    const db = await pgliteDb();
-    opened.push(() => db.close());
-    return db;
-  }
+  if (!url) return pgliteCopy("blank");
   const name = `sbr_test_${randomBytes(6).toString("hex")}`;
   const admin = new pg.Client({ connectionString: url });
   await admin.connect();
@@ -44,7 +51,9 @@ export async function emptyDb(): Promise<Db> {
   return db;
 }
 
+/** A database with every migration run. */
 export async function freshDb(): Promise<Db> {
+  if (!process.env["TEST_DATABASE_URL"]) return pgliteCopy("migrated");
   const db = await emptyDb();
   await migrate(db);
   return db;

@@ -5,5 +5,6 @@ export default defineConfig({
   plugins: process.env.HUSHRUN_VITEST ? [import(process.env.HUSHRUN_VITEST).then((m) => m.default())] : [],
   test: {
     include: ["test/**/*.test.ts"],
+    globalSetup: ["test/global-setup.ts"],
   },
 });

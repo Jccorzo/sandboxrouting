@@ -44,7 +44,8 @@ describe("usage over time", () => {
     r.advance(10 * 60_000);
     await sbx.kill();
     await f.send(await r.install(), (await r.events()).filter((e) => e.type !== "provider"));
-    const res = await f.call<UsageView>("GET", "/v1/usage?days=1");
+    // Two days: an hour ago is yesterday (UTC) during the first hour of the day.
+    const res = await f.call<UsageView>("GET", "/v1/usage?days=2");
     expect(res.body.points[0]!.usd).toBeNull();
     expect(res.body.totals.usdUnknown).toBe(true);
   });

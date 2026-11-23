@@ -59,9 +59,9 @@ export function pgDb(connectionString: string, max = Number(process.env["DATABAS
 }
 
 /** PGlite in memory (no `dataDir`) or on disk. Loaded only when asked for: it's a dev dependency. */
-export async function pgliteDb(dataDir?: string): Promise<Db> {
+export async function pgliteDb(dataDir?: string, opts: { loadDataDir?: Blob } = {}): Promise<Db & { dump(): Promise<Blob> }> {
   const { PGlite, types } = await import("@electric-sql/pglite");
-  const db = await PGlite.create(dataDir, { parsers: { [types.DATE]: (v: string) => v } });
+  const db = await PGlite.create(dataDir, { parsers: { [types.DATE]: (v: string) => v }, ...(opts.loadDataDir ? { loadDataDir: opts.loadDataDir } : {}) });
   type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
   const wrap = (c: typeof db | Tx): Queryable => ({
     async query<R>(sql: string, params?: unknown[]) {
@@ -82,6 +82,8 @@ export async function pgliteDb(dataDir?: string): Promise<Db> {
       });
     },
     close: () => db.close(),
+    /** The whole database as a tarball, to start another PGlite from (tests copy a migrated one). */
+    dump: () => db.dumpDataDir("none"),
   };
 }
 
