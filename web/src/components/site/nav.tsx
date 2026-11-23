@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
+import { DASHBOARD_URL } from "@/lib/dashboard";
 import { cn } from "@/lib/utils";
 import { Mark } from "./mark";
 
@@ -42,6 +43,9 @@ export function Nav() {
               {l.label}
             </Link>
           ))}
+          <a href={DASHBOARD_URL} className="text-[15px] font-medium text-ink transition-colors hover:text-green-ink">
+            Sign in
+          </a>
           <Link href="/quickstart/" className="inline-flex h-10 items-center bg-ink px-4 text-[15px] font-medium text-ground transition-[background-color,transform] hover:bg-[#2b2b29] active:scale-[0.98]">
             Quickstart
           </Link>
@@ -66,6 +70,11 @@ export function Nav() {
                 </Link>
               </li>
             ))}
+            <li>
+              <a href={DASHBOARD_URL} className="block py-3 text-[26px] font-semibold tracking-[-0.03em]">
+                Sign in
+              </a>
+            </li>
           </ul>
         </nav>
       ) : null}

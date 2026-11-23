@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { date, site } from "@/lib/data";
+import { DASHBOARD_URL } from "@/lib/dashboard";
 import { REPO_URL } from "@/lib/links";
 import { Mark } from "./mark";
 
@@ -39,6 +40,11 @@ export function Footer() {
                 </Link>
               </li>
             ))}
+            <li>
+              <a href={DASHBOARD_URL} className="hover:text-green-ink hover:underline">
+                Dashboard
+              </a>
+            </li>
           </ul>
         </nav>
         <div className="order-5 flex min-h-[220px] flex-col justify-between bg-tone-1 p-5 lg:order-none lg:col-span-2">
