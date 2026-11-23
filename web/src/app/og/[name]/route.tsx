@@ -23,6 +23,8 @@ function specs(): Record<string, Spec> {
     mcp: { title: "Sandboxes for your agent", line: "npx -y sandboxrouting mcp: an MCP server for Claude Code, Cursor and every other client." },
     quickstart: { title: "A sandbox in four lines", line: "npm i sandboxrouting, set a key, create a sandbox." },
     docs: { title: "Docs", line: "The README and the design docs, rendered from the repository." },
+    // The hosted dashboard's link preview (dashboard/app/layout.tsx points at it), drawn here so it matches the site's.
+    dashboard: { title: "Where your sandboxes run", line: "Sign in to see what each provider ran and what it cost, and to manage your provider keys and routing." },
   };
   for (const p of providers) {
     out[`provider-${p.id}`] = {
