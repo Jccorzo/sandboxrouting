@@ -601,9 +601,10 @@ claude mcp add sandboxes -- npx -y sandboxrouting mcp
 ```
 
 Other clients take the same command (`npx -y sandboxrouting mcp`) in their MCP config, with
-your provider keys in its `env`. From a clone, `node /path/to/sandboxrouting/dist/cli.js mcp`
-runs the local build instead. The server is listed in the MCP Registry as
-`com.sandboxrouting/sandboxrouting`.
+your provider keys in its `env`; [sandboxrouting.com/mcp](https://sandboxrouting.com/mcp/) has the
+snippet for each client (Cursor, Codex, VS Code, T3 Code, Gemini CLI, Zed and more). From a
+clone, `node /path/to/sandboxrouting/dist/cli.js mcp` runs the local build instead. The server
+is listed in the MCP Registry as `com.sandboxrouting/sandboxrouting`.
 
 ## AgentRun
 

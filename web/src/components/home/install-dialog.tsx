@@ -1,15 +1,16 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { CopyButton } from "@/components/site/copy-button";
-import { MCP_CLIENTS } from "@/lib/mcp-clients";
+import { FEATURED_CLIENTS, MCP_CLIENTS } from "@/lib/mcp-clients";
 import { cn } from "@/lib/utils";
 
 const VALID = /^[a-z][a-z0-9_-]{0,39}$/;
 
 /** The first step, already open: name the server, pick the client, copy what it needs. */
-export function InstallDialog({ clients = ["claude-code", "cursor"] }: { clients?: string[] }) {
-  const choices = MCP_CLIENTS.filter((c) => clients.includes(c.id));
+export function InstallDialog({ clients = FEATURED_CLIENTS }: { clients?: string[] }) {
+  const choices = clients.flatMap((id) => MCP_CLIENTS.filter((c) => c.id === id));
   const [client, setClient] = useState(choices[0]!.id);
   const [name, setName] = useState("sandboxes");
   const c = choices.find((x) => x.id === client) ?? choices[0]!;
@@ -39,7 +40,7 @@ export function InstallDialog({ clients = ["claude-code", "cursor"] }: { clients
       <p id="server-name-hint" className="mt-1 text-[13px] text-muted">
         {valid ? "What your agent will call the tools' server." : "Lowercase letters, digits, - and _, starting with a letter."}
       </p>
-      <div role="radiogroup" aria-label="Client" className="mt-5 grid grid-cols-2 gap-1 rounded-[7px] bg-tone-1 p-1">
+      <div role="radiogroup" aria-label="Client" className={cn("mt-5 grid gap-1 rounded-[7px] bg-tone-1 p-1", choices.length > 2 ? "grid-cols-3" : "grid-cols-2")}>
         {choices.map((x) => (
           <button
             key={x.id}
@@ -54,7 +55,7 @@ export function InstallDialog({ clients = ["claude-code", "cursor"] }: { clients
         ))}
       </div>
       <p className="mt-4 text-[13px] text-muted">{c.where}</p>
-      <pre className="mt-1.5 max-h-[150px] overflow-auto rounded-[6px] bg-tone-1 px-3 py-2.5 text-[13px] leading-relaxed">
+      <pre className="mt-1.5 max-h-[180px] overflow-auto whitespace-pre-wrap rounded-[6px] bg-tone-1 px-3 py-2.5 text-[13px] leading-relaxed [overflow-wrap:anywhere]">
         <code>{snippet}</code>
       </pre>
       <CopyButton
@@ -63,6 +64,11 @@ export function InstallDialog({ clients = ["claude-code", "cursor"] }: { clients
         label={c.lang === "bash" ? "Copy command" : "Copy config"}
         className="mt-4 h-[52px] w-full rounded-[6px] text-[15px] sm:h-11"
       />
+      {choices.length < MCP_CLIENTS.length && (
+        <Link href="/mcp/#every-client" className="mt-3 block text-center text-[14px] font-medium text-muted underline decoration-tone-3 underline-offset-4 hover:text-ink">
+          See all {MCP_CLIENTS.length} clients
+        </Link>
+      )}
     </div>
   );
 }

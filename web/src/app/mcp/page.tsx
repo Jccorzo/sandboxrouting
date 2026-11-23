@@ -2,12 +2,14 @@ import { InstallDialog } from "@/components/home/install-dialog";
 import { CodeBlock } from "@/components/site/code-block";
 import { JsonLd } from "@/components/site/json-ld";
 import { site } from "@/lib/data";
-import { MCP_CLIENTS, MCP_ONE_LINE } from "@/lib/mcp-clients";
+import { FEATURED_CLIENTS, MCP_CLIENTS, MCP_ONE_LINE } from "@/lib/mcp-clients";
 import { breadcrumbLd, pageMetadata } from "@/lib/seo";
 
+const FEATURED_NAMES = MCP_CLIENTS.filter((c) => FEATURED_CLIENTS.includes(c.id)).map((c) => c.name).join(", ");
+
 export const metadata = pageMetadata({
-  title: "MCP server: sandboxes for Claude Code, Cursor and other agents",
-  description: `Give any MCP client cloud sandboxes from ${site.counts.total} providers, free tiers first: ${MCP_ONE_LINE}. Snippets for Claude Code, Cursor, Claude Desktop, VS Code, Windsurf, Codex CLI and Gemini CLI, and the ${site.mcpTools.length} tools it serves.`,
+  title: "MCP server: sandboxes for Claude Code, Cursor, Codex and other agents",
+  description: `Give any MCP client cloud sandboxes from ${site.counts.total} providers, free tiers first: ${MCP_ONE_LINE}. Snippets for ${FEATURED_NAMES} and ${MCP_CLIENTS.length - FEATURED_CLIENTS.length} more clients, and the ${site.mcpTools.length} tools it serves.`,
   path: "/mcp/",
   og: "mcp",
 });
@@ -28,15 +30,16 @@ export default function McpPage() {
           </p>
         </div>
         <div className="flex items-start bg-ink p-4 sm:p-10 lg:col-span-5">
-          <InstallDialog clients={MCP_CLIENTS.map((c) => c.id).slice(0, 2)} />
+          <InstallDialog />
         </div>
       </header>
 
-      <section className="wrap mt-[var(--section)]">
+      <section id="every-client" className="wrap mt-[var(--section)] scroll-mt-8">
         <h2 className="text-[clamp(2rem,1.3rem+2.4vw,3rem)] tracking-[-0.035em]">Every client</h2>
         <p className="mt-4 max-w-[62ch] text-[17px] leading-relaxed">
-          The router reads provider keys from the environment it starts in, so put them in the client&rsquo;s <code className="text-[15px]">env</code>{" "}
-          block, or export them before starting a terminal client. A provider without its key is skipped.
+          The router reads provider keys from the environment it starts in. Some clients start a server with only the variables they&rsquo;re
+          given, so name each key: in the config&rsquo;s <code className="text-[15px]">env</code> block, or with the CLI&rsquo;s env flag, once per
+          provider. A provider without its key is skipped.
         </p>
         <div className="mt-10 space-y-12">
           {MCP_CLIENTS.map((c) => (
