@@ -73,11 +73,11 @@ export interface Fixture {
   send: (install: string, events: WireEvent[], token?: string) => Promise<{ status: number; body: IngestResponse }>;
 }
 
-export async function fixture(opts: { plugins?: BackPlugins; sweepToken?: string; db?: Db; github?: GitHubConfig; secrets?: SecretBox } = {}): Promise<Fixture> {
+export async function fixture(opts: { plugins?: BackPlugins; sweepToken?: string; db?: Db; github?: GitHubConfig; secrets?: SecretBox; operatorToken?: string } = {}): Promise<Fixture> {
   const db = opts.db ?? (await freshDb());
   const { accountId, adminToken } = await createAccount(db, "test");
   const ingestKey = await db.tx(async (q) => (await createKey(q, accountId, "router", "ingest")).token);
-  const appOpts: AppOptions = { db, log: () => undefined, ...(opts.plugins ? { plugins: opts.plugins } : {}), ...(opts.sweepToken ? { sweepToken: opts.sweepToken } : {}), ...(opts.github ? { github: opts.github } : {}), ...(opts.secrets ? { secrets: opts.secrets } : {}) };
+  const appOpts: AppOptions = { db, log: () => undefined, ...(opts.plugins ? { plugins: opts.plugins } : {}), ...(opts.sweepToken ? { sweepToken: opts.sweepToken } : {}), ...(opts.github ? { github: opts.github } : {}), ...(opts.secrets ? { secrets: opts.secrets } : {}), ...(opts.operatorToken ? { operatorToken: opts.operatorToken } : {}) };
   const app = createApp(appOpts);
   const call: Fixture["call"] = async (method, path, o = {}) => {
     const res = await app.request(path, {

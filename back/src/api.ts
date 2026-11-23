@@ -232,3 +232,92 @@ export interface RouterConfigView extends Timed {
   /** The routing strategies a config may name (routing.strategy). */
   strategies: { name: string; description: string }[];
 }
+
+// ------------------------------------------------------------------ operator (GET /v1/operator/stats)
+// Every account at once, for whoever runs this back (SBR_OPERATOR_TOKEN). Usage comes from the
+// same function as each account's own /v1/usage, so the two always agree.
+
+/** Who an account belongs to and what it has done. */
+export interface OperatorAccount {
+  id: string;
+  name: string;
+  status: "active" | "disabled";
+  createdAt: string;
+  /** The GitHub user who owns it; null for an account made with an admin key (self-hosting). */
+  github: { id: number; login: string } | null;
+  /** The newest of: a dashboard sign-in or request, an API key used, a router reporting, a sandbox made. */
+  lastSeenAt: string | null;
+  lastSandboxAt: string | null;
+  /** Providers it has keys saved for now. */
+  providers: string[];
+  /** It saved provider keys at some point, even if it removed them since. */
+  everConnected: boolean;
+  /** All time. */
+  sandboxes: number;
+  /** In the window. */
+  sandboxHours: number;
+  usd: number;
+  usdUnknown: boolean;
+  /** Whether it sends from the hosted router, from its own routers, or both. */
+  via: { hosted: boolean; reported: boolean };
+}
+
+export interface OperatorDay {
+  day: string;
+  signups: number;
+  /** Accounts that made a sandbox that day. */
+  active: number;
+  sandboxes: number;
+  sandboxHours: number;
+  usd: number;
+}
+
+export interface OperatorProviderUsage {
+  provider: string;
+  sandboxes: number;
+  sandboxHours: number;
+  usd: number;
+  accounts: number;
+}
+
+export interface OperatorProviderReliability {
+  provider: string;
+  creates: number;
+  failedCreates: number;
+  /** Median and 95th percentile time to a running sandbox, ms; null with no successful creates. */
+  p50Ms: number | null;
+  p95Ms: number | null;
+  lost: number;
+  refusals: { quota: number; rate_limit: number; auth: number };
+}
+
+export interface OperatorStats extends Timed {
+  days: number;
+  from: string;
+  totals: {
+    accounts: number;
+    githubUsers: number;
+    /** Accounts that made a sandbox in the last 7 and 30 days. */
+    active7: number;
+    active30: number;
+    signupsInWindow: number;
+    sandboxesInWindow: number;
+    liveSandboxes: number;
+    sandboxHours: number;
+    usd: number;
+  };
+  /**
+   * Nested steps: signed up; connected providers (saved keys for the hosted router, or a router of
+   * its own reporting); made a sandbox; made one a week or more after signing up.
+   */
+  funnel: { signedUp: number; connected: number; firstSandbox: number; retained: number };
+  daily: OperatorDay[];
+  providers: OperatorProviderUsage[];
+  /** Sandboxes made in the window by how they were billed. */
+  billing: { free: number; paid: number; selfHosted: number; unknown: number };
+  /** Sandbox-hours in the window from the hosted router and from people's own routers. */
+  source: { hostedHours: number; reportedHours: number };
+  reliability: OperatorProviderReliability[];
+  jobs: { created: number; moves: number; byState: Record<string, number> };
+  accounts: OperatorAccount[];
+}

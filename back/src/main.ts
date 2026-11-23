@@ -5,6 +5,8 @@
 //   SBR_ADMIN_TOKEN    optional: an admin key for the first account (self-hosting), ≥ 24 chars
 //   SBR_INGEST_TOKEN   optional: an ingest key for the first account, ≥ 24 chars
 //   SBR_SWEEP_TOKEN    optional: lets a cron trigger call POST /v1/sweep for every account
+//   SBR_OPERATOR_TOKEN optional, ≥ 32 chars: lets whoever runs this back read GET /v1/operator/stats
+//                      (every account's people, usage and reliability). Unset, that endpoint doesn't exist.
 //   GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET  optional, together: GitHub sign-in for the dashboard
 //                      (a GitHub OAuth app whose callback is <dashboard>/api/auth/github/callback).
 //                      Without them the dashboard signs in with admin keys.
@@ -54,8 +56,21 @@ if (Boolean(githubId) !== Boolean(githubSecret)) {
 }
 const github = githubId && githubSecret ? { clientId: githubId, clientSecret: githubSecret } : undefined;
 
+const operatorToken = env["SBR_OPERATOR_TOKEN"] || undefined;
+if (operatorToken && operatorToken.length < 32) {
+  console.error("back: SBR_OPERATOR_TOKEN must be at least 32 characters (it reads every account)");
+  await db.close();
+  process.exit(1);
+}
+
 const secrets = secretBoxFromEnv(env);
-const app = createApp({ db, sweepToken: env["SBR_SWEEP_TOKEN"] || undefined, ...(github ? { github } : {}), ...(secrets ? { secrets } : {}) });
+const app = createApp({
+  db,
+  sweepToken: env["SBR_SWEEP_TOKEN"] || undefined,
+  ...(github ? { github } : {}),
+  ...(secrets ? { secrets } : {}),
+  ...(operatorToken ? { operatorToken } : {}),
+});
 const port = Number(env["PORT"] ?? 8787);
 const server = serve({ fetch: app.fetch, port, hostname: env["HOST"] ?? "0.0.0.0" }, (info) => console.log(`back: listening on :${info.port}`));
 

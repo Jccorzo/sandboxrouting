@@ -18,6 +18,7 @@
 //   DELETE /v1/credentials/:provider?expectedVersion=n   admin   forgets the values, or 409
 //   GET  /v1/config, PUT /v1/config {config, expectedVersion}   admin   routing config for the hosted router
 //   POST /v1/sweep                  sweep token (all accounts) or admin key (its own account)
+//   GET  /v1/operator/stats?days=30 operator token: every account's people, usage and reliability (404 without SBR_OPERATOR_TOKEN)
 //   GET  /health, /healthz          checks the database (Cloud Run's front end swallows paths ending in z, so it gets /health)
 
 import { Hono, type Context } from "hono";
@@ -35,6 +36,7 @@ import { resolvePlugins, type Action, type BackPlugins, type Principal, type Sco
 import * as reads from "./reads.js";
 import { sweep } from "./sweep.js";
 import { deliverUsage } from "./usage.js";
+import { operatorStats } from "./operator.js";
 import { dbNow } from "./derive.js";
 import type { ApiError, AuthConfig, ConnectionResult, CreatedKey, CredentialsView, KeysView, RouterConfigView, SignedIn } from "./api.js";
 
@@ -47,6 +49,8 @@ export interface AppOptions {
   github?: GitHubConfig;
   /** Seals the provider keys people save (SBR_KMS_KEY or SBR_SECRETS_KEY). Without it, saving keys is off. */
   secrets?: SecretBox;
+  /** Lets whoever runs this back read stats across every account (SBR_OPERATOR_TOKEN). Without it, /v1/operator answers 404. */
+  operatorToken?: string;
   /** Logs errors the client can't see; default console.error. */
   log?: (msg: string, err?: unknown) => void;
 }
@@ -280,6 +284,17 @@ export function createApp(opts: AppOptions): Hono<Env> {
     const d = await plugins.entitlements.check(p, "sweep", { db });
     if (!d.ok) return fail(c, d.status, "not_entitled", d.reason);
     return c.json(await sweep(db, plugins, { accountId: p.accountId }));
+  });
+
+  // ---------------------------------------------------------------- operator
+  // Unset, the endpoint doesn't exist; set, only that exact token reads it. No account key or
+  // sign-in reaches it, whatever its scope.
+  app.get("/v1/operator/stats", async (c) => {
+    if (!opts.operatorToken) return fail(c, 404, "not_found", "no such endpoint");
+    const token = bearer(c);
+    if (!token || !sameSecret(token, opts.operatorToken)) return fail(c, 401, "unauthorized", "send the operator token");
+    c.header("cache-control", "no-store");
+    return c.json(await operatorStats(db, intParam(c.req.query("days"), 30, 1, 90)));
   });
 
   plugins.routes?.(app as unknown as Hono, { db });

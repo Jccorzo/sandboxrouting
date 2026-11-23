@@ -80,56 +80,58 @@ export function rolledUp(days: string[], rolledThrough: string | null, dirtyFrom
 }
 
 export async function usage(db: Db, accountId: string, days: number): Promise<UsageView> {
-  return read(db, async (q) => {
-    const now = await dbNow(q);
-    const window = lastDays(now, days);
-    const { rows: acct } = await q.query<{ rolled_through: string | null; rollup_dirty_from: Date | null }>(
-      "SELECT rolled_through, rollup_dirty_from FROM accounts WHERE id = $1",
-      [accountId],
+  return read(db, async (q) => usageIn(q, accountId, days, await dbNow(q)));
+}
+
+/** An account's usage over the last `days`, inside a read the caller holds, at its `now`. */
+export async function usageIn(q: Queryable, accountId: string, days: number, now: number): Promise<UsageView> {
+  const window = lastDays(now, days);
+  const { rows: acct } = await q.query<{ rolled_through: string | null; rollup_dirty_from: Date | null }>(
+    "SELECT rolled_through, rollup_dirty_from FROM accounts WHERE id = $1",
+    [accountId],
+  );
+  const rolled = rolledUp(window, acct[0]?.rolled_through ?? null, acct[0]?.rollup_dirty_from ? iso(acct[0].rollup_dirty_from) : null);
+  const live = window.filter((d) => !rolled.has(d));
+
+  const points: UsagePoint[] = [];
+  if (rolled.size) {
+    const { rows } = await q.query<{ day: string; install_id: string; provider: string; sandboxes: number; sandbox_seconds: number; gib_seconds: number; usd: number | null }>(
+      "SELECT day::text AS day, install_id, provider, sandboxes, sandbox_seconds, gib_seconds, usd FROM usage_daily WHERE account_id = $1 AND day = ANY($2::date[])",
+      [accountId, [...rolled]],
     );
-    const rolled = rolledUp(window, acct[0]?.rolled_through ?? null, acct[0]?.rollup_dirty_from ? iso(acct[0].rollup_dirty_from) : null);
-    const live = window.filter((d) => !rolled.has(d));
-
-    const points: UsagePoint[] = [];
-    if (rolled.size) {
-      const { rows } = await q.query<{ day: string; install_id: string; provider: string; sandboxes: number; sandbox_seconds: number; gib_seconds: number; usd: number | null }>(
-        "SELECT day::text AS day, install_id, provider, sandboxes, sandbox_seconds, gib_seconds, usd FROM usage_daily WHERE account_id = $1 AND day = ANY($2::date[])",
-        [accountId, [...rolled]],
-      );
-      for (const r of rows) {
-        points.push({ day: r.day, install: r.install_id, provider: r.provider, sandboxes: r.sandboxes, sandboxHours: r.sandbox_seconds / 3600, gibHours: r.gib_seconds / 3600, usd: r.usd });
-      }
+    for (const r of rows) {
+      points.push({ day: r.day, install: r.install_id, provider: r.provider, sandboxes: r.sandboxes, sandboxHours: r.sandbox_seconds / 3600, gibHours: r.gib_seconds / 3600, usd: r.usd });
     }
-    const pricing = await pricingMap(q, accountId);
-    if (live.length) {
-      const rows = await sandboxesOverlapping(q, accountId, dayWindow(live[0]!).from, dayWindow(live.at(-1)!).to);
-      points.push(...usageForDays(rows, pricing, live, now));
-    }
-    points.sort((a, b) => a.day.localeCompare(b.day) || a.provider.localeCompare(b.provider) || a.install.localeCompare(b.install));
+  }
+  const pricing = await pricingMap(q, accountId);
+  if (live.length) {
+    const rows = await sandboxesOverlapping(q, accountId, dayWindow(live[0]!).from, dayWindow(live.at(-1)!).to);
+    points.push(...usageForDays(rows, pricing, live, now));
+  }
+  points.sort((a, b) => a.day.localeCompare(b.day) || a.provider.localeCompare(b.provider) || a.install.localeCompare(b.install));
 
-    const from = dayWindow(window[0]!).from;
-    const { rows: created } = await q.query<{ n: number }>("SELECT count(*)::int AS n FROM sandboxes WHERE account_id = $1 AND created_at >= $2", [
-      accountId,
-      new Date(from).toISOString(),
-    ]);
-    const { rows: liveRows } = await q.query<SandboxRow>(`SELECT ${SANDBOX_COLUMNS} FROM sandboxes WHERE account_id = $1 AND state IN ('creating', 'running', 'paused')`, [accountId]);
-    return {
-      now: new Date(now).toISOString(),
-      days,
-      from: window[0]!,
-      installs: await installs(q, accountId),
-      points,
-      totals: {
-        sandboxes: created[0]?.n ?? 0,
-        live: liveRows.filter((r) => isLiveNow(r, now)).length,
-        sandboxHours: points.reduce((s, p) => s + p.sandboxHours, 0),
-        gibHours: points.reduce((s, p) => s + p.gibHours, 0),
-        usd: points.reduce((s, p) => s + (p.usd ?? 0), 0),
-        usdUnknown: points.some((p) => p.usd === null),
-      },
-      rolledUpDays: rolled.size,
-    };
-  });
+  const from = dayWindow(window[0]!).from;
+  const { rows: created } = await q.query<{ n: number }>("SELECT count(*)::int AS n FROM sandboxes WHERE account_id = $1 AND created_at >= $2", [
+    accountId,
+    new Date(from).toISOString(),
+  ]);
+  const { rows: liveRows } = await q.query<SandboxRow>(`SELECT ${SANDBOX_COLUMNS} FROM sandboxes WHERE account_id = $1 AND state IN ('creating', 'running', 'paused')`, [accountId]);
+  return {
+    now: new Date(now).toISOString(),
+    days,
+    from: window[0]!,
+    installs: await installs(q, accountId),
+    points,
+    totals: {
+      sandboxes: created[0]?.n ?? 0,
+      live: liveRows.filter((r) => isLiveNow(r, now)).length,
+      sandboxHours: points.reduce((s, p) => s + p.sandboxHours, 0),
+      gibHours: points.reduce((s, p) => s + p.gibHours, 0),
+      usd: points.reduce((s, p) => s + (p.usd ?? 0), 0),
+      usdUnknown: points.some((p) => p.usd === null),
+    },
+    rolledUpDays: rolled.size,
+  };
 }
 
 export async function providers(db: Db, accountId: string): Promise<ProvidersView> {
