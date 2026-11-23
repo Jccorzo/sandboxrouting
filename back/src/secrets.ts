@@ -157,9 +157,13 @@ export class KmsSecretBox implements SecretBox {
   }
 }
 
-/** The box this process uses, from its environment, or undefined when saving keys is off. */
-export function secretBoxFromEnv(env: NodeJS.ProcessEnv = process.env): SecretBox | undefined {
-  if (env["SBR_KMS_KEY"]) return new KmsSecretBox(env["SBR_KMS_KEY"]);
+/**
+ * The box this process uses, from its environment, or undefined when saving keys is off. `fetch`:
+ * what Cloud KMS and the metadata server are called with (the hosted router passes one that
+ * bypasses its egress guard, which refuses the metadata server's link-local address).
+ */
+export function secretBoxFromEnv(env: NodeJS.ProcessEnv = process.env, opts: { fetch?: typeof fetch } = {}): SecretBox | undefined {
+  if (env["SBR_KMS_KEY"]) return new KmsSecretBox(env["SBR_KMS_KEY"], opts.fetch ? { fetch: opts.fetch } : {});
   if (env["SBR_SECRETS_KEY"]) return new LocalSecretBox(env["SBR_SECRETS_KEY"], (env["SBR_SECRETS_OLD_KEYS"] ?? "").split(","));
   return undefined;
 }

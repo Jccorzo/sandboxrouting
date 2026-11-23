@@ -2,7 +2,7 @@
 // router before the fix.
 import { describe, expect, it } from "vitest";
 import { fakeProvider, router } from "./fake.js";
-import { NoProviderAvailableError, SandboxRouterError } from "../src/index.js";
+import { MemoryLedger, NoProviderAvailableError, SandboxRouter, SandboxRouterError } from "../src/index.js";
 
 describe("reserving a provider under the lock", () => {
   it("a request planned as free moves on instead of becoming paid when a parallel request took the free slot", async () => {
@@ -100,5 +100,22 @@ describe("a request the router can't honour", () => {
     await expect(r.create({ minIsolation: "microVM" as never })).rejects.toMatchObject({ kind: "invalid" });
     // Inherited names are not levels either.
     await expect(r.plan({ minIsolation: "toString" as never })).rejects.toMatchObject({ kind: "invalid" });
+  });
+});
+
+describe("maxLive", () => {
+  it("refuses a create past the account-wide cap, decided under the lock, and lets one through once a sandbox ends", async () => {
+    const a = fakeProvider({ id: "a", tier: { kind: "unlimited" } });
+    const b = fakeProvider({ id: "b", tier: { kind: "unlimited" }, createDelayMs: 20 });
+    const router = new SandboxRouter({ providers: [a, b], ledger: new MemoryLedger(), maxLive: 2, config: { allowPaid: true } });
+    // Three at once: the reservation counts records in "creating" too, so only two get a slot.
+    const out = await Promise.allSettled([router.create(), router.create(), router.create()]);
+    expect(out.filter((o) => o.status === "fulfilled")).toHaveLength(2);
+    const refused = out.find((o) => o.status === "rejected") as PromiseRejectedResult;
+    expect(String(refused.reason)).toMatch(/at most 2 at once/);
+    expect((refused.reason as { kind?: string }).kind).toBe("quota");
+    const live = await router.list();
+    await router.kill(live[0]!.id);
+    await expect(router.create()).resolves.toBeDefined();
   });
 });

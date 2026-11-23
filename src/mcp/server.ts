@@ -131,9 +131,19 @@ async function follow(jobs: JobManagerApi, go: (opts: JobRunOptions) => Promise<
   return text({ ...jobSummary(now), note: `Still running after ${wait} s; it goes on in the background. Poll job_status with id ${id}.` });
 }
 
-export function createMcpServer(router: SandboxRouter, version = packageVersion()): McpServer {
-  const server = new McpServer({ name: "sandboxrouting", version });
-  const jobs: JobManagerApi = router.jobs;
+export interface McpServerOptions {
+  version?: string;
+  /**
+   * Jobs keep driving after the tool call that started them answers, so they need a process that
+   * lives on. false leaves the job tools out (the hosted router builds a router per request).
+   * Default true.
+   */
+  jobs?: boolean;
+}
+
+export function createMcpServer(router: SandboxRouter, opts: McpServerOptions | string = {}): McpServer {
+  const o = typeof opts === "string" ? { version: opts } : opts;
+  const server = new McpServer({ name: "sandboxrouting", version: o.version ?? packageVersion() });
 
   server.registerTool(
     "list_providers",
@@ -266,6 +276,13 @@ export function createMcpServer(router: SandboxRouter, version = packageVersion(
       }),
   );
 
+  if (o.jobs !== false) registerJobTools(server, router.jobs);
+
+  return server;
+}
+
+/** run_job, list_jobs, job_status, resume_job and cancel_job. */
+function registerJobTools(server: McpServer, jobs: JobManagerApi): void {
   server.registerTool(
     "run_job",
     {
@@ -341,8 +358,6 @@ export function createMcpServer(router: SandboxRouter, version = packageVersion(
     },
     ({ id }) => guarded(async () => jobSummary(await jobs.cancel(id))),
   );
-
-  return server;
 }
 
 export async function serveMcpStdio(router: SandboxRouter): Promise<void> {

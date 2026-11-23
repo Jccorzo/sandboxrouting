@@ -210,61 +210,77 @@ export async function ingest(db: { tx: <T>(fn: (q: Queryable) => Promise<T>) => 
     if (account?.status !== "active" || !(await plugins.auth.stillAuthorized(p, q))) {
       throw new IngestError(401, "unauthorized", "the key was revoked or its account disabled");
     }
-    await q.query(
-      `INSERT INTO installs (account_id, id, router_version) VALUES ($1, $2, $3)
-       ON CONFLICT (account_id, id) DO UPDATE SET last_seen_at = now(), router_version = coalesce(EXCLUDED.router_version, installs.router_version)`,
-      [p.accountId, install, router ?? null],
-    );
-
-    const results: Result[] = [];
-    let dirtyFrom: string | undefined;
-    let changed = 0;
-    for (const raw of events) {
-      const id = typeof (raw as { id?: unknown })?.id === "string" ? (raw as { id: string }).id.slice(0, 200) : "";
-      const parsed = wireEventSchema.safeParse(raw);
-      if (!parsed.success) {
-        results.push({ id, outcome: "rejected", error: parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; ").slice(0, 300) });
-        continue;
-      }
-      const ev = parsed.data;
-      const problem = eventProblem(ev, install);
-      if (problem) {
-        results.push({ id: ev.id, outcome: "rejected", error: problem });
-        continue;
-      }
-      await q.exec("SAVEPOINT ev");
-      try {
-        const done = await apply(q, p.accountId, install, ev);
-        const recorded = await q.query(
-          `INSERT INTO ingest_events (account_id, event_id, install_id, seq, type, entity, observed_at, outcome, payload)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb) ON CONFLICT DO NOTHING RETURNING 1`,
-          [p.accountId, ev.id, install, ev.seq, ev.type, entityKey(ev), ev.observedAt, done.applied ? "applied" : "stale", JSON.stringify(ev)],
-        );
-        await q.exec("RELEASE SAVEPOINT ev");
-        // A resend applies nothing: its row already holds this version or a newer one.
-        const outcome: EventOutcome = !recorded.rows.length ? "duplicate" : done.applied ? "applied" : "stale";
-        results.push({ id: ev.id, outcome });
-        if (done.applied) {
-          changed++;
-          if (done.dirtyFrom && (!dirtyFrom || done.dirtyFrom < dirtyFrom)) dirtyFrom = done.dirtyFrom;
-        }
-      } catch (err) {
-        await q.exec("ROLLBACK TO SAVEPOINT ev");
-        results.push({ id: ev.id, outcome: "rejected", error: `the database refused it: ${err instanceof Error ? err.message : String(err)}`.slice(0, 300) });
-      }
-    }
-
-    if (dirtyFrom) {
-      await q.query(
-        `UPDATE accounts SET change_seq = change_seq + 1,
-           rollup_dirty_from = LEAST(coalesce(rollup_dirty_from, $2::timestamptz), $2::timestamptz) WHERE id = $1`,
-        [p.accountId, dirtyFrom],
-      );
-    }
-    // For a billing plugin: written with the events, delivered after commit (usage.ts).
-    if (plugins.onUsage && changed > 0) {
-      await q.query("INSERT INTO usage_events (account_id, kind, quantity) VALUES ($1, 'events.ingested', $2)", [p.accountId, changed]);
-    }
-    return { results };
+    return applyBatch(q, plugins, p.accountId, install, router, events);
   });
+}
+
+/**
+ * Applies events from one install to the account's tables. The caller holds the account's lock,
+ * inside its transaction: ingest() for a router's batch, the hosted router's ledger for what its
+ * own write changed (so that write and these rows commit or roll back together).
+ */
+export async function applyBatch(
+  q: Queryable,
+  plugins: Pick<ResolvedPlugins, "onUsage">,
+  accountId: string,
+  install: string,
+  router: string | undefined,
+  events: readonly unknown[],
+): Promise<IngestResponse> {
+  await q.query(
+    `INSERT INTO installs (account_id, id, router_version) VALUES ($1, $2, $3)
+     ON CONFLICT (account_id, id) DO UPDATE SET last_seen_at = now(), router_version = coalesce(EXCLUDED.router_version, installs.router_version)`,
+    [accountId, install, router ?? null],
+  );
+
+  const results: Result[] = [];
+  let dirtyFrom: string | undefined;
+  let changed = 0;
+  for (const raw of events) {
+    const id = typeof (raw as { id?: unknown })?.id === "string" ? (raw as { id: string }).id.slice(0, 200) : "";
+    const parsed = wireEventSchema.safeParse(raw);
+    if (!parsed.success) {
+      results.push({ id, outcome: "rejected", error: parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; ").slice(0, 300) });
+      continue;
+    }
+    const ev = parsed.data;
+    const problem = eventProblem(ev, install);
+    if (problem) {
+      results.push({ id: ev.id, outcome: "rejected", error: problem });
+      continue;
+    }
+    await q.exec("SAVEPOINT ev");
+    try {
+      const done = await apply(q, accountId, install, ev);
+      const recorded = await q.query(
+        `INSERT INTO ingest_events (account_id, event_id, install_id, seq, type, entity, observed_at, outcome, payload)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb) ON CONFLICT DO NOTHING RETURNING 1`,
+        [accountId, ev.id, install, ev.seq, ev.type, entityKey(ev), ev.observedAt, done.applied ? "applied" : "stale", JSON.stringify(ev)],
+      );
+      await q.exec("RELEASE SAVEPOINT ev");
+      // A resend applies nothing: its row already holds this version or a newer one.
+      const outcome: EventOutcome = !recorded.rows.length ? "duplicate" : done.applied ? "applied" : "stale";
+      results.push({ id: ev.id, outcome });
+      if (done.applied) {
+        changed++;
+        if (done.dirtyFrom && (!dirtyFrom || done.dirtyFrom < dirtyFrom)) dirtyFrom = done.dirtyFrom;
+      }
+    } catch (err) {
+      await q.exec("ROLLBACK TO SAVEPOINT ev");
+      results.push({ id: ev.id, outcome: "rejected", error: `the database refused it: ${err instanceof Error ? err.message : String(err)}`.slice(0, 300) });
+    }
+  }
+
+  if (dirtyFrom) {
+    await q.query(
+      `UPDATE accounts SET change_seq = change_seq + 1,
+         rollup_dirty_from = LEAST(coalesce(rollup_dirty_from, $2::timestamptz), $2::timestamptz) WHERE id = $1`,
+      [accountId, dirtyFrom],
+    );
+  }
+  // For a billing plugin: written with the events, delivered after commit (usage.ts).
+  if (plugins.onUsage && changed > 0) {
+    await q.query("INSERT INTO usage_events (account_id, kind, quantity) VALUES ($1, 'events.ingested', $2)", [accountId, changed]);
+  }
+  return { results };
 }

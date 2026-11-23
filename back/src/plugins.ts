@@ -5,8 +5,9 @@
 import type { Hono } from "hono";
 import type { Db } from "./db.js";
 import { defaultAuth } from "./sessions.js";
+import type { KeyScope } from "./api.js";
 
-export type Scope = "ingest" | "admin";
+export type Scope = KeyScope;
 
 /** Who is calling: an account, through one of its keys or a person's sign-in session. */
 export interface Principal {
@@ -36,7 +37,8 @@ export interface AuthProvider {
   stillAuthorized(p: Principal, q: import("./db.js").Queryable): Promise<boolean>;
 }
 
-export type Action = "ingest" | "read" | "keys.manage" | "credentials.manage" | "config.manage" | "sweep";
+/** `route`: a call to the hosted router (a request rate or a plan limit can refuse it). */
+export type Action = "ingest" | "read" | "keys.manage" | "credentials.manage" | "config.manage" | "sweep" | "route";
 
 export type Decision = { ok: true } | { ok: false; status: 402 | 403 | 429; reason: string };
 

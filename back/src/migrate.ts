@@ -10,6 +10,7 @@ import type { Db } from "./db.js";
 import * as m0001 from "./migrations/0001_init.js";
 import * as m0002 from "./migrations/0002_users.js";
 import * as m0003 from "./migrations/0003_vault.js";
+import * as m0004 from "./migrations/0004_hosted_router.js";
 
 export interface Migration {
   version: number;
@@ -21,6 +22,7 @@ export const MIGRATIONS: readonly Migration[] = [
   { version: 1, name: m0001.name, sql: m0001.sql },
   { version: 2, name: m0002.name, sql: m0002.sql },
   { version: 3, name: m0003.name, sql: m0003.sql },
+  { version: 4, name: m0004.name, sql: m0004.sql },
 ];
 
 /** Any 64-bit number unique to this purpose. */

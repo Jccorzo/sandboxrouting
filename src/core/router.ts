@@ -33,6 +33,12 @@ export interface RouterOptions {
   strategies?: RoutingStrategy[];
   /** Where job checkpoints live. Default: in memory (createRouter uses $SBR_HOME/checkpoints). */
   checkpoints?: CheckpointStore;
+  /**
+   * At most this many sandboxes live (creating or running) at once, across every provider. A
+   * create past it is refused with a quota error, decided in the write that reserves the slot.
+   * The hosted router sets it per account. Default: no limit.
+   */
+  maxLive?: number;
 }
 
 export interface ProviderStatus {
@@ -81,6 +87,7 @@ export class SandboxRouter {
   readonly now: () => number;
   private usageCache = new Map<string, { at: number; usage: ProviderUsage }>();
   private jobManager?: JobManager;
+  private readonly maxLive?: number;
 
   constructor(opts: RouterOptions = {}) {
     this.config = parseConfig(opts.config ?? {});
@@ -88,6 +95,7 @@ export class SandboxRouter {
     this.env = opts.env ?? process.env;
     this.now = opts.now ?? Date.now;
     this.checkpoints = opts.checkpoints ?? new MemoryCheckpointStore(this.now);
+    if (opts.maxLive !== undefined) this.maxLive = opts.maxLive;
     this.registry = new StrategyRegistry();
     for (const s of opts.strategies ?? []) this.registry.register(s);
     for (const p of opts.providers ?? []) this.register(p);
@@ -214,6 +222,12 @@ export class SandboxRouter {
       // take the last free slot or the last of a budget. A request planned as free never
       // quietly becomes paid: it moves on to the next candidate, which may still be free.
       const reserved = await this.ledger.update((data): true | { reason: string; until?: number } => {
+        if (this.maxLive !== undefined) {
+          const now = this.now();
+          const live = Object.values(data.sandboxes).filter((r) => isLive(r, now)).length;
+          // Not this provider's refusal, so no mark: nothing changes until a sandbox ends.
+          if (live >= this.maxLive) throw new SandboxRouterError("quota", `${live} sandboxes are live, and this account may have at most ${this.maxLive} at once; kill one first`);
+        }
         const again = eligibility(this.policyInput(data, resolved), entry.provider);
         if (!again.ok) return again;
         const problem = billingProblem(again.candidate, entry.billing);

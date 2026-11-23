@@ -23,8 +23,10 @@
   },
   "dependencies": {
     "@hono/node-server": "^2.1.11",
+    "@modelcontextprotocol/sdk": "^1.32.2",
     "hono": "^4.13.19",
     "pg": "^8.23.1",
+    "undici": "^7.30.2",
     "zod": "^3.25.76"
   },
   "devDependencies": {

@@ -5,6 +5,7 @@
 //   DELETE /v1/sessions/current     session      signs that session out
 //   POST /v1/ingest                 ingest key   a router's batch of events
 //   GET  /v1/me                     any key      who the key (or session) belongs to
+//   (router keys call the hosted router, back/src/hosted-router/, and only /v1/me here)
 //   (admin: an admin key, or a signed-in session)
 //   GET  /v1/usage?days=30          admin        sandboxes, sandbox-hours, GiB-hours, USD per day and provider
 //   GET  /v1/providers              admin        spend, free usage left, marks, health and breaker per provider
@@ -22,9 +23,9 @@
 import { Hono, type Context } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import { z } from "zod";
-import type { Db } from "./db.js";
+import type { Db, Queryable } from "./db.js";
 import { IngestError, ingest } from "./ingest.js";
-import { createKey, listKeys, lockAccount, revokeKey, sameSecret } from "./keys.js";
+import { createKey, listKeys, lockAccount, revokeKey, sameSecret, underAccountLock } from "./keys.js";
 import { exchangeCode, GitHubError, type GitHubConfig } from "./github.js";
 import { revokeSession, signIn } from "./sessions.js";
 import type { SecretBox } from "./secrets.js";
@@ -151,7 +152,7 @@ export function createApp(opts: AppOptions): Hono<Env> {
   });
 
   // ---------------------------------------------------------------- reads
-  app.get("/v1/me", guard(["ingest", "admin"], "read"), async (c) => {
+  app.get("/v1/me", guard(["ingest", "admin", "router"], "read"), async (c) => {
     const p = c.get("principal");
     return c.json(await reads.me(db, p));
   });
@@ -174,10 +175,10 @@ export function createApp(opts: AppOptions): Hono<Env> {
     return c.json(out);
   });
 
-  const newKey = z.object({ name: z.string().trim().min(1).max(100), scope: z.enum(["ingest", "admin"]) }).strict();
+  const newKey = z.object({ name: z.string().trim().min(1).max(100), scope: z.enum(["ingest", "admin", "router"]) }).strict();
   app.post("/v1/keys", guard(["admin"], "keys.manage"), async (c) => {
     const parsed = newKey.safeParse(await c.req.json().catch(() => undefined));
-    if (!parsed.success) return fail(c, 400, "invalid", "send { name, scope: \"ingest\" | \"admin\" }");
+    if (!parsed.success) return fail(c, 400, "invalid", "send { name, scope: \"ingest\" | \"admin\" | \"router\" }");
     const p = c.get("principal");
     const out = await db.tx(async (q) => {
       await lockAccount(q, p.accountId);
@@ -212,12 +213,7 @@ export function createApp(opts: AppOptions): Hono<Env> {
 
   // ---------------------------------------------------------------- saved provider keys and config
   /** Runs a write under the account's lock, after re-checking the caller's authority there. */
-  const locked = <T>(p: Principal, fn: (q: Parameters<Parameters<Db["tx"]>[0]>[0]) => Promise<T>) =>
-    db.tx(async (q) => {
-      await lockAccount(q, p.accountId);
-      if (!(await plugins.auth.stillAuthorized(p, q))) return { unauthorized: true as const };
-      return { value: await fn(q) };
-    });
+  const locked = <T>(p: Principal, fn: (q: Queryable) => Promise<T>) => underAccountLock(db, plugins.auth, p, fn);
   const revokedMeanwhile = (c: Context) => fail(c, 401, "unauthorized", "Your key or sign-in was revoked meanwhile.");
   const version = z.number().int().min(0).max(2 ** 31 - 2);
 

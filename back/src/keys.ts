@@ -58,6 +58,18 @@ export const apiKeyAuth: AuthProvider = {
   },
 };
 
+/**
+ * Runs a write under the account's lock, after re-checking there that the caller still holds its
+ * authority (key not revoked, sign-in not ended, account not disabled since it authenticated).
+ */
+export function underAccountLock<T>(db: Db, auth: AuthProvider, p: Principal, fn: (q: Queryable) => Promise<T>): Promise<{ unauthorized: true } | { value: T }> {
+  return db.tx(async (q) => {
+    const account = await lockAccount(q, p.accountId);
+    if (account?.status !== "active" || !(await auth.stillAuthorized(p, q))) return { unauthorized: true as const };
+    return { value: await fn(q) };
+  });
+}
+
 /** Takes the account's row lock: every write that depends on the account's keys or state goes through here first. */
 export async function lockAccount(q: Queryable, accountId: string): Promise<{ status: string } | undefined> {
   const { rows } = await q.query<{ status: string }>("SELECT status FROM accounts WHERE id = $1 FOR UPDATE", [accountId]);
@@ -140,12 +152,11 @@ const BOOTSTRAP_LOCK = 7_270_720_002;
  * a key that exists, in whatever state, is left as it is.
  */
 export async function bootstrap(db: Db, tokens: { admin?: string; ingest?: string }, accountName = "default"): Promise<void> {
-  const wanted = (
-    [
-      ["admin", tokens.admin],
-      ["ingest", tokens.ingest],
-    ] as const
-  ).filter((t): t is readonly [Scope, string] => Boolean(t[1]));
+  const listed: [Extract<Scope, "admin" | "ingest">, string | undefined][] = [
+    ["admin", tokens.admin],
+    ["ingest", tokens.ingest],
+  ];
+  const wanted = listed.flatMap(([scope, token]) => (token ? [[scope, token] as const] : []));
   if (!wanted.length) return;
   for (const [scope, token] of wanted) {
     if (token.length < 24) throw new Error(`SBR_${scope.toUpperCase()}_TOKEN must be at least 24 characters (try: openssl rand -base64 32)`);

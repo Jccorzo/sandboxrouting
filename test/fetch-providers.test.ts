@@ -283,6 +283,18 @@ describe("daytona over HTTP", () => {
     expect((await daytonaProvider.listAlive!(ctx)).sort()).toEqual([a.providerSandboxId, b.providerSandboxId]);
   });
 
+  it("doesn't hand one key's cached toolbox URL to a caller with another key (the hosted router runs many accounts in one process)", async () => {
+    const api = await daytonaMock();
+    const ctx: ProviderContext = { env: envFor(api.url), options: { pollMs: 5 } };
+    const { providerSandboxId: id } = await daytonaProvider.create(spec, ctx);
+    await daytonaProvider.exec(id, "true", {}, ctx);
+    const before = api.seen.length;
+    const other: ProviderContext = { env: { ...envFor(api.url), DAYTONA_API_KEY: "someone-else" }, options: { pollMs: 5 } };
+    expect(await kindOf(daytonaProvider.exec(id, "true", {}, other))).toBe("auth");
+    // Its own key asked the control plane for the toolbox, instead of reusing the first caller's.
+    expect(api.seen[before]).toBe(`GET /sandbox/${id}/toolbox-proxy-url`);
+  });
+
   it("keeps the refusals the router reads", async () => {
     const api = await daytonaMock();
     expect(await kindOf(daytonaProvider.create(spec, { env: { ...envFor(api.url), DAYTONA_API_KEY: "wrong" }, options: {} }))).toBe("auth");

@@ -689,7 +689,24 @@ That runs Postgres, back on port 8787 and the dashboard on port 3000. Sign in wi
 | `BACK_URL` | back as the dashboard's server reaches it (required). |
 | `BACK_PUBLIC_URL` | back as routers reach it, for the setup snippet. |
 | `DASHBOARD_PUBLIC_URL` | The dashboard as browsers reach it, for GitHub's callback. Default: the forwarded host. |
+| `ROUTER_PUBLIC_URL` | The hosted router as router keys reach it, for the setup snippet. Unset: no router keys offered. |
 | `PORT` | Default 3000. |
+
+| hosted router (back's image, `node back/dist/hosted.js`; the compose file's `router` profile) | |
+|---|---|
+| `DATABASE_URL` | back's database (required). It never migrates; it refuses to start while one is pending. |
+| `SBR_SECRETS_KEY` or `SBR_KMS_KEY` | The same key back seals saved provider keys with (required): this service opens them. |
+| `SBR_SWEEP_TOKEN` | Lets a cron call `POST /internal/sweep`: deletes sandboxes past deadlines their provider doesn't enforce, and boxes the ledger closed that still run. Run it every few minutes. |
+| `SBR_HOSTED_MAX_LIVE` | Live sandboxes an account may have at once. Default 10. |
+| `PORT` | Default 8788. |
+
+The hosted router serves `POST /mcp` (MCP over streamable HTTP, stateless) and the router's REST
+API under `/v1` (no jobs: they need a process that stays up), to router keys made on the API keys
+page. Each request runs a router for that account alone: the providers it saved keys for (the
+audited list on the Provider keys page), its Routing config, and a ledger in Postgres whose every
+write updates the dashboard in the same transaction. Its MCP server adds `list_connections`,
+`connect_provider`, `remove_provider`, `get_config` and `set_config`. Every outgoing connection
+goes through a guard that refuses private, loopback, link-local and metadata addresses.
 
 Nothing has to run in the background: whatever changes with time (a sandbox past its deadline,
 a mark that lapsed, a job whose runner stopped) is worked out when the dashboard reads it, with

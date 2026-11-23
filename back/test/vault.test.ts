@@ -177,7 +177,7 @@ describe("migration 3 on a database with data", () => {
     await migrate(db, MIGRATIONS.slice(0, 2));
     const { accountId, adminToken } = await createAccount(db, "before");
     const s = await signIn(db, allowEverything, { githubId: 3, login: "pre" });
-    expect(await migrate(db)).toEqual([3]);
+    expect(await migrate(db, MIGRATIONS.slice(0, 3))).toEqual([3]);
     expect(await defaultAuth.authenticate(adminToken, db)).toMatchObject({ accountId });
     if (s.outcome !== "signed-in") throw new Error(s.outcome);
     expect(await defaultAuth.authenticate(s.token, db)).toMatchObject({ via: "session" });

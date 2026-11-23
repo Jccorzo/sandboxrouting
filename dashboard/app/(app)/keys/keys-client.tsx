@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Check, Copy, KeyRound, Loader2, TriangleAlert } from "lucide-react";
-import type { CreatedKey, KeyView, KeysView, Me } from "@sandboxrouting/back/api";
+import type { CreatedKey, KeyScope, KeyView, KeysView, Me } from "@sandboxrouting/back/api";
 import { api } from "@/lib/api";
 import { usePoll } from "@/lib/use-poll";
 import { EmptyState, Freshness, Loaded, PageHeader, Section, TableSkeleton } from "@/components/view";
@@ -19,7 +19,9 @@ type RowAction = { state: "confirming" } | { state: "busy" } | { state: "failed"
 
 type CreateState = { state: "idle" } | { state: "busy" } | { state: "failed"; message: string } | { state: "created"; created: CreatedKey };
 
-export function KeysClient({ publicUrl, welcome = false }: { publicUrl: string; welcome?: boolean }) {
+const SCOPE_LABEL: Record<KeyScope, string> = { ingest: "Ingest", admin: "Admin", router: "Router" };
+
+export function KeysClient({ publicUrl, routerUrl, welcome = false }: { publicUrl: string; routerUrl?: string; welcome?: boolean }) {
   const keys = usePoll<KeysView>("keys", 30_000);
   const me = usePoll<Me>("me", 120_000);
   const [rows, setRows] = useState<Record<string, RowAction>>({});
@@ -49,7 +51,7 @@ export function KeysClient({ publicUrl, welcome = false }: { publicUrl: string; 
 
   return (
     <>
-      <PageHeader title="API keys" description="Ingest keys let a router send its events here. Admin keys manage this account from scripts (and sign in to a self-hosted dashboard). back stores only a hash: a key is shown once, when you make it.">
+      <PageHeader title="API keys" description={`Ingest keys let a router send its events here. Admin keys manage this account from scripts (and sign in to a self-hosted dashboard).${routerUrl ? " Router keys call the hosted router, over MCP or REST, with the provider keys you saved." : ""} back stores only a hash: a key is shown once, when you make it.`}>
         <Freshness view={keys} onRetry={keys.refresh} />
       </PageHeader>
 
@@ -60,7 +62,7 @@ export function KeysClient({ publicUrl, welcome = false }: { publicUrl: string; 
         </div>
       )}
 
-      <CreateKey publicUrl={publicUrl} onCreated={keys.refresh} />
+      <CreateKey publicUrl={publicUrl} routerUrl={routerUrl} onCreated={keys.refresh} />
 
       <Section title="Keys" className="mt-12">
         <Loaded view={keys} skeleton={<TableSkeleton rows={3} cols={5} />}>
@@ -91,7 +93,7 @@ export function KeysClient({ publicUrl, welcome = false }: { publicUrl: string; 
                           {k.id === mine && <span className="ml-2 rounded bg-brand-wash px-1.5 py-0.5 text-[11px] font-medium text-brand-ink">this session</span>}
                         </TableCell>
                         <TableCell className="font-mono text-[12.5px]">{k.prefix}…</TableCell>
-                        <TableCell>{k.scope === "admin" ? "Admin" : "Ingest"}</TableCell>
+                        <TableCell>{SCOPE_LABEL[k.scope]}</TableCell>
                         <TableCell title={k.createdAt}>{relative(k.createdAt, now)}</TableCell>
                         <TableCell>{k.lastUsedAt ? relative(k.lastUsedAt, now) : "never"}</TableCell>
                         <TableCell className="text-right">
@@ -135,9 +137,9 @@ export function KeysClient({ publicUrl, welcome = false }: { publicUrl: string; 
   );
 }
 
-function CreateKey({ publicUrl, onCreated }: { publicUrl: string; onCreated: () => void }) {
+function CreateKey({ publicUrl, routerUrl, onCreated }: { publicUrl: string; routerUrl?: string; onCreated: () => void }) {
   const [name, setName] = useState("");
-  const [scope, setScope] = useState<"ingest" | "admin">("ingest");
+  const [scope, setScope] = useState<KeyScope>(routerUrl ? "router" : "ingest");
   const [state, setState] = useState<CreateState>({ state: "idle" });
 
   async function submit(e: React.FormEvent) {
@@ -171,8 +173,9 @@ function CreateKey({ publicUrl, onCreated }: { publicUrl: string; onCreated: () 
             value={scope}
             onChange={setScope}
             options={[
-              { value: "ingest", label: "Ingest" },
-              { value: "admin", label: "Admin" },
+              ...(routerUrl ? [{ value: "router" as const, label: "Router" }] : []),
+              { value: "ingest" as const, label: "Ingest" },
+              { value: "admin" as const, label: "Admin" },
             ]}
             className="flex h-9"
           />
@@ -187,15 +190,17 @@ function CreateKey({ publicUrl, onCreated }: { publicUrl: string; onCreated: () 
           {state.message}
         </p>
       )}
-      {state.state === "created" && <NewToken created={state.created} publicUrl={publicUrl} onDismiss={() => setState({ state: "idle" })} />}
+      {state.state === "created" && <NewToken created={state.created} publicUrl={publicUrl} routerUrl={routerUrl} onDismiss={() => setState({ state: "idle" })} />}
     </section>
   );
 }
 
-function NewToken({ created, publicUrl, onDismiss }: { created: CreatedKey; publicUrl: string; onDismiss: () => void }) {
-  const [copied, setCopied] = useState<"token" | "env" | null>(null);
+function NewToken({ created, publicUrl, routerUrl, onDismiss }: { created: CreatedKey; publicUrl: string; routerUrl?: string; onDismiss: () => void }) {
+  const [copied, setCopied] = useState<"token" | "env" | "mcp" | "rest" | null>(null);
   const env = `SBR_REPORT_URL=${publicUrl}\nSBR_REPORT_TOKEN=${created.token}`;
-  const copy = async (what: "token" | "env", text: string) => {
+  const mcp = `claude mcp add --transport http sandboxrouting ${routerUrl ?? ""}/mcp \\\n  --header "Authorization: Bearer ${created.token}"`;
+  const rest = `curl -X POST ${routerUrl ?? ""}/v1/sandboxes \\\n  -H "Authorization: Bearer ${created.token}" -d '{"timeoutSec": 300}'`;
+  const copy = async (what: "token" | "env" | "mcp" | "rest", text: string) => {
     try {
       await navigator.clipboard.writeText(text);
       setCopied(what);
@@ -210,7 +215,7 @@ function NewToken({ created, publicUrl, onDismiss }: { created: CreatedKey; publ
         <KeyRound className="mt-0.5 size-4 text-brand-ink" />
         <div className="min-w-0 flex-1">
           <p className="text-[13.5px] font-medium">
-            {created.key.name}: {created.key.scope === "admin" ? "admin" : "ingest"} key made
+            {created.key.name}: {SCOPE_LABEL[created.key.scope].toLowerCase()} key made
           </p>
           <p className="mt-0.5 inline-flex items-center gap-1.5 text-[12.5px] text-warning-ink">
             <TriangleAlert className="size-3.5" /> Copy it now. back keeps only its hash; it won&apos;t be shown again.
@@ -232,11 +237,32 @@ function NewToken({ created, publicUrl, onDismiss }: { created: CreatedKey; publ
               </div>
             </>
           )}
+          {created.key.scope === "router" && routerUrl && (
+            <>
+              <p className="mt-4 text-[12.5px] text-muted-foreground">
+                Add the hosted router to an MCP client (Claude Code shown; any client that speaks streamable HTTP and sends a header works). It routes with the provider keys saved on the Provider keys page.
+              </p>
+              <Snippet text={mcp} copied={copied === "mcp"} onCopy={() => copy("mcp", mcp)} />
+              <p className="mt-3 text-[12.5px] text-muted-foreground">Or call its REST API:</p>
+              <Snippet text={rest} copied={copied === "rest"} onCopy={() => copy("rest", rest)} />
+            </>
+          )}
           <Button size="xs" variant="ghost" className="mt-3 -ml-2.5" onClick={onDismiss}>
             I&apos;ve saved it
           </Button>
         </div>
       </div>
+    </div>
+  );
+}
+
+function Snippet({ text, copied, onCopy }: { text: string; copied: boolean; onCopy: () => void }) {
+  return (
+    <div className="mt-1.5 flex items-start gap-2">
+      <pre className="min-w-0 flex-1 overflow-x-auto rounded-md border bg-panel px-3 py-2 font-mono text-[12px] leading-relaxed">{text}</pre>
+      <Button size="sm" variant="outline" onClick={onCopy}>
+        {copied ? <Check /> : <Copy />} {copied ? "Copied" : "Copy"}
+      </Button>
     </div>
   );
 }

@@ -4,6 +4,7 @@
 // - the toolbox inside each sandbox, at `{toolboxProxyUrl}/{sandboxId}` with the same Bearer key,
 //   OpenAPI https://www.daytona.io/docs/toolbox-openapi.json. MCP: `daytona mcp start`.
 
+import { createHash } from "node:crypto";
 import { defineProvider, http, httpJson } from "./util.js";
 import { pollMs, sleep } from "./rest-helpers.js";
 import type { ProviderContext } from "../core/types.js";
@@ -27,15 +28,22 @@ function api<T>(ctx: ProviderContext, path: string, init: { method?: string; bod
   return httpJson<T>(`${apiUrl(ctx)}${path}`, { ...init, headers: headers(ctx), timeoutMs: init.timeoutMs ?? 60_000 });
 }
 
-/** Toolbox base URL per sandbox: it doesn't change while the sandbox lives. */
+/**
+ * Toolbox base URL per sandbox: it doesn't change while the sandbox lives. Keyed by the control
+ * plane and a hash of the key as well as the sandbox, so a process serving several people (the
+ * hosted router) never hands one key's answer to a caller with another key.
+ */
 const toolboxes = new Map<string, string>();
+const toolboxKey = (id: string, ctx: ProviderContext) =>
+  `${apiUrl(ctx)}\0${createHash("sha256").update(ctx.env["DAYTONA_API_KEY"] ?? "").digest("hex")}\0${id}`;
 
 async function toolbox(id: string, ctx: ProviderContext, dto?: SandboxDto): Promise<string> {
-  const hit = toolboxes.get(id);
+  const key = toolboxKey(id, ctx);
+  const hit = toolboxes.get(key);
   if (hit) return hit;
   const proxy = dto?.toolboxProxyUrl ?? (await api<{ url: string }>(ctx, `/sandbox/${encodeURIComponent(id)}/toolbox-proxy-url`)).url;
   const base = `${proxy.replace(/\/+$/, "")}/${id}`;
-  toolboxes.set(id, base);
+  toolboxes.set(key, base);
   return base;
 }
 
@@ -163,7 +171,7 @@ export const daytonaProvider = defineProvider({
   },
 
   async kill(id, ctx) {
-    toolboxes.delete(id);
+    toolboxes.delete(toolboxKey(id, ctx));
     await api(ctx, `/sandbox/${encodeURIComponent(id)}`, { method: "DELETE", timeoutMs: WAIT_SEC * 1000 });
   },
 

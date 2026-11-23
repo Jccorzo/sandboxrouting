@@ -7,5 +7,7 @@ export default async function KeysPage({ searchParams }: { searchParams: Promise
   const welcome = (await searchParams)["welcome"] === "1";
   // Where routers reach back, for the setup snippet (BACK_PUBLIC_URL; BACK_URL is often internal).
   const publicUrl = process.env["BACK_PUBLIC_URL"] ?? process.env["BACK_URL"] ?? "https://your-back.example";
-  return <KeysClient publicUrl={publicUrl.replace(/\/+$/, "")} welcome={welcome} />;
+  // The hosted router (ROUTER_PUBLIC_URL), when this deployment runs one: router keys call it.
+  const routerUrl = process.env["ROUTER_PUBLIC_URL"]?.replace(/\/+$/, "") || undefined;
+  return <KeysClient publicUrl={publicUrl.replace(/\/+$/, "")} routerUrl={routerUrl} welcome={welcome} />;
 }

@@ -6,6 +6,9 @@
 import type { CatalogEntry, CatalogField } from "../../src/hosted/catalog-types.js";
 import type { Availability, EffectiveJobState, EffectiveState, FreeStatus, ProviderHealth, QuotaState } from "./router.js";
 
+/** ingest: a router sends events. admin: the dashboard and key management. router: calls the hosted router. */
+export type KeyScope = "ingest" | "admin" | "router";
+
 export type { CatalogEntry, CatalogField };
 export type { Availability, EffectiveJobState, EffectiveState, FreeStatus, ProviderHealth, QuotaState };
 
@@ -17,7 +20,7 @@ export interface Timed {
 export interface Me extends Timed {
   account: { id: string; name: string };
   /** The key or session used (a session is always admin). */
-  key: { id: string; scope: "ingest" | "admin" };
+  key: { id: string; scope: KeyScope };
   via: "key" | "session";
   /** Who is signed in, for a session. */
   user?: { id: string; login: string };
@@ -184,8 +187,8 @@ export interface RefusalsView extends Timed {
 }
 
 export type KeyView =
-  | { id: string; name: string; scope: "ingest" | "admin"; prefix: string; state: "active"; createdAt: string; lastUsedAt: string | null }
-  | { id: string; name: string; scope: "ingest" | "admin"; prefix: string; state: "revoked"; createdAt: string; revokedAt: string; lastUsedAt: string | null };
+  | { id: string; name: string; scope: KeyScope; prefix: string; state: "active"; createdAt: string; lastUsedAt: string | null }
+  | { id: string; name: string; scope: KeyScope; prefix: string; state: "revoked"; createdAt: string; revokedAt: string; lastUsedAt: string | null };
 
 export interface KeysView extends Timed {
   keys: KeyView[];

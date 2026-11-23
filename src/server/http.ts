@@ -109,151 +109,174 @@ async function conflictOr(res: ServerResponse, jobs: JobManagerApi, id: string, 
   send(res, 409, { error: err.message, kind: err.kind, job: await jobs.get(id) });
 }
 
+export interface HandleOptions {
+  /**
+   * Jobs keep driving after the request that started them returns, so they need a process that
+   * lives on. false: /v1/jobs answers 404 and /v1/sweep leaves jobs alone (the hosted router,
+   * which builds a router per request). Default true.
+   */
+  jobs?: boolean;
+}
+
 export function createServer(router: SandboxRouter): Server {
-  const jobs: JobManagerApi = router.jobs;
   return createHttpServer(async (req, res) => {
-    try {
-      if (!authorized(req, router.config.serverToken)) return send(res, 401, { error: "unauthorized" });
-      const url = new URL(req.url ?? "/", "http://localhost");
-      const parts = url.pathname.split("/").filter(Boolean).map(decodeURIComponent);
-      const method = req.method ?? "GET";
-      if (parts[0] !== "v1") return send(res, 404, { error: "not found" });
-      const [, resource, id, sub, subsub] = parts;
+    if (!authorized(req, router.config.serverToken)) return send(res, 401, { error: "unauthorized" });
+    await handleRequest(router, req, res);
+  });
+}
 
-      if (resource === "health") return send(res, 200, { ok: true });
-      if (resource === "providers" && method === "GET") {
-        return send(res, 200, await router.status({ refreshUsage: url.searchParams.get("refresh") === "1" }));
-      }
-      if (resource === "strategies" && method === "GET") {
-        const active = strategyNameFor(router.config);
-        return send(res, 200, router.strategies().map((s) => ({ name: s.name, description: s.description, active: s.name === active })));
-      }
-      if (resource === "route" && method === "POST") {
-        const spec = await json<SandboxSpec>(req);
-        if (url.searchParams.get("compare") !== "1") return send(res, 200, await router.plan(spec));
-        // The same request under every strategy, so the request's own `strategy` doesn't matter.
-        const plans = await Promise.all(router.strategies().map((s) => router.plan({ ...spec, strategy: s.name })));
-        return send(res, 200, Object.fromEntries(plans.map((p) => [p.strategy, p])));
-      }
-      if (resource === "sweep" && method === "POST") {
-        const sandboxes = await router.sweep({ remote: true });
-        // This server lives on, so it can drive orphaned jobs itself.
-        return send(res, 200, { sandboxes, jobs: await jobs.sweep({ resumeOrphans: true }) });
-      }
+/**
+ * Answers one REST request with `router`. The caller has already decided who may call: the local
+ * server checks `serverToken`; the hosted router checks the account's key and builds its router.
+ */
+export async function handleRequest(router: SandboxRouter, req: IncomingMessage, res: ServerResponse, opts: HandleOptions = {}): Promise<void> {
+  const withJobs = opts.jobs !== false;
+  const jobs = (): JobManagerApi => router.jobs;
+  try {
+    const url = new URL(req.url ?? "/", "http://localhost");
+    const parts = url.pathname.split("/").filter(Boolean).map(decodeURIComponent);
+    const method = req.method ?? "GET";
+    if (parts[0] !== "v1") return send(res, 404, { error: "not found" });
+    const [, resource, id, sub, subsub] = parts;
 
-      if (resource === "sandboxes") {
-        if (!id) {
-          if (method === "POST") {
-            const sbx = await router.create(await json<SandboxSpec>(req));
-            return send(res, 201, { ...(await sbx.info()), route: sbx.route });
-          }
-          if (method === "GET") return send(res, 200, await router.list({ all: url.searchParams.get("all") === "1" }));
-        } else {
-          if (!sub && method === "GET") {
-            const view = await router.get(id);
-            return view ? send(res, 200, view) : send(res, 404, { error: `no sandbox ${id}` });
-          }
-          if (!sub && method === "DELETE") {
-            await router.kill(id);
-            return send(res, 200, await router.get(id));
-          }
-          // Before connect: move connects itself, and connecting twice to a provider:id would adopt it twice.
-          if (sub === "move" && method === "POST") {
-            const b = await json<{ workdir?: string; spec?: SandboxSpec }>(req);
-            if (b.workdir !== undefined && typeof b.workdir !== "string") return send(res, 400, { error: "workdir must be a path" });
-            const sbx = await router.move(id, { workdir: b.workdir, spec: b.spec });
-            return send(res, 201, { ...(await sbx.info()), route: sbx.route });
-          }
-          const sbx = await router.connect(id);
-          const path = url.searchParams.get("path") ?? ".";
-          if (sub === "exec" && method === "POST") {
-            const b = await json<{ command: string; cwd?: string; env?: Record<string, string>; timeoutSec?: number }>(req);
-            if (typeof b.command !== "string") return send(res, 400, { error: "command is required" });
-            return send(res, 200, await sbx.commands.run(b.command, b));
-          }
-          if (sub === "files" && subsub === "list" && method === "GET") return send(res, 200, await sbx.files.list(path));
-          if (sub === "files" && !subsub && method === "GET") {
-            const data = await sbx.files.readBytes(path);
-            res.writeHead(200, { "content-type": "application/octet-stream", "content-length": data.length });
-            return res.end(data);
-          }
-          if (sub === "files" && !subsub && method === "PUT") {
-            await sbx.files.write(path, new Uint8Array(await body(req)));
-            return send(res, 200, { ok: true });
-          }
-          if (sub === "url" && method === "GET") return send(res, 200, { url: await sbx.getUrl(Number(url.searchParams.get("port"))) });
-          if (sub === "timeout" && method === "POST") {
-            await sbx.setTimeout((await json<{ timeoutSec: number }>(req)).timeoutSec);
-            return send(res, 200, await sbx.info());
-          }
-          if (sub === "pause" && method === "POST") {
-            await sbx.pause();
-            return send(res, 200, await sbx.info());
-          }
-          if (sub === "resume" && method === "POST") {
-            await sbx.resume();
-            return send(res, 200, await sbx.info());
-          }
+    if (resource === "health") return send(res, 200, { ok: true });
+    if (resource === "providers" && method === "GET") {
+      return send(res, 200, await router.status({ refreshUsage: url.searchParams.get("refresh") === "1" }));
+    }
+    if (resource === "strategies" && method === "GET") {
+      const active = strategyNameFor(router.config);
+      return send(res, 200, router.strategies().map((s) => ({ name: s.name, description: s.description, active: s.name === active })));
+    }
+    if (resource === "route" && method === "POST") {
+      const spec = await json<SandboxSpec>(req);
+      if (url.searchParams.get("compare") !== "1") return send(res, 200, await router.plan(spec));
+      // The same request under every strategy, so the request's own `strategy` doesn't matter.
+      const plans = await Promise.all(router.strategies().map((s) => router.plan({ ...spec, strategy: s.name })));
+      return send(res, 200, Object.fromEntries(plans.map((p) => [p.strategy, p])));
+    }
+    if (resource === "sweep" && method === "POST") {
+      const sandboxes = await router.sweep({ remote: true });
+      if (!withJobs) return send(res, 200, { sandboxes });
+      // This server lives on, so it can drive orphaned jobs itself.
+      return send(res, 200, { sandboxes, jobs: await jobs().sweep({ resumeOrphans: true }) });
+    }
+
+    if (resource === "sandboxes") {
+      if (!id) {
+        if (method === "POST") {
+          const sbx = await router.create(await json<SandboxSpec>(req));
+          return send(res, 201, { ...(await sbx.info()), route: sbx.route });
+        }
+        if (method === "GET") return send(res, 200, await router.list({ all: url.searchParams.get("all") === "1" }));
+      } else {
+        if (!sub && method === "GET") {
+          const view = await router.get(id);
+          return view ? send(res, 200, view) : send(res, 404, { error: `no sandbox ${id}` });
+        }
+        if (!sub && method === "DELETE") {
+          await router.kill(id);
+          return send(res, 200, await router.get(id));
+        }
+        // Before connect: move connects itself, and connecting twice to a provider:id would adopt it twice.
+        if (sub === "move" && method === "POST") {
+          const b = await json<{ workdir?: string; spec?: SandboxSpec }>(req);
+          if (b.workdir !== undefined && typeof b.workdir !== "string") return send(res, 400, { error: "workdir must be a path" });
+          const sbx = await router.move(id, { workdir: b.workdir, spec: b.spec });
+          return send(res, 201, { ...(await sbx.info()), route: sbx.route });
+        }
+        const sbx = await router.connect(id);
+        const path = url.searchParams.get("path") ?? ".";
+        if (sub === "exec" && method === "POST") {
+          const b = await json<{ command: string; cwd?: string; env?: Record<string, string>; timeoutSec?: number }>(req);
+          if (typeof b.command !== "string") return send(res, 400, { error: "command is required" });
+          return send(res, 200, await sbx.commands.run(b.command, b));
+        }
+        if (sub === "files" && subsub === "list" && method === "GET") return send(res, 200, await sbx.files.list(path));
+        if (sub === "files" && !subsub && method === "GET") {
+          const data = await sbx.files.readBytes(path);
+          res.writeHead(200, { "content-type": "application/octet-stream", "content-length": data.length });
+          res.end(data);
+          return;
+        }
+        if (sub === "files" && !subsub && method === "PUT") {
+          await sbx.files.write(path, new Uint8Array(await body(req)));
+          return send(res, 200, { ok: true });
+        }
+        if (sub === "url" && method === "GET") return send(res, 200, { url: await sbx.getUrl(Number(url.searchParams.get("port"))) });
+        if (sub === "timeout" && method === "POST") {
+          await sbx.setTimeout((await json<{ timeoutSec: number }>(req)).timeoutSec);
+          return send(res, 200, await sbx.info());
+        }
+        if (sub === "pause" && method === "POST") {
+          await sbx.pause();
+          return send(res, 200, await sbx.info());
+        }
+        if (sub === "resume" && method === "POST") {
+          await sbx.resume();
+          return send(res, 200, await sbx.info());
         }
       }
+    }
 
-      if (resource === "jobs") {
-        if (!id) {
-          if (method === "POST") {
-            const spec = await json<JobSpec>(req);
-            // run() checks the request (checkJobSpec): an invalid one rejects before the claim, as a 400.
-            const { first, done } = start((opts) => jobs.run(spec, opts));
-            const started = await first;
-            if ("ended" in started) return send(res, 200, started.ended);
-            const jobId = started.claimed.id;
-            if (url.searchParams.get("wait") !== "1") {
-              inBackground(jobId, done);
-              return send(res, 202, started.claimed);
-            }
-            try {
-              return send(res, 200, await done);
-            } catch (raw) {
-              // Awaited, so anything but a conflict reaches the error handler below.
-              return await conflictOr(res, jobs, jobId, raw);
-            }
-          }
-          if (method === "GET") return send(res, 200, await jobs.list({ all: url.searchParams.get("all") === "1" }));
-        } else {
-          if (!sub && method === "GET") {
-            const view = await jobs.get(id);
-            return view ? send(res, 200, view) : send(res, 404, { error: `no job ${id}` });
-          }
-          if (sub === "resume" && method === "POST") {
-            // Decided by the claim itself, never by a read before it.
-            const { first, done } = start((opts) => jobs.resume(id, opts));
-            let started: Started;
-            try {
-              started = await first;
-            } catch (raw) {
-              // A runner here or elsewhere holds its lease: 409. An unknown job: 404 from the handler below.
-              return await conflictOr(res, jobs, id, raw);
-            }
-            // Already over: nothing was claimed, and the job says how it ended.
-            if ("ended" in started) return send(res, 200, started.ended);
-            inBackground(id, done);
+    if (resource === "jobs" && !withJobs) return send(res, 404, { error: "jobs aren't available here" });
+    if (resource === "jobs") {
+      const jobsApi = jobs();
+      if (!id) {
+        if (method === "POST") {
+          const spec = await json<JobSpec>(req);
+          // run() checks the request (checkJobSpec): an invalid one rejects before the claim, as a 400.
+          const { first, done } = start((opts) => jobsApi.run(spec, opts));
+          const started = await first;
+          if ("ended" in started) return send(res, 200, started.ended);
+          const jobId = started.claimed.id;
+          if (url.searchParams.get("wait") !== "1") {
+            inBackground(jobId, done);
             return send(res, 202, started.claimed);
           }
-          if (sub === "cancel" && method === "POST") return send(res, 200, await jobs.cancel(id));
-          if (sub === "workspace" && method === "GET") {
-            const data = await jobs.workspace(id);
-            if (!data) return send(res, 404, { error: `job ${id} has no workspace archive yet` });
-            res.writeHead(200, { "content-type": "application/gzip", "content-length": data.byteLength });
-            return res.end(data);
+          try {
+            return send(res, 200, await done);
+          } catch (raw) {
+            // Awaited, so anything but a conflict reaches the error handler below.
+            return await conflictOr(res, jobsApi, jobId, raw);
           }
         }
+        if (method === "GET") return send(res, 200, await jobsApi.list({ all: url.searchParams.get("all") === "1" }));
+      } else {
+        if (!sub && method === "GET") {
+          const view = await jobsApi.get(id);
+          return view ? send(res, 200, view) : send(res, 404, { error: `no job ${id}` });
+        }
+        if (sub === "resume" && method === "POST") {
+          // Decided by the claim itself, never by a read before it.
+          const { first, done } = start((opts) => jobsApi.resume(id, opts));
+          let started: Started;
+          try {
+            started = await first;
+          } catch (raw) {
+            // A runner here or elsewhere holds its lease: 409. An unknown job: 404 from the handler below.
+            return await conflictOr(res, jobsApi, id, raw);
+          }
+          // Already over: nothing was claimed, and the job says how it ended.
+          if ("ended" in started) return send(res, 200, started.ended);
+          inBackground(id, done);
+          return send(res, 202, started.claimed);
+        }
+        if (sub === "cancel" && method === "POST") return send(res, 200, await jobsApi.cancel(id));
+        if (sub === "workspace" && method === "GET") {
+          const data = await jobsApi.workspace(id);
+          if (!data) return send(res, 404, { error: `job ${id} has no workspace archive yet` });
+          res.writeHead(200, { "content-type": "application/gzip", "content-length": data.byteLength });
+          res.end(data);
+          return;
+        }
       }
-      send(res, 404, { error: "not found" });
-    } catch (raw) {
-      const status = (raw as { status?: number }).status;
-      if (status === 400 || status === 413) return send(res, status, { error: (raw as Error).message });
-      if (raw instanceof NoProviderAvailableError) return send(res, 503, { error: raw.message, attempts: raw.attempts });
-      const err = classify(raw);
-      send(res, STATUS[err.kind], { error: err.message, kind: err.kind, provider: err.provider });
     }
-  });
+    send(res, 404, { error: "not found" });
+  } catch (raw) {
+    const status = (raw as { status?: number }).status;
+    if (status === 400 || status === 413) return send(res, status, { error: (raw as Error).message });
+    if (raw instanceof NoProviderAvailableError) return send(res, 503, { error: raw.message, attempts: raw.attempts });
+    const err = classify(raw);
+    send(res, STATUS[err.kind], { error: err.message, kind: err.kind, provider: err.provider });
+  }
 }
