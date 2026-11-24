@@ -107,6 +107,60 @@ describe("groundbox", () => {
     const { url } = await mock(() => ({ status: 402, json: { error: { code: "trial_credit_exhausted", message: "The free credit is used up" } } }));
     await refused(groundboxProvider, { GROUNDBOX_API_KEY: "gbx_test", GROUNDBOX_API_URL: url }, "quota");
   });
+
+  // Until a card is on file, a call past a free limit gets 402 `trial_limit` with `details.limit`
+  // (groundbox.dev/docs/api.md). Read as quota, it would mark the one-time $5 spent for good.
+  const trialLimit = (limit: string) => ({
+    status: 402,
+    json: { error: { code: "trial_limit", message: "Past a free limit. Add a card to lift it.", details: { limit, claim_url: "https://groundbox.dev/claim/x" } } },
+  });
+
+  it("reads 2 sandboxes already live as a rate limit, not the free credit used up", async () => {
+    const { url } = await mock((r) => (r.method === "POST" && r.path === "/sandboxes" ? trialLimit("live_sandboxes") : undefined));
+    await refused(groundboxProvider, { GROUNDBOX_API_KEY: "gbx_test", GROUNDBOX_API_URL: url }, "rate_limit");
+  });
+
+  it("moves on from a size or lifetime over the free limits without marking the provider", async () => {
+    for (const limit of ["sandbox_size", "sandbox_lifetime"]) {
+      const { url } = await mock((r) => (r.method === "POST" && r.path === "/sandboxes" ? trialLimit(limit) : undefined));
+      await refused(groundboxProvider, { GROUNDBOX_API_KEY: "gbx_test", GROUNDBOX_API_URL: url }, "invalid");
+    }
+  });
+
+  it("reads a resume refused for 2 sandboxes already live as a rate limit", async () => {
+    const { url } = await mock((r) => (r.method === "POST" && r.path === "/sandboxes/sbx_x/resume" ? trialLimit("live_sandboxes") : undefined));
+    const err = await groundboxProvider.resume!("sbx_x", ctx({ GROUNDBOX_API_KEY: "k", GROUNDBOX_API_URL: url })).catch((e: unknown) => e);
+    expect(err).toMatchObject({ kind: "rate_limit" });
+  });
+
+  it("returns from pause and resume once the sandbox is paused or running, not while it is on its way", async () => {
+    let status = "running";
+    let reads = 0;
+    const { url } = await mock((r) => {
+      if (r.method === "POST" && r.path === "/sandboxes/sbx_x/pause") return (status = "pausing"), { json: { id: "sbx_x", status } };
+      if (r.method === "POST" && r.path === "/sandboxes/sbx_x/resume") return (status = "resuming"), { json: { id: "sbx_x", status } };
+      if (r.method === "GET" && r.path === "/sandboxes/sbx_x") {
+        // Two reads on the way, then there.
+        if (++reads % 3 === 0) status = status === "pausing" ? "paused" : status === "resuming" ? "running" : status;
+        return { json: { id: "sbx_x", status } };
+      }
+      return undefined;
+    });
+    const c = ctx({ GROUNDBOX_API_KEY: "k", GROUNDBOX_API_URL: url });
+    await groundboxProvider.pause!("sbx_x", c);
+    expect(status).toBe("paused");
+    await groundboxProvider.resume!("sbx_x", c);
+    expect(status).toBe("running");
+  });
+
+  it("fails a resume that ends anywhere but running", async () => {
+    const { url } = await mock((r) => {
+      if (r.method === "POST" && r.path === "/sandboxes/sbx_x/resume") return { json: { id: "sbx_x", status: "resuming" } };
+      if (r.method === "GET" && r.path === "/sandboxes/sbx_x") return { json: { id: "sbx_x", status: "failed", error: "host lost" } };
+      return undefined;
+    });
+    await expect(groundboxProvider.resume!("sbx_x", ctx({ GROUNDBOX_API_KEY: "k", GROUNDBOX_API_URL: url }))).rejects.toThrow(/is failed.*host lost/);
+  });
 });
 
 describe("briq", () => {

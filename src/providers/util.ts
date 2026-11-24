@@ -60,14 +60,15 @@ export class HttpError extends Error {
  * balance with 409, their own spending cap with 429 (which reads as a rate limit), or a plan
  * limit with 403 (which reads as a bad key). An adapter declares these once with `refusals` and
  * rethrows errors through the function it returns, so the router's marks see what the refusal
- * really is: `quota` (credit or a plan limit used up, waits for the period to reset) or
- * `rate_limit` (too many at once, clears when sandboxes end).
+ * really is: `quota` (credit or a plan limit used up, waits for the period to reset),
+ * `rate_limit` (too many at once, clears when sandboxes end) or `invalid` (this request alone is
+ * past a limit, such as a size: the router tries the next provider and marks nothing).
  */
 export interface Refusal {
   status: number;
   /** Matched against the error's message, which carries the response body. Omitted: any body. */
   body?: RegExp;
-  kind: Extract<ErrorKind, "quota" | "rate_limit">;
+  kind: Extract<ErrorKind, "quota" | "rate_limit" | "invalid">;
   /** What the refusal means, put before the provider's own message. */
   why?: string;
 }
