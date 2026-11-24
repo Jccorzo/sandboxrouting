@@ -6,7 +6,7 @@
 #
 # One-time setup:
 # - npm: after the first manual publish, add a trusted publisher on npmjs.com for this package
-#   (repository Jccorzo/sandboxrouting, workflow release.yml).
+#   (repository sandboxrouting/sandboxrouting, workflow release.yml).
 # - MCP Registry: the name com.sandboxrouting/* is verified by a TXT record on sandboxrouting.com.
 #   Store the Ed25519 private key (hex) as the MCP_DNS_PRIVATE_KEY secret. Without the secret the
 #   registry step is skipped.

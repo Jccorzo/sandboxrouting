@@ -5,15 +5,15 @@
   "description": "One MCP server for 108 cloud sandbox providers: free tiers first, failover, jobs that move boxes.",
   "websiteUrl": "https://sandboxrouting.com",
   "repository": {
-    "url": "https://github.com/Jccorzo/sandboxrouting",
+    "url": "https://github.com/sandboxrouting/sandboxrouting",
     "source": "github"
   },
-  "version": "0.3.0",
+  "version": "0.3.1",
   "packages": [
     {
       "registryType": "npm",
       "identifier": "sandboxrouting",
-      "version": "0.3.0",
+      "version": "0.3.1",
       "transport": {
         "type": "stdio"
       },
