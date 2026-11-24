@@ -1,6 +1,6 @@
 {
   "name": "sandboxrouting",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "One router for 108 sandbox providers (E2B, Daytona, Modal, Vercel, Cloudflare, Freestyle, Northflank, Luxor (was Tenki), InstaBox, Upstash Box, Boat, Agent37, AWS Lambda MicroVMs and more). Uses every free tier first. SDK, REST API, CLI and MCP server.",
   "keywords": [
     "sandbox",
@@ -26,11 +26,11 @@
   "mcpName": "com.sandboxrouting/sandboxrouting",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Jccorzo/sandboxrouting.git"
+    "url": "git+https://github.com/sandboxrouting/sandboxrouting.git"
   },
-  "homepage": "https://github.com/Jccorzo/sandboxrouting#readme",
+  "homepage": "https://github.com/sandboxrouting/sandboxrouting#readme",
   "bugs": {
-    "url": "https://github.com/Jccorzo/sandboxrouting/issues"
+    "url": "https://github.com/sandboxrouting/sandboxrouting/issues"
   },
   "engines": {
     "node": ">=20"
